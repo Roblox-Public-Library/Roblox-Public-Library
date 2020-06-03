@@ -1,0 +1,12 @@
+{
+	"name": "root-project",
+	"tree": {
+		"$className": "DataModel",
+		"ServerScriptService": {
+			"$className": "ServerScriptService",
+			"Checkers": {
+				"$path": "Checkers"
+			}
+		}
+	}
+}

@@ -1,0 +1,1 @@
+rojo serve all.project.json

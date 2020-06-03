@@ -1,7 +1,6 @@
 local Nexus = require("NexusUnitTesting")
 
-local root = game.ServerScriptService.Checkers
-local Checkers = root.ReplicatedStorage.Checkers
+local Checkers = game.ReplicatedStorage.Checkers
 local BoardParser = require(Checkers.BoardParser)
 local Board = require(Checkers.Board)
 local s = [[

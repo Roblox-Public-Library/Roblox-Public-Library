@@ -1,5 +1,4 @@
-return function(remotes)
-
+local Players = game.Players
 local Board = require(script.Parent.Board)
 local Move = Board.Move
 
@@ -14,12 +13,22 @@ function Game.new(board, checkersModel)
 		-- blackPlayer
 		turn == "Red",
 	}, Game)
+	return self:init()
+end
+function Game:init()
+	local model = self.checkersModel
+	model.Top:GetPropertyChangedSignal("Occupant"):Connect(function()
+		self:PlayerSatDown(Players:GetPlayerFromCharacter(model.Top.Occupant.Parent), self.redOnTop and "Red" or "Black")
+	end)
+	model.Bottom:GetPropertyChangedSignal("Occupant"):Connect(function()
+		self:PlayerSatDown(Players:GetPlayerFromCharacter(model.Bottom.Occupant.Parent), self.redOnTop and "Black" or "Red")
+	end)
 	return self
 end
 function Game.Deserialize(game)
 	-- Server->client only so no validation required
 	game.board = Board.Deserialize(game.board)
-	return setmetatable(game, Game)
+	return setmetatable(game, Game):init()
 end
 function Game:PlayerSatDown(player, team)
 	self[team == "Red" and "redPlayer" or "blackPlayer"] = player
@@ -35,4 +44,3 @@ function Game:TryMove(player, move)
 end
 
 return Game
-end
