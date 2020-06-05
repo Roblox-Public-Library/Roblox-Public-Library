@@ -1,0 +1,21 @@
+{
+	"name": "root-project",
+	"tree": {
+		"$className": "DataModel",
+		"ServerStorage": {
+			"$className": "ServerStorage",
+			"BookWriterPlugin": {
+				"$className": "Folder",
+				"Writer": {
+					"$path": "Writer"
+				}
+			}
+		},
+		"TestService": {
+			"$className": "TestService",
+			"Writer": {
+				"$path": "WriterTests"
+			}
+		}
+	}
+}
