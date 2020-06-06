@@ -69,7 +69,8 @@ function Board.blank(redOnTop)
 	local grid = {}
 	local empty = valueToSerialized[false]
 	for x = 1, 8 do
-		grid[x] = {}
+		local column = {}
+		grid[x] = column
 		for y = 1, 8 do
 			column[y] = empty
 		end
@@ -171,6 +172,18 @@ end
 local Move = {}
 Move.__index = Move
 Board.Move = Move
+local function validate(var, type)
+	return typeof(var) == type and var
+end
+local function validateListContents(list, func, ...)
+	for _, v in ipairs(list) do
+		if not func(v, ...) then return false end
+	end
+	return list
+end
+local function validateList(list, func, ...)
+	return validate(list, "table") and validateListContents(list, func, ...)
+end
 local function AssertList(list, func, ...)
 	Assert(list, "table")
 	for _, obj in ipairs(list) do func(obj, ...) end
@@ -327,7 +340,7 @@ function Board:GetAllValidMoves(team)
 	Assert(team, "string")
 	local allMoves = {}
 	for pos, piece in self:IterPieces(team) do
-		allMoves[("%d %d"):format(x, y)] = self:GetValidMoves(pos)
+		allMoves[("%d %d"):format(pos.X, pos.Y)] = self:GetValidMoves(pos)
 	end
 	return allMoves
 end

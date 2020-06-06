@@ -7,7 +7,7 @@ local function create(parent, type, name)
 	obj.Parent = parent
 	return obj
 end
-local remotes = game.ReplicatedStorage.Checkers
+local remotes = game.ReplicatedStorage.Remotes.Checkers
 for _, name in ipairs({
 	"NewGame", --(checkersModel, redOnTop)
 	"StartTurn", --(checkersModel, team)
@@ -24,11 +24,13 @@ for _, name in ipairs({
 	create(remotes, "RemoteFunction", name)
 end
 
-local Board = require(script.Parent.Board)
+local Checkers = game.ReplicatedStorage.Checkers
+local Board = require(Checkers.Board)
 local Move = Board.Move
+local Game = require(Checkers.Game)(remotes)
+
 local checkersModelToGame = {}
 
-local Game = require(Checkers.Game)(remotes)
 local base = Game.new
 function Game.new(checkersModel)
 	local self = base(Board.new(), checkersModel)
@@ -75,7 +77,7 @@ remotes.TryMove.OnServerEvent:Connect(function(player, checkersModel, move)
 	if not move then print("Invalid move") return end
 	local legal, eventList = game:TryMove(move)
 	if not legal then print("Illegal move") return end
-	self:Fire("MoveMade", eventList)
+	game:Fire("MoveMade", eventList)
 end)
 
 create(script, "BindableFunction", "Add").OnInvoke = function(model)

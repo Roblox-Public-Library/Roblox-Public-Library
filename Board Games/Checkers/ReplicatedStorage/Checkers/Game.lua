@@ -11,7 +11,7 @@ function Game.new(board, checkersModel)
 		board = board,
 		-- redPlayer
 		-- blackPlayer
-		turn == "Red",
+		turn = "Red",
 	}, Game)
 	return self:init()
 end
