@@ -1,4 +1,4 @@
---[[
+--[[Book Format Description
 The book format is a binary encoding. There is no formatting stack or "end bold" tags; the format simply indicates what will be used from now on.
 All formatting is cleared to defaults after every page break (including chapters) and so non-default formatting must be repeated. This allows the scripts to not have to parse through the entire book to see what formatting to use on the last page (assuming that the writer used at least one page break).
 	> If the book reader doesn't know whether a page should be on the left or right (ex because the user jumped to the middle from a bookmark), it should just put the content on the left page. If the user goes to the previous page until they hit the beginning of the book, this may cause a page to appear on the left when it should have been on the right, but this is okay.

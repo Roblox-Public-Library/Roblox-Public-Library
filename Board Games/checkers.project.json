@@ -5,7 +5,7 @@
 		"ServerScriptService": {
 			"$className": "ServerScriptService",
 			"Checkers": {
-				"$path": "src"
+				"$path": "Checkers"
 			}
 		}
 	}
