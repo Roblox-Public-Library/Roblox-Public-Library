@@ -1,6 +1,6 @@
 local Nexus = require("NexusUnitTesting")
 local Writer = require(game.ServerStorage.BookWriterPlugin.Writer)
-local File, TextCursor, Formats = Writer.File, Writer.TextCursor, Writer.Formats
+local FileContent, TextCursor, Formats = Writer.FileContent, Writer.TextCursor, Writer.Formats
 
 local Test = Nexus.UnitTest:Extend()
 function Test:__new(name, fileContent)
@@ -8,8 +8,8 @@ function Test:__new(name, fileContent)
 	self.fileContent = fileContent or ""
 end
 function Test:Setup()
-	self.f = File.new(self.fileContent)
-	self.c = TextCursor.new(self.f)
+	self.f = FileContent.new(self.fileContent)
+	self.c = TextCursor.new(self.f) -- todo put the cursor at the end of the file content
 end
 function Test:Teardown()
 	--self.f:Destroy()
@@ -18,14 +18,72 @@ end
 function Test:AssertContent(content)
 	self:AssertEquals(content, self.f:ToFormat(Formats.CustomMarkdown))
 end
+local function genRegisterTest(whereToRegister, baseFileContent)
+	--	whereToRegister: which unit test (or Nexus) to make tests a child of
+	--	baseFileContent: default file content (it can be overridden in the registerTest)
+	--	returned function: registerTest(name, fileContent, run)
+	whereToRegister = whereToRegister or Nexus
+	return function(name, fileContent, run)
+		--	fileContent can be omitted: RegisterTest(name, run)
+		if type(fileContent) == "function" then -- shift argument
+			run = fileContent
+			fileContent = nil
+		end
+		whereToRegister:RegisterUnitTest(Test.new(name, fileContent or baseFileContent):SetRun(run))
+	end
+end
+local function genRegisterTestInGroup(groupName, baseFileContent, parent)
+	local group = Test.new(groupName or error("groupName mandatory"))
+	;(parent or Nexus):RegisterUnitTest(group)
+	return genRegisterTest(group, baseFileContent), group
+end
+local registerTest = genRegisterTest()
 
-Nexus:RegisterUnitTest(Test.new("type in new file"):SetRun(function(t)
-	t.c:Type("hi")
-	t:AssertContent("hi")
-end))
+registerTest("type text in new file", function(t)
+	t.c:Type("text")
+	t:AssertContent("text")
+end)
+
+local afterText = genRegisterTestInGroup("type 'text' & navigate in new file", "text")
+afterText("backspace", function(t)
+	t.c:Backspace()
+	t:AssertContent("tex")
+end)
+afterText("delete nothing", function(t)
+	t.c:Delete()
+	t:AssertContent("text")
+end)
+afterText("left & delete", function(t)
+	t.c:Left()
+	t.c:Delete()
+	t:AssertContent("tex")
+end)
+afterText("home & delete", function(t)
+	t.c:Home()
+	t.c:Delete()
+	t:AssertContent("ext")
+end)
+
+
+local formatting = genRegisterTestInGroup("formatting sometext", "some")
+formatting("bold", function(t)
+	t.c:Bold(true)
+	t.c:Type("text")
+	t:AssertContent("some*text*")
+end)
+formatting("italics", function(t)
+	t.c:Italics(true)
+	t.c:Type("text")
+	t:AssertContent("some_text_")
+end)
+formatting("underline", function(t)
+	t.c:Underline(true)
+	t.c:Type("text")
+	t:AssertContent("some__text__")
+end)
 
 function smallBold(name, run)
-	Nexus:RegisterUnitTest(Test.new(name, "aa*bb*cc"):SetRun(run))
+	registerTest(name, "aa*bb*cc", run)
 end
 smallBold("Highlight & replace mixed formatting", function(t)
 	local f, c = t.f, t.c

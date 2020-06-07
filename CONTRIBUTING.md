@@ -1,3 +1,8 @@
+# Contributing
+
+* Strive to obey the Coding Style below
+* Try to add (or start with) test code whenever possible. (You can refer to the [template](https://github.com/Roblox-Public-Library/Roblox-Public-Library/wiki/TemplateNexusUnitTesting) for how to work with Nexus Unit Testing.) If you are unfamiliar with testing (or Test Driven Development), consider reviewing some [pros, cons, and tips](https://devqa.io/pros-cons-test-driven-development/). Even if we don't test everything, the more we have, the less we'll have to spend potentially hours tracking down bugs later.
+
 # Coding Style
 
 Please maintain a consistent style throughout the project ([here's why](https://stackoverflow.com/a/1325617)).
