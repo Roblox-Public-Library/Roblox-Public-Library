@@ -8,15 +8,16 @@ function Test:__new(name, fileContent)
 	self.fileContent = fileContent or ""
 end
 function Test:Setup()
-	self.f = FileContent.new(self.fileContent)
-	self.c = TextCursor.new(self.f) -- todo put the cursor at the end of the file content
+	self.f = FileContent.new(Formats.CustomMarkdown.ParseText(self.fileContent or ""))
+	self.c = TextCursor.new(self.f)
+	self.c:NavEndOfFile()
 end
 function Test:Teardown()
 	--self.f:Destroy()
 	--self.c:Destroy()
 end
 function Test:AssertContent(content)
-	self:AssertEquals(content, self.f:ToFormat(Formats.CustomMarkdown))
+	self:AssertEquals(content, self.f:ToFormat(Formats.CustomMarkdown.new()))
 end
 local function genRegisterTest(whereToRegister, baseFileContent)
 	--	whereToRegister: which unit test (or Nexus) to make tests a child of
