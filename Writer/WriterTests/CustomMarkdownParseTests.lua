@@ -33,5 +33,8 @@ PerformTest("Contains bold", "text *is* here",
 PerformTest("Contains overlapping bold and italics", "text *i_s* here_",
 	{"text ", "i", "s", " here"},
 	{nil, {Bold = true}, {Bold = true, Italics = true}, {Italics = true}})
+PerformTest("all underlined", "__underline__",
+	{"underline"},
+	{{Underline = true}})
 
 return true

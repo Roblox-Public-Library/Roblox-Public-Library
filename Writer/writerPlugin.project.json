@@ -6,6 +6,9 @@
 			"$className": "ServerStorage",
 			"BookWriterPlugin": {
 				"$className": "Folder",
+				"Plugin": {
+					"$path": "WriterPlugin"
+				},
 				"Writer": {
 					"$path": "Writer"
 				}
@@ -15,6 +18,9 @@
 			"$className": "TestService",
 			"Writer": {
 				"$path": "WriterTests"
+			},
+			"WriterPlugin": {
+				"$path": "WriterPluginTests"
 			}
 		}
 	}
