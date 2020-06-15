@@ -8,25 +8,30 @@ local function clone(t)
 	return nt
 end
 
-local TextCursor = {}
-TextCursor.__index = TextCursor
-function TextCursor.new(fileContent)
+
+
+local DocumentController = {}
+DocumentController.__index = DocumentController
+function DocumentController.new(header, chapters)
 	return setmetatable({
-		fileContent = fileContent,
+		header = header or {}, -- todo assert Header
+		-- book is 1+ chapters each with 1+ sections with 0+ elements
+		contents = contents or {}, -- todo assert list<element>?
+		chapters = {},
 		elementIndex = 1,
 		index = 1,
-	}, TextCursor)
+	}, DocumentController)
 end
-function TextCursor:NavEndOfFile()
+function DocumentController:NavEndOfFile()
 	-- todo this won't work for non-text!
 	local elements = self.fileContent.elements
 	self.elementIndex = #elements
 	self.index = self.elementIndex == 0 and 1 or #elements[self.elementIndex].Text
 end
-function TextCursor:SetBold(value)
+function DocumentController:SetBold(value)
 	--fileContent.
 end
-function TextCursor:Type(text)
+function DocumentController:Type(text)
 	local elements = self.fileContent.elements
 	local curElement = elements[self.elementIndex]
 	if not curElement then
@@ -36,4 +41,4 @@ function TextCursor:Type(text)
 		curElement.Text = curElement.Text .. text
 	end
 end
-return TextCursor
+return DocumentController

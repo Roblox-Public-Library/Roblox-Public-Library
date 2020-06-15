@@ -3,7 +3,7 @@ local children = {
 	"Elements",
 	"FileContent",
 	"Formats",
-	"TextCursor",
+	"DocumentController",
 }
 for _, name in ipairs(children) do
 	module[name] = require(script:WaitForChild(name))

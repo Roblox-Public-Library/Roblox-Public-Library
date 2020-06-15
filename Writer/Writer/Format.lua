@@ -25,9 +25,8 @@ Header:
 	authorId (flex)
 	bookName (string)
 	tags (list of string)
-	#page breaks (flex), followed by the list of page breaks (3-byte index of where the chapter signifier or page break character starts) - this includes the first page (which is always a chapter of some kind)
+	#page breaks (flex), followed by the list of page breaks (3-byte index of first element after the page break, which may optionally be the chapter signifier)
 		3 bytes supports a length of nearly 17 million characters, which far exceeds the maximum  allowed in a ModuleScript (or contained in any published book).
-		A flex encoding 
 		These indices are meant to let the reader script jump ahead and begin parsing at any page break.
 	default formatting (string). This is automatically calculated to be the formatting that is needed the most frequently after the start of a page break. For example, if the author uses bold everywhere (and no other formatting), this string will indicate bold text, and there will not need to be any formatting after each page break to indicate that the text is bold.
 
@@ -58,5 +57,5 @@ Main text:
 	\127 [a "delete" character] ends a list or table; also ends a segment of text (to make it fast for the parser to skip segments of text - when the parser is done, we should do performance tests using a variety of book sizes and formats to see if ending text segments makes a difference).
 	\128+ start of utf-8 (to be treated the same as \32-126). If not using an "end of text" signifier, these can be skipped using utf8.offset(text, 2, curIndex). Note that valid utf8 encoding does not have "continuation characters" in the \0-127 range, so searching for the "end" format indicator is safe.
 
-If the user pastes in characters that form illegal utf8 (utf8.len(pastedInText) will return (nil, indexOfIllegalByte) if it's illegal), the illegal characters should be discarded by  deleting one byte at a time (from the index returned from utf8.len) until the remainder is valid.
+If the user pastes in characters that form illegal utf8 (utf8.len(pastedInText) will return (nil, indexOfIllegalByte) if it's illegal), the illegal characters should be discarded by deleting one byte at a time (from the index returned from utf8.len) until the remainder is valid.
 ]]

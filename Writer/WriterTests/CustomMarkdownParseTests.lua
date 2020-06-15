@@ -1,5 +1,5 @@
 local Nexus = require("NexusUnitTesting")
-local Writer = require(game.ServerStorage.BookWriterPlugin.Writer)
+local Writer = require(game.ReplicatedStorage.Writer)
 local Formats = Writer.Formats
 
 local parse = Formats.CustomMarkdown.ParseText

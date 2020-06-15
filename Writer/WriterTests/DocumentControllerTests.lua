@@ -1,6 +1,6 @@
 local Nexus = require("NexusUnitTesting")
-local Writer = require(game.ServerStorage.BookWriterPlugin.Writer)
-local FileContent, TextCursor, Formats = Writer.FileContent, Writer.TextCursor, Writer.Formats
+local Writer = require(game.ReplicatedStorage.Writer)
+local FileContent, DocumentController, Formats = Writer.FileContent, Writer.DocumentController, Writer.Formats
 
 local Test = Nexus.UnitTest:Extend()
 function Test:__new(name, fileContent)
@@ -9,7 +9,7 @@ function Test:__new(name, fileContent)
 end
 function Test:Setup()
 	self.f = FileContent.new(Formats.CustomMarkdown.ParseText(self.fileContent or ""))
-	self.c = TextCursor.new(self.f)
+	self.c = DocumentController.new(self.f)
 	self.c:NavEndOfFile()
 end
 function Test:Teardown()

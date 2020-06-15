@@ -2,6 +2,12 @@
 	"name": "root-project",
 	"tree": {
 		"$className": "DataModel",
+		"ReplicatedStorage": {
+			"$className": "ReplicatedStorage",
+			"Writer": {
+				"$path": "Writer"
+			}
+		},
 		"ServerStorage": {
 			"$className": "ServerStorage",
 			"BookWriterPlugin": {
