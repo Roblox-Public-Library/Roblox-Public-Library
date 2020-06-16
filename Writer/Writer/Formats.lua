@@ -1,3 +1,4 @@
+local Format = require(script.Parent.Format)
 local Formats = {}
 local Elements = require(script.Parent.Elements)
 
@@ -26,6 +27,17 @@ function CustomMarkdown:HandleText(element)
 	self.prevFormat = element.Format
 	return table.concat(s)
 end
+function CustomMarkdown:Finish()
+	if not self.prevFormat then return "" end
+	local s = {}
+	for _, obj in ipairs(formatSymbols) do
+		local key, symbol = obj[1], obj[2]
+		if self.prevFormat[key] then
+			s[#s + 1] = symbol
+		end
+	end
+	return table.concat(s)
+end
 
 -- Parsing
 local symbols = {
@@ -43,13 +55,6 @@ local symbols = {
 		formatting.Italics = not formatting.Italics
 	end},
 }
-local function clone(t)
-	local nt = {}
-	for k, v in pairs(t) do
-		nt[k] = v
-	end
-	return nt
-end
 local function getNextSymbol(text, startI)
 	local smallestI, nearestSymbol
 	for _, symbol in ipairs(symbols) do
@@ -63,14 +68,14 @@ local function getNextSymbol(text, startI)
 end
 function CustomMarkdown.ParseText(text)
 	--	returns list of elements
-	local formatting = {} -- no formatting to start with
+	local formatting = Format.new() -- no formatting to start with
 	local elements = {}
 	local index = 1
 	while true do
 		local nextI, nextSymbol = getNextSymbol(text, index)
 		if nextI then
 			if nextI > index then
-				elements[#elements + 1] = Elements.Text.new(text:sub(index, nextI - 1), clone(formatting))
+				elements[#elements + 1] = Elements.Text.new(text:sub(index, nextI - 1), formatting:Clone())
 			end
 			index = nextI + #nextSymbol.Text
 			nextSymbol.Action(formatting)

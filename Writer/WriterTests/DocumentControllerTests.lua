@@ -8,16 +8,16 @@ function Test:__new(name, fileContent)
 	self.fileContent = fileContent or ""
 end
 function Test:Setup()
-	self.f = FileContent.new(Formats.CustomMarkdown.ParseText(self.fileContent or ""))
-	self.c = DocumentController.new(self.f)
-	self.c:NavEndOfFile()
+	local header = nil
+	local sections = {Formats.CustomMarkdown.ParseText(self.fileContent or "")}
+	self.c = DocumentController.new(header, sections)
+	self.c:NavFileEnd()
 end
 function Test:Teardown()
-	--self.f:Destroy()
 	--self.c:Destroy()
 end
 function Test:AssertContent(content)
-	self:AssertEquals(content, self.f:ToFormat(Formats.CustomMarkdown.new()))
+	self:AssertEquals(content, self.c:ToFormat(Formats.CustomMarkdown.new()))
 end
 local function genRegisterTest(whereToRegister, baseFileContent)
 	--	whereToRegister: which unit test (or Nexus) to make tests a child of
@@ -59,8 +59,8 @@ afterText("left & delete", function(t)
 	t.c:Delete()
 	t:AssertContent("tex")
 end)
-afterText("home & delete", function(t)
-	t.c:Home()
+afterText("start of doc & delete", function(t)
+	t.c:NavFileStart()
 	t.c:Delete()
 	t:AssertContent("ext")
 end)
@@ -68,17 +68,17 @@ end)
 
 local formatting = genRegisterTestInGroup("formatting sometext", "some")
 formatting("bold", function(t)
-	t.c:Bold(true)
+	t.c:SetBold(true)
 	t.c:Type("text")
 	t:AssertContent("some*text*")
 end)
 formatting("italics", function(t)
-	t.c:Italics(true)
+	t.c:SetItalics(true)
 	t.c:Type("text")
 	t:AssertContent("some_text_")
 end)
 formatting("underline", function(t)
-	t.c:Underline(true)
+	t.c:SetUnderline(true)
 	t.c:Type("text")
 	t:AssertContent("some__text__")
 end)
@@ -88,7 +88,7 @@ function smallBold(name, run)
 end
 smallBold("Highlight & replace mixed formatting", function(t)
 	local f, c = t.f, t.c
-	c:SetPos(2) -- right before the first 'a'
+	c:SetIndex(2) -- right before the first 'a'
 	c:StartSelection()
 	c:Right()
 	c:Right()

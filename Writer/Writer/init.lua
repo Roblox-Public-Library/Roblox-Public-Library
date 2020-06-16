@@ -1,9 +1,9 @@
 local module = {}
 local children = {
-	"Elements",
-	"FileContent",
-	"Formats",
 	"DocumentController",
+	"Elements",
+	"Format",
+	"Formats",
 }
 for _, name in ipairs(children) do
 	module[name] = require(script:WaitForChild(name))
