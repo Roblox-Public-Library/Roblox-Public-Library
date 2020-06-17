@@ -167,7 +167,7 @@ local controls = {
 
 local function updateUiColors()
 	ThemeColor:Reset(Studio.Theme)
-	
+
 	Back.BackgroundColor3 = ThemeColor:Get(StudioColor.ScriptWhitespace)
 	Content.BackgroundColor3 = ThemeColor:Get(StudioColor.InputFieldBackground)
 	Top.BackgroundColor3 = ThemeColor:Get(StudioColor.RibbonButton)
@@ -226,7 +226,7 @@ local open = false
 local function toggleOpen()
 	open = not open
 	PluginGui.Parent = open and CoreGui or PluginParent
-	
+
 	if open then
 		plugin:Activate(true)
 		mouse = plugin:GetMouse()
@@ -295,10 +295,10 @@ local shiftNumpad = {} do -- KeyCode -> what KeyCode should be used if shift is 
 		shiftNumpad[KeyCode["Keypad" .. (numsInEnglish[tonumber(k)] or "Period")]] = KeyCode[v]
 	end
 end
--- local isKeyCodeNumpad = {}
--- for _, name in ipairs({"Enter", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Period", "Divide", "Multiply", "Minus", "Plus", "Enter", "Equals"}) do
--- 	isKeyCodeNumpad[KeyCode["Keypad" .. name]] = true
--- end
+local isKeyCodeNumpad = {}
+for _, name in ipairs({"Enter", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Period", "Divide", "Multiply", "Minus", "Plus", "Enter", "Equals"}) do
+	isKeyCodeNumpad[KeyCode["Keypad" .. name]] = true
+end
 local keyCodeToModifiers = {}
 for _, name in ipairs({"Shift", "Control", "Meta", "Super", "Alt"}) do
 	keyCodeToModifiers[KeyCode["Left" .. name]] = name
@@ -332,7 +332,7 @@ load(segments)
 --local boxes = DoublyLinkedList.new()
 local first = {
 	TextBox = box,
-	Format = formatting,
+	Format = normal,
 	-- next/prev?
 }
 --boxes:Append(box)
@@ -441,7 +441,7 @@ UserInputService.InputChanged:Connect(function(input)
 
 end)
 UserInputService.InputEnded:Connect(function(input)
-	
+
 end)
 
 toggleOpen()

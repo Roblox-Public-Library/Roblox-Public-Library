@@ -145,11 +145,6 @@ function DocumentController:ToFormat(format)
 	--	Export the document
 	local s = {}
 	-- todo go through header
-	local s = {}
-	for i, element in ipairs(self.elements) do
-		s[i] = 
-	end
-	return table.concat(s)
 	for _, elements in ipairs(self.sections) do
 		for _, element in ipairs(elements) do
 			s[#s + 1] = format["Handle" .. element.ClassName](format, element)

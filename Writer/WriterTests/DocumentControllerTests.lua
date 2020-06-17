@@ -83,7 +83,7 @@ formatting("underline", function(t)
 	t:AssertContent("some__text__")
 end)
 
-function smallBold(name, run)
+local function smallBold(name, run)
 	registerTest(name, "aa*bb*cc", run)
 end
 smallBold("Highlight & replace mixed formatting", function(t)
