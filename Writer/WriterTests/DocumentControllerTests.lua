@@ -89,10 +89,10 @@ end
 smallBold("Highlight & replace mixed formatting", function(t)
 	local f, c = t.f, t.c
 	c:SetIndex(2) -- right before the first 'a'
-	c:StartSelection()
+	c:StartSelecting()
 	c:Right()
 	c:Right()
-	c:EndSelection()
+	c:StopSelecting()
 	c:Type("x")
 	t:AssertContent("ax*b*cc")
 end)
