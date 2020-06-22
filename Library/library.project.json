@@ -1,0 +1,19 @@
+{
+	"name": "root-project",
+	"tree": {
+		"$className": "DataModel",
+		"ServerScriptService": {
+			"$className": "ServerScriptService",
+			"$path": "ServerScriptService",
+			"$ignoreUnknownInstances": true
+		},
+		"StarterPlayer": {
+			"$className": "StarterPlayer",
+			"StarterPlayerScripts": {
+				"$className": "StarterPlayerScripts",
+				"$path": "StarterPlayerScripts",
+				"$ignoreUnknownInstances": true
+			}
+		}
+	}
+}
