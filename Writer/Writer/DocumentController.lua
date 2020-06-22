@@ -1,26 +1,26 @@
 local Elements = require(script.Parent.Elements)
 
-local PosMT = {}
-PosMT.__index = PosMT
-local function Pos(sectionIndex, elementIndex, index)
+local DocumentController = {}
+DocumentController.__index = DocumentController
+
+local Pos = {}
+DocumentController.Pos = Pos
+Pos.__index = Pos
+function Pos.new(sectionIndex, elementIndex, index)
 	return setmetatable({
 		SectionIndex = sectionIndex, -- todo assert numbers
 		ElementIndex = elementIndex,
 		Index = index,
-	}, PosMT)
+	}, Pos)
 end
-function PosMT:With(key, value)
-	if self[key] == value then return self end
-	local t = {}
+function Pos:Clone()
+	local new = {}
 	for k, v in pairs(self) do
-		t[k] = v
+		new[k] = v
 	end
-	t[key] = value
-	return setmetatable(t, PosMT)
+	return setmetatable(new, Pos)
 end
 
-local DocumentController = {}
-DocumentController.__index = DocumentController
 function DocumentController.new(header, sections)
 	--	Each section must be a list with 0+ elements. There is an implicit page break between each section.
 	if not sections or (#sections == 0 or (#sections == 1 and #sections[1] == 0)) then
@@ -35,16 +35,21 @@ function DocumentController.new(header, sections)
 		--selection:List<{.SectionIndex .ElementIndex .StartIndex .EndIndex}>
 	}, DocumentController)
 end
+function DocumentController:GetPos()
+	return self.pos
+end
+function DocumentController:SetPos(pos)
+	self.pos = pos
+end
+
 function DocumentController:StartSelecting()
-	self.selecting = self.pos
+	self.selecting = self.pos:Clone()
 end
 function DocumentController:StopSelecting()
 	self.selecting = false
 end
-function DocumentController:SetIndex(v) -- todo perhaps should have :SetPos(pos) instead
-	self.pos = self.pos:With("Index", v)
-end
-function DocumentController:NavFileStart()
+
+function DocumentController:NavToFileStart()
 	-- todo this won't work for non-text!
 	self.pos = Pos(1, 1, 1)
 end
@@ -54,7 +59,7 @@ end
 function DocumentController:OverText()
 	return self:GetCurrentElement().Text ~= nil
 end
-function DocumentController:NavFileEnd()
+function DocumentController:NavToFileEnd()
 	-- todo this won't work for non-text!
 	local sections = self.sections
 	local numSections = #sections
@@ -75,27 +80,30 @@ function DocumentController:modifyFormat(transformFormatting)
 	if index is max, then check next element. If formatting is identical, go to index 1 of that one. Otherwise, insert new between them.
 	]]
 	local newFormat = transformFormatting(element.Format)
-	if self.pos.Index == 1 then
+	local pos = self.pos
+	if pos.Index == 1 then
 		-- See if previous formatting is identical to desired
-		local prevElement = elements[self.pos.ElementIndex - 1]
+		local prevElement = elements[pos.ElementIndex - 1]
 		if prevElement and prevElement.Format == newFormat then -- Move to previous
-			self.pos = Pos(self.pos.SectionIndex, self.pos.ElementIndex - 1, #prevElement.Text + 1)
+			--pos.ElementIndex -= 1
+			pos.Index = #prevElement.Text + 1
 		else -- Insert new one
 			self:insertTextElement(Elements.Text.new("", newFormat))
 		end
-	elseif self.pos.Index == #element.Text + 1 then
+	elseif pos.Index == #element.Text + 1 then
 		-- See if next formatting is identical to desired. If not, insert a new one.
-		local nextElement = elements[self.pos.ElementIndex + 1]
+		local nextElement = elements[pos.ElementIndex + 1]
 		if not (nextElement and nextElement.Format == newFormat) then
 			self:insertTextElement(Elements.Text.new("", newFormat), 1)
 		end
-		self.pos = Pos(self.pos.SectionIndex, self.pos.ElementIndex + 1, 1)
+		--pos
+		self.pos = Pos(pos.SectionIndex, pos.ElementIndex + 1, 1)
 	else -- have to break up the current element
 		local origText = element.Text
-		element.Text = origText:sub(1, self.pos.Index - 1)
+		element.Text = origText:sub(1, pos.Index - 1)
 		self:insertTextElement(Elements.Text.new("", newFormat), 1)
-		self:insertTextElement(Elements.Text.new(origText:sub(self.pos.Index), element.Format), 2)
-		self.pos = Pos(self.pos.SectionIndex, self.pos.ElementIndex + 1, 1)
+		self:insertTextElement(Elements.Text.new(origText:sub(pos.Index), element.Format), 2)
+		self.pos = Pos(pos.SectionIndex, pos.ElementIndex + 1, 1)
 	end
 end
 for _, name in ipairs({"Bold", "Italics", "Underline"}) do -- todo get the rest; is there a list of them somewhere?

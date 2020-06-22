@@ -11,7 +11,7 @@ function Test:Setup()
 	local header = nil
 	local sections = {Formats.CustomMarkdown.ParseText(self.fileContent or "")}
 	self.c = DocumentController.new(header, sections)
-	self.c:NavFileEnd()
+	self.c:NavToFileEnd()
 end
 function Test:Teardown()
 	--self.c:Destroy()
@@ -60,7 +60,7 @@ afterText("left & delete", function(t)
 	t:AssertContent("tex")
 end)
 afterText("start of doc & delete", function(t)
-	t.c:NavFileStart()
+	t.c:NavToFileStart()
 	t.c:Delete()
 	t:AssertContent("ext")
 end)
