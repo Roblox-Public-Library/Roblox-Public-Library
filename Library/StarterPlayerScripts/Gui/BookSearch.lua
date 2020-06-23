@@ -1,5 +1,7 @@
 local maxResults = 200
 
+local module = {}
+
 local TweenService = game:GetService("TweenService")
 local tweenInfo = TweenInfo.new(0.3)
 
@@ -24,10 +26,16 @@ local shrinkSize = UDim2.new(resultsFrame.Size.X, UDim.new(0, entrySizeY))
 local origPos = resultsFrame.Position
 local shrinkPos = UDim2.new(resultsFrame.Position.X, gui.Frame.Position.Y)
 local tween
-local function newTween(props)
+local function newTween(props, instant)
 	if tween then tween:Cancel() end
-	tween = TweenService:Create(resultsFrame, tweenInfo, props)
-	tween:Play()
+	if instant then
+		for k, v in pairs(props) do
+			resultsFrame[k] = v
+		end
+	else
+		tween = TweenService:Create(resultsFrame, tweenInfo, props)
+		tween:Play()
+	end
 end
 local function shrink(toIndex)
 	shrunk = true
@@ -44,13 +52,13 @@ local function shrink(toIndex)
 		end
 	end)
 end
-local function expand()
+local function expand(instant)
 	shrunk = false
 	gui.Frame.Visible = true
 	newTween({
 		Position = origPos,
 		Size = origSize,
-	})
+	}, instant)
 end
 
 -- todo pathfind functions -> dif module
@@ -297,30 +305,39 @@ author.Activated:Connect(function()
 end)
 box:GetPropertyChangedSignal("Text"):Connect(performSearch)
 
-local function toggleOpen()
+local open = false
+local hidden = false
+function module:Open()
+	open = true
+	if not hidden then
+		gui.Enabled = true
+	end
+end
+function module:Close()
+	open = false
 	clearPathfind()
 	stopScanning()
-	gui.Enabled = not gui.Enabled
-	if not gui.Enabled and shrunk then
-		expand()
+	gui.Enabled = false
+	if shrunk then
+		expand(true)
+	end
+end
+function module:Hide()
+	gui.Enabled = false
+end
+function module:Unhide()
+	if open then
+		gui.Enabled = true
 	end
 end
 
-local toggleOpenEvent = Instance.new("BindableEvent")
-toggleOpenEvent.Name = "ToggleOpen"
-toggleOpenEvent.Event:Connect(toggleOpen)
-toggleOpenEvent.Parent = gui
-local readingObj = localPlayer.PlayerGui:WaitForChild("BookGui"):WaitForChild("Reading")
-readingObj.Changed:Connect(function()
-	if gui.Enabled and readingObj.Value then
-		toggleOpen()
-	end
-end)
 localPlayer.CharacterAdded:Connect(function()
 	if gui.Enabled then
-		toggleOpen()
+		module:Close()
 	end
 	-- if pathfindTarget then
 	-- 	pathfindTo(pathfindTarget)
 	-- end
 end)
+
+return module

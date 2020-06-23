@@ -12,18 +12,20 @@ local function isBook(obj)
 	end
 	return false
 end
-for _, c in ipairs(workspace:GetDescendants()) do
-	if isBook(c) then
-		local author = c:FindFirstChild("Author", true)
-		if not author then
-			print("No author found for", c:GetFullName())
+for _, folder in ipairs({workspace.Books, workspace.BookOfTheMonth, workspace["Post Books"]}) do
+	for _, c in ipairs(folder:GetDescendants()) do
+		if isBook(c) then
+			local author = c:FindFirstChild("Author", true)
+			if not author then
+				print("No author found for", c:GetFullName())
+			end
+			bookModels[#bookModels + 1] = c
+			books[#books + 1] = {
+				Title = c.Name,
+				Author = author and author.Value or "?",
+				Model = c,
+			}
 		end
-		bookModels[#bookModels + 1] = c
-		books[#books + 1] = {
-			Title = c.Name,
-			Author = author and author.Value or "?",
-			Model = c,
-		}
 	end
 end
 local numBooks = #books

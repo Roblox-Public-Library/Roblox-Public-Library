@@ -11,8 +11,9 @@
 			"$className": "StarterPlayer",
 			"StarterPlayerScripts": {
 				"$className": "StarterPlayerScripts",
-				"$path": "StarterPlayerScripts",
-				"$ignoreUnknownInstances": true
+				"Gui": {
+					"$path": "StarterPlayerScripts/Gui"
+				}
 			}
 		}
 	}
