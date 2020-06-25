@@ -3,6 +3,7 @@
 -- TODO Consider using UpdateAsync or calling GetAsync after 30 sec to see if data store changed (for if player was in another server that saved late, ex due to data stores being down)
 -- TODO Use DataStores module
 
+local DataStores = require(game.ServerScriptService.DataStores)
 local DataStore = game:GetService("DataStoreService"):GetDataStore("Playlists")
 local saveTimeMin = 60 -- can save once this many seconds (plus when the player leaves)
 local maxPlaylistLength = 9

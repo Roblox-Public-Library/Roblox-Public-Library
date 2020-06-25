@@ -14,7 +14,7 @@ local maxTries = {
 for i = 301, 306 do maxTries[i] = math.huge end -- queue exhausted
 local waitTimeBetweenAttempts = 6
 
-if isStudio then
+if isStudio then -- Set up fake data stores for studio testing
 	local dataStoreToData = {}
 	local function add(name, func)
 		DataStores[name] = function(dataStore, ...)
@@ -28,6 +28,11 @@ if isStudio then
 	end
 	add("Get", function(data, key) return data[key] end)
 	add("Set", function(data, key, value) data[key] = value end)
+	add("SetFunc", function(data, key, getValue)
+		local value = getValue()
+		data[key] = value
+		return value
+	end)
 	add("Remove", function(data, key) data[key] = nil end)
 	add("Update", function(data, key, func) data[key] = func(data[key]) end)
 else
