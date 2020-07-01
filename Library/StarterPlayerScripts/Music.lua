@@ -1,239 +1,225 @@
--- TODO rewrite to work with Playlist.server
-local oldMusic = {3, 2}
-local newMusic = {3, 2}
-local killed = false
-local futMusic = {}
-local oldTrack = nil
-local newTrack = nil
-local debounce = false
-local switching = script:WaitForChild("Switching")
-local currentTrack = script:WaitForChild("CurrentTrack")
-local location = script:WaitForChild("Location")
-local playlist = script.Parent:WaitForChild("BookGui"):WaitForChild("Playlist")
-local volume = .3
-local onOff = script.Parent:WaitForChild("BookGui"):WaitForChild("Music")
-local songEndDebouce = false
+local Music = {}
+local Marketplace = game:GetService("MarketplaceService")
+local TweenService = game:GetService("TweenService")
+local profile = require(script.Parent.Profile)
 
 local rnd = Random.new()
-local function mostlyShuffle(list) -- todo use this instead of picking random music each time
-	--	shuffles the list but prevents the last element from becoming first (to avoid repetition)
-	local index
+local function shuffleAvoidFirst(list, whatToAvoidInFirstSpot)
+	--	shuffle the list but avoid putting as the first element 'whatToAvoidInFirstSpot'
 	local n = #list
-	for i = 1, n - 1 do
-		index = rnd:NextNumber(i, i == 1 and n - 1 or n)
+	if n == 1 then return list end
+	local index
+	for i = 1, 10 do -- Try up to 10x to avoid the 'whatToAvoidInFirstSpot' (could filter list to not include whatToAvoidInFirstSpot, but it's of small benefit)
+		index = rnd:NextInteger(1, n)
+		if list[index] ~= whatToAvoidInFirstSpot then break end
+	end
+	list[1], list[index] = list[index], list[1]
+	for i = 2, n - 1 do
+		index = rnd:NextInteger(i, n)
 		list[i], list[index] = list[index], list[i]
 	end
+	return list
 end
 
-local function playMusic()
-	if oldTrack ~= nil and oldTrack.IsPlaying == true then
-		oldTrack:Stop()
-		oldTrack.Volume = 0
-	end
-	while true do
-		newTrack = newMusic[math.random(#newMusic)]
-		if newTrack ~= oldTrack then break end
-		wait()
-	end
-	currentTrack.Value = newTrack
-	oldTrack = newTrack
-	newTrack.Volume = volume
-	wait(.5)
-	newTrack:Play()
-end
-local function musicEnder()
-	if not songEndDebouce and oldMusic[1] ~= newMusic[1] then
-	elseif not songEndDebouce then
-		songEndDebouce = true
-		wait(1)
-		playMusic()
-		wait(2)
-		songEndDebouce = false
-	end
-end
-
-local function setMusic(musicSet)
-	futMusic = musicSet:GetChildren()
-	if musicSet.Name == "Custom" then
-		if musicSet:FindFirstChild("Sound") == nil then
-		else
-			if not debounce and not switching.Value and oldMusic[1] == 3 or not debounce and not switching.Value and futMusic[1].Parent ~= oldMusic[1].Parent then
-				newMusic = futMusic
-				if oldMusic[1] == 3 then
-					oldMusic = newMusic
-				else
-					for _,v in pairs(oldMusic) do
-						v:Stop()
-						v.Volume = 0
-					end
-				end
-				oldMusic = newMusic
-				debounce = true
-				switching.Value = true
-				playMusic()
-				wait()
-				debounce = false
-				for _,v in pairs(newMusic) do
-					v.Ended:Connect(musicEnder)
-				end
-				wait(.5)
-				switching.Value = false
-			end
-		end
-	elseif musicSet.Name == "Temp" then
-	else
-		if not debounce and not switching.Value and oldMusic[1] == 3 or not debounce and not switching.Value and futMusic[1].Parent ~= oldMusic[1].Parent then
-			newMusic = futMusic
-			if oldMusic[1] == 3 then
-				oldMusic = newMusic
+local idToDesc = {}
+local function getDesc(id) -- id can be input from user (but is expected to be a number)
+	--	returns desc OR false, reasonForUser
+	local desc = idToDesc[id]
+	if not desc then
+		if id <= 0 then return false, "That is not a valid sound id" end
+		local success, data = pcall(function()
+			return Marketplace:GetProductInfo(id)
+		end)
+		if not success then
+			if data:find("HTTP 400") then
+				return false, "That is not a valid sound id"
 			else
-				for _,v in pairs(oldMusic) do
-					v:Stop()
-					v.Volume = 0
-				end
+				-- todo log this?
+				return false, "Attempt to retrieve data failed: " .. data
 			end
-			oldMusic = newMusic
-			debounce = true
-			switching.Value = true
-			playMusic()
-			wait()
-			debounce = false
-			for _,v in pairs(newMusic) do
-				v.Ended:Connect(musicEnder)
-			end
-			wait(.5)
-			switching.Value = false
 		end
+		if data.AssetTypeId ~= Enum.AssetType.Audio then
+			return false, "That is not a valid sound id"
+		end
+		local name = data.Name
+		if data.Creator.Name == "ROBLOX" and data.Description:find("Courtesy of APM Music") then
+			return false, "APM Music not permitted"
+		end
+		desc = ("%s by %s"):format(name, data.Creator.Name)
+		idToDesc[id] = desc
 	end
+	return desc
 end
-script:WaitForChild("MusicEvent").Event:Connect(setMusic)
-
-game.Players.LocalPlayer.Chatted:Connect(function(mssgi)
-	local telk = string.lower(mssgi)
-	if telk == "/next" then
-		newTrack:Stop()
-		musicEnder()
-	elseif telk == "/center" then
-		setMusic(script:WaitForChild("Center"))
-	elseif telk == "/gravity" then
-		setMusic(script:WaitForChild("Gravity"))
-	elseif telk == "/time" then
-		setMusic(script:WaitForChild("Time"))
-	elseif telk == "/space" then
-		setMusic(script:WaitForChild("Space"))
-	elseif telk == "/cafe" then
-		setMusic(script:WaitForChild("Cafe"))
-	elseif telk == "/hallse" then
-		setMusic(script:WaitForChild("Halls"))
-	end
-end)
-
-playlist.Changed:Connect(function()
-	if playlist.Value == "Center" then
-		setMusic(script:WaitForChild("Center"))
-	elseif playlist.Value == "Mute" then
-		volumeStop(script)
-	elseif playlist.Value == "GOCRAZY" then
-		print("GOCRAZY")
-		killed = true
-		for i,v in pairs(script:WaitForChild("Center"):GetChildren()) do
-			v.Volume = .5
-			v:Play()
-		end
-	elseif playlist.Value == "Main" then
-		setMusic(script:WaitForChild("Main"))
-	elseif playlist.Value == "Gravity" then
-		setMusic(script:WaitForChild("Gravity"))
-	elseif playlist.Value == "Time" then
-		setMusic(script:WaitForChild("Time"))
-	elseif playlist.Value == "Space" then
-		setMusic(script:WaitForChild("Space"))
-	elseif playlist.Value == "Cafe" then
-		setMusic(script:WaitForChild("Cafe"))
-	elseif playlist.Value == "Halls" then
-		setMusic(script:WaitForChild("Halls"))
-	elseif playlist.Value == "Custom Playlist" then
-		setMusic(script:WaitForChild("Custom"))
-	elseif playlist.Value == "Location Based" then
-		if location.Value == "Main" then
-			setMusic(script:WaitForChild("Main"))
-		elseif location.Value == "Center" then
-			setMusic(script:WaitForChild("Center"))
-		elseif location.Value == "Gravity" then
-			setMusic(script:WaitForChild("Gravity"))
-		elseif location.Value == "Time" then
-			setMusic(script:WaitForChild("Time"))
-		elseif location.Value == "Space" then
-			setMusic(script:WaitForChild("Space"))
-		elseif location.Value == "Cafe" then
-			setMusic(script:WaitForChild("Cafe"))
-		elseif location.Value == "Halls" then
-			setMusic(script:WaitForChild("Halls"))
-		end
-	end
-end)
-
-location.Changed:Connect(function()
-	if playlist.Value == "Location Based" then
-		if location.Value == "Main" then
-			setMusic(script:WaitForChild("Main"))
-		elseif location.Value == "Center" then
-			setMusic(script:WaitForChild("Center"))
-		elseif location.Value == "Gravity" then
-			setMusic(script:WaitForChild("Gravity"))
-		elseif location.Value == "Time" then
-			setMusic(script:WaitForChild("Time"))
-		elseif location.Value == "Space" then
-			setMusic(script:WaitForChild("Space"))
-		elseif location.Value == "Cafe" then
-			setMusic(script:WaitForChild("Cafe"))
-		elseif location.Value == "Halls" then
-			setMusic(script:WaitForChild("Halls"))
-		end
-	end
-end)
-
-function volumeDown(items)
-	for i, v in pairs(items:GetChildren()) do
-		if v:IsA("Sound") then
-			v.Volume = 0
-		else
-			volumeDown(v)
-		end
-	end
+local idToNumRefs = {}
+local function addRef(id)
+	idToNumRefs[id] = (idToNumRefs[id] or 0) + 1
 end
-
-function volumeStop(items)
-	for i, v in pairs(items:GetChildren()) do
-		if v:IsA("Sound") then
-			v.Volume = 0
-			v:Stop()
-		else
-			volumeStop(v)
-		end
-	end
-end
-
-onOff.Changed:Connect(function()
-	if onOff.Value == true then
-		volume = .3
-		currentTrack.Value.Volume = volume
+local function removeRef(id)
+	local num = idToNumRefs[id]
+	if num == 1 then
+		idToNumRefs[id] = nil
+		idToDesc[id] = nil
 	else
-		volume = 0
-		volumeDown(script)
+		idToNumRefs[id] = num - 1
 	end
-end)
+end
 
+local localPlayer = game.Players.LocalPlayer
+local curPlaylist -- list of song IDs to play
+local curTrackId, nextTrackId -- numeric form
+local curTrack = Instance.new("Sound")
+local nextTrack = Instance.new("Sound") -- what will be played once the current track is finished
+-- Idea is that nextTrack loads while curTrack plays
+curTrack.Parent = localPlayer
+nextTrack.Parent = localPlayer
+local curMusic = {} -- shuffled version of curPlaylist
+local curMusicIndex = 1
 
-setMusic(script:WaitForChild("Center"))
+local defaultVolume = .3
+local function getMusicVolume()
+	return (profile:GetMusicEnabled() and defaultVolume or 0)
+end
+local function musicVolumeChanged() -- todo if user changes music volume, ensure this is run
+	curMusic.Volume = getMusicVolume()
+end
+local base = profile.SetMusicEnabled
+function profile:SetMusicEnabled(value)
+	if base(value) then return true end
+	musicVolumeChanged()
+end
 
-game.Players.LocalPlayer.CharacterAdded:Connect(function(char)
-	char:WaitForChild("Humanoid").Died:Connect(function()
-		if not killed then
-		volumeStop(script)
-		else
-			wait(5)
-			volumeStop(script)
+function Music:GetCurSongDesc() -- todo use from gui?
+	return getDesc(curMusic[curMusicIndex])
+end
+
+local function getNextSong(forceReshuffle) -- returns id, SoundId
+	if forceReshuffle or not curMusic[curMusicIndex] then
+		curMusic = shuffleAvoidFirst({unpack(curPlaylist)}, curTrackId)
+		curMusicIndex = 1
+	end
+	local id = curMusic[curMusicIndex]
+	local soundId = "rbxassetid://" .. id
+	curMusicIndex = curMusicIndex + 1
+	return id, soundId
+end
+-- local function prepareNextSong()
+-- 	curMusicIndex = curMusicIndex + 1
+-- 	if not curMusic[curMusicIndex] then
+-- 		-- Note: need to reclone from curPlaylist each time since the playlist could have changed
+-- 		curMusic = shuffleAvoidFirst({unpack(curPlaylist)}, curTrackId)
+-- 		nextTrackId = curMusic[1]
+-- 		nextTrack.SoundId = "rbxassetid://" .. nextTrackId
+-- 		curMusicIndex = 2
+-- 	end
+-- end
+local playlistModified
+local function playNextSong()
+	curTrack:Stop()
+	if playlistModified then
+		playlistModified = false
+		nextTrackId, nextTrack.SoundId = getNextSong(true)
+	end
+	curTrack, nextTrack = nextTrack, curTrack
+	curTrackId = nextTrackId
+	curTrack.Volume = getMusicVolume()
+	curTrack:Play()
+	nextTrackId, nextTrack.SoundId = getNextSong()
+	-- todo if gui is displaying cur song name, fire an event here "NextTrackStarted"
+end
+curTrack.Ended:Connect(playNextSong)
+nextTrack.Ended:Connect(playNextSong)
+local function setPlaylist(playlist)
+	if #playlist == 0 then error("Playlist cannot be empty") end
+	curPlaylist = playlist
+	playNextSong()
+end
+local defaultPlaylist -- initialized below
+local customPlaylist = profile:GetCustomPlaylist() -- treat as read-only; can be modified through profile:SetCustomPlaylistTrack
+local function activePlaylistNameChanged(name)
+	setPlaylist(name == "Default" and defaultPlaylist or customPlaylist)
+end
+local base = profile.SetActivePlaylistName
+function profile:SetActivePlaylistName(value)
+	if base(value) then return true end
+	activePlaylistNameChanged(value)
+end
+
+function Music:Enable()
+	profile:SetMusicEnabled(true)
+end
+function Music:Disable()
+	profile:SetMusicEnabled(false)
+end
+local crazyMusic = game.ReplicatedStorage.DefaultMusic:GetChildren()
+defaultPlaylist = {}
+for i, s in ipairs(crazyMusic) do
+	local id = tonumber(s.SoundId:match("%d+"))
+	defaultPlaylist[i] = id
+	addRef(id)
+end
+function Music:GoCrazy()
+	curTrack:Pause()
+	for _, s in ipairs(crazyMusic) do
+		s.Volume = getMusicVolume()
+		s:Play()
+	end
+	local con
+	con = localPlayer.CharacterAdded:Connect(function()
+		con:Disconnect()
+		for _, s in ipairs(crazyMusic) do
+			s:Stop()
 		end
+		wait(2)
+		curTrack.Volume = 0
+		curTrack:Play()
+		TweenService:CreateTween(curTrack, TweenInfo.new(2, Enum.EasingStyle.Linear), {Volume = getMusicVolume()})
 	end)
-end)
+end
+activePlaylistNameChanged(profile:GetActivePlaylistName())
+function Music:GetActivePlaylistName() return profile:GetActivePlaylistName() end
+function Music:SetActivePlaylistName(value) return profile:SetActivePlaylistName(value) end
+
+for _, id in ipairs(customPlaylist) do
+	addRef(id)
+end
+function Music:CustomPlaylistHasContent()
+	return #customPlaylist > 0
+end
+local customNowExists = Instance.new("BindableEvent")
+local customNowEmpty = Instance.new("BindableEvent")
+Music.CustomPlaylistNowExists = customNowExists.Event
+Music.CustomPlaylistNowEmpty = customNowEmpty.Event
+function Music:TrySetCustomPlaylistTrack(index, id)
+	assert(index >= 1 and index <= #customPlaylist + 1, "Index is out of range")
+	local prev = customPlaylist[index]
+	if prev == id then return true end
+	local desc, problem = getDesc(id)
+	if problem then
+		return false, problem
+	end
+	if prev then
+		removeRef(prev)
+	end
+	profile:SetCustomPlaylistTrack(index, id)
+	if id then
+		addRef(id)
+		if #customPlaylist == 1 then
+			customNowExists:Fire()
+		end
+	elseif #customPlaylist == 0 then
+		customNowEmpty:Fire()
+	end
+	if self:GetActivePlaylistName() == "Custom" then
+		if #customPlaylist == 0 then
+			self:SetActivePlaylistName("Default")
+		else
+			playlistModified = true
+			if curTrackId == prev then
+				playNextSong()
+			end
+		end
+	end
+	return true
+end
+
+return Music

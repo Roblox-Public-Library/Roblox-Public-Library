@@ -5,6 +5,7 @@ local localPlayer = game.Players.LocalPlayer
 local playerGui = localPlayer.PlayerGui
 gui.Parent = playerGui
 local BookSearch = require(script.Parent.BookSearch)
+local music = require(script.Parent.Parent.Music)
 
 local sfx = ReplicatedStorage.SFX
 
@@ -86,8 +87,8 @@ for button, dropdown in pairs(simpleConnections) do
 	end)
 end
 menuDrop.Music.Activated:Connect(function()
-	-- todo ask music script whether music is enabled/not and toggle it:
-	local musicOn -- todo   = not music:GetEnabled(); music:SetEnabled(musicOn)
+	local musicOn = not music:GetEnabled()
+	music:SetEnabled(musicOn)
 	menuDrop.Music.TextLabel.Text = musicOn and "On" or "Off"
 	sfx.PageTurn:Play()
 end)
@@ -102,170 +103,161 @@ events.BookClosed:Connect(function()
 	gui.Enabled = true
 end)
 
-do -- PlaylistDrop
-	-- todo rewrite
-	local playlist = playlistDrop.Parent.Parent:WaitForChild("Playlist")
-	local gDebounce = playlistDrop.Parent.Parent.Parent:WaitForChild("MusicScript"):WaitForChild("Switching")
+
+
+do -- PlaylistDrop (allow selection between playlists)
+	local curPlaylistName = music:GetActivePlaylistName()
 
 	local selectedColor = Color3.fromRGB(42, 45, 54)
 	local normalColor = Color3.fromRGB(100, 104, 111)
-
+	local buttons = {
+		playlistDrop.Default,
+		playlistDrop.Custom,
+	}
 	local function updateColors()
-		for i, v in ipairs(playlistDrop:GetChildren()) do
-			if v.Visible then
-				v.TextColor3 = v.Text == playlist.Value and selectedColor or normalColor
-			end
+		for i, v in ipairs(buttons) do
+			v.TextColor3 = v.Text == curPlaylistName and selectedColor or normalColor
 		end
 	end
-
-	for i, v in pairs(playlistDrop:GetChildren()) do
-		if v.Name == "TextButton" and v.Visible == true then
-			if v.Text == "Custom Playlist" then
-				v.Activated:Connect(function()
-					-- todo 'if' is trying to check to see if there exists a custom playlist (with an actual Sound object)
-					--	rewrite so that this button only appears if there is one!
-					if not gDebounce.Value and v.TextColor3 == selectedColor and playlistDrop.Parent.Parent.Parent:WaitForChild("MusicScript"):WaitForChild("Custom"):FindFirstChild("Sound") ~= nil then
-						playlist.Value = v.Text
-						sfx.PageTurn:Play()
-						updateColors()
-					end
-				end)
-			else
-				v.Activated:Connect(function()
-					if not gDebounce.Value and v.TextColor3 == selectedColor then
-						playlist.Value = v.Text
-						sfx.PageTurn:Play()
-						updateColors()
-					end
-				end)
-			end
-		end
-	end
-
 	updateColors()
-end
-
-do -- CustomPlaylistDrop
-	local debounce = false
-	local musicScript = customPlaylistDrop.Parent.Parent.Parent:WaitForChild("MusicScript")
-	local savedList = game.Players.LocalPlayer:WaitForChild("SavedPlaylist")
-	local reading = false
-	local customPlaylist = {}
-	local playlistIDs = {}
-	for i = 1, 9 do
-		customPlaylist[i] = customPlaylistDrop[tostring(i)]
-		playlistIDs[i] = "nil"
+	local function setActivePlaylist(name)
+		music:SetActivePlaylistName(name)
+		curPlaylistName = name
+		updateColors()
 	end
-
-	for i, v in ipairs(customPlaylist) do
-		local textBox = v.TextBox
-		local textButton = v.TextButton
-		local oldVal = "nil"
-		textButton.Activated:Connect(function()
-
-			if not debounce then
-				sfx:WaitForChild("PageTurn"):Play()
-				debounce = true
-				if textBox.Text ~= "Enter SoundID Here..." then
-					print(textBox.Text)
-					local numberVal = tonumber(textBox.Text)
-					if numberVal ~= nil then
-						if tostring("lol"..tonumber(textBox.Text)) == tostring("lol"..textBox.Text) then
-							print("Successfully found number ID!")
-							textBox.Text = "ID Accepted!"
-							playlistIDs[i] = numberVal
-							oldVal = numberVal
-							wait(2)
-							textBox.Text = oldVal
-						else
-							print("No ID found!")
-							textBox.Text = "No ID found!"
-							playlistIDs[i] = oldVal
-							wait(2)
-							if oldVal == "nil" then
-								textBox.Text = "Enter SoundID Here..."
-							else
-								textBox.Text = oldVal
-							end
-						end
-					else
-						print("No ID found!")
-						textBox.Text = "No ID found!"
-						playlistIDs[i] = oldVal
-						wait(2)
-						if oldVal == "nil" then
-							textBox.Text = "Enter SoundID Here..."
-						else
-							textBox.Text = oldVal
-						end
-					end
-				end
-				wait()
-				debounce = false
-			end
+	for i, v in ipairs(buttons) do
+		v.Activated:Connect(function()
+			setActivePlaylist(v.Text)
+			sfx.PageTurn:Play()
 		end)
 	end
-
-	function sendToMusic()
-		if debounce then
-			customPlaylistDrop.Parent.Visible = false
-			customPlaylistDrop.Parent.Parent:WaitForChild("LoadingPlaylist").Visible = true
-			for i, v in pairs(musicScript:WaitForChild("Custom"):GetChildren()) do
-				if v then v:Destroy() end
-			end
-			for i, v in pairs(playlistIDs) do
-				if type(v) == "number" then
-					local sound = musicScript.Sound:Clone()
-					sound.Parent = musicScript.Custom
-					local con; con = sound:GetPropertyChangedSignal("TimeLength"):Connect(function()
-						if sound.TimeLength == 0 then
-							sound:Destroy()
-						end
-						con:Disconnect()
-					end)
-					sound.SoundId = "rbxassetid://"..v
-				end
-			end
-			if customPlaylistDrop.Parent.Parent:WaitForChild("Playlist").Value == "Custom Playlist" then
-				musicScript:WaitForChild("MusicEvent"):Fire(musicScript:WaitForChild("Temp"))
-				wait(1)
-				musicScript:WaitForChild("MusicEvent"):Fire(musicScript:WaitForChild("Custom"))
-			end
-			customPlaylistDrop.Parent.Visible = true
-			customPlaylistDrop.Parent.Parent:WaitForChild("LoadingPlaylist").Visible = false
-			if reading == true then
-				customPlaylistDrop.Parent.Parent:WaitForChild("Reading").Value = false
-				reading = false
-			end
-			game:GetService("ReplicatedStorage"):WaitForChild("PlaylistEvent"):FireServer(playlistIDs)
-			wait()
-			debounce = false
-		end
+	if not music:CustomPlaylistHasContent() then
+		playlistDrop.Custom.Visible = false
 	end
-
-	function onSave()
-		if not debounce then
-			debounce = true
-			sfx.BookClose:Play()
-			sendToMusic()
-			wait()
-		end
-	end
-
-	customPlaylistDrop:WaitForChild("Save").Activated:Connect(onSave)
-	customPlaylistDrop.Cancel.Activated:Connect(returnToMainMenu) -- todo this doesn't actually cancel!
-
-	for i, v in pairs(savedList:GetChildren()) do
-		if v.Value == "nil" then
-			playlistIDs[i] = v.Value
-		else
-			customPlaylist[i]:WaitForChild("TextBox").Text = v.Value
-			playlistIDs[i] = tonumber(v.Value)
-		end
-	end
-
-	onSave()
+	music.CustomPlaylistNowExists:Connect(function()
+		playlistDrop.Custom.Visible = true
+	end)
+	music.CustomPlaylistNowEmpty:Connect(function()
+		playlistDrop.Custom.Visible = false
+	end)
 end
+
+-- do -- CustomPlaylistDrop
+-- 	local debounce = false
+-- 	for i = 1, 9 do
+-- 		customPlaylist[i] = customPlaylistDrop[tostring(i)]
+-- 		playlistIDs[i] = "nil"
+-- 	end
+
+-- 	for i, v in ipairs(customPlaylist) do
+-- 		local textBox = v.TextBox
+-- 		local textButton = v.TextButton
+-- 		local oldVal = "nil"
+-- 		textButton.Activated:Connect(function()
+
+-- 			if not debounce then
+-- 				sfx:WaitForChild("PageTurn"):Play()
+-- 				debounce = true
+-- 				if textBox.Text ~= "Enter SoundID Here..." then
+-- 					print(textBox.Text)
+-- 					local numberVal = tonumber(textBox.Text)
+-- 					if numberVal ~= nil then
+-- 						if tostring("lol"..tonumber(textBox.Text)) == tostring("lol"..textBox.Text) then
+-- 							print("Successfully found number ID!")
+-- 							textBox.Text = "ID Accepted!"
+-- 							playlistIDs[i] = numberVal
+-- 							oldVal = numberVal
+-- 							wait(2)
+-- 							textBox.Text = oldVal
+-- 						else
+-- 							print("No ID found!")
+-- 							textBox.Text = "No ID found!"
+-- 							playlistIDs[i] = oldVal
+-- 							wait(2)
+-- 							if oldVal == "nil" then
+-- 								textBox.Text = "Enter SoundID Here..."
+-- 							else
+-- 								textBox.Text = oldVal
+-- 							end
+-- 						end
+-- 					else
+-- 						print("No ID found!")
+-- 						textBox.Text = "No ID found!"
+-- 						playlistIDs[i] = oldVal
+-- 						wait(2)
+-- 						if oldVal == "nil" then
+-- 							textBox.Text = "Enter SoundID Here..."
+-- 						else
+-- 							textBox.Text = oldVal
+-- 						end
+-- 					end
+-- 				end
+-- 				wait()
+-- 				debounce = false
+-- 			end
+-- 		end)
+-- 	end
+
+-- 	local function sendToMusic()
+-- 		if debounce then
+-- 			customPlaylistDrop.Parent.Visible = false
+-- 			customPlaylistDrop.Parent.Parent:WaitForChild("LoadingPlaylist").Visible = true
+-- 			for i, v in pairs(musicScript:WaitForChild("Custom"):GetChildren()) do
+-- 				if v then v:Destroy() end
+-- 			end
+-- 			for i, v in pairs(playlistIDs) do
+-- 				if type(v) == "number" then
+-- 					local sound = musicScript.Sound:Clone()
+-- 					sound.Parent = musicScript.Custom
+-- 					local con; con = sound:GetPropertyChangedSignal("TimeLength"):Connect(function() -- Note: this event is triggered when the length is loaded, even if the value doesn't actually change
+-- 						if sound.TimeLength == 0 then
+-- 							sound:Destroy()
+-- 						end
+-- 						con:Disconnect()
+-- 					end)
+-- 					sound.SoundId = "rbxassetid://"..v
+-- 				end
+-- 			end
+-- 			if customPlaylistDrop.Parent.Parent:WaitForChild("Playlist").Value == "Custom Playlist" then
+-- 				musicScript:WaitForChild("MusicEvent"):Fire(musicScript:WaitForChild("Temp"))
+-- 				wait(1)
+-- 				musicScript:WaitForChild("MusicEvent"):Fire(musicScript:WaitForChild("Custom"))
+-- 			end
+-- 			customPlaylistDrop.Parent.Visible = true
+-- 			customPlaylistDrop.Parent.Parent:WaitForChild("LoadingPlaylist").Visible = false
+-- 			if reading == true then
+-- 				customPlaylistDrop.Parent.Parent:WaitForChild("Reading").Value = false
+-- 				reading = false
+-- 			end
+-- 			game:GetService("ReplicatedStorage"):WaitForChild("PlaylistEvent"):FireServer(playlistIDs)
+-- 			wait()
+-- 			debounce = false
+-- 		end
+-- 	end
+
+-- 	local function onSave()
+-- 		if not debounce then
+-- 			debounce = true
+-- 			sfx.BookClose:Play()
+-- 			sendToMusic()
+-- 			wait()
+-- 		end
+-- 	end
+
+-- 	customPlaylistDrop:WaitForChild("Save").Activated:Connect(onSave)
+-- 	customPlaylistDrop.Cancel.Activated:Connect(returnToMainMenu) -- todo this doesn't actually cancel!
+
+-- 	for i, v in pairs(savedList:GetChildren()) do
+-- 		if v.Value == "nil" then
+-- 			playlistIDs[i] = v.Value
+-- 		else
+-- 			customPlaylist[i]:WaitForChild("TextBox").Text = v.Value
+-- 			playlistIDs[i] = tonumber(v.Value)
+-- 		end
+-- 	end
+
+-- 	onSave()
+-- end
 
 -- Scripts left:
 -- Music

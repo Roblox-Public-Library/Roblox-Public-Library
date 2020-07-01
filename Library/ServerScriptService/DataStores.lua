@@ -1,3 +1,15 @@
+--[[DataStores wraps the DataStoreService so that functions like GetDataStore will return a custom DataStore interface.
+DataStore:
+	:Get()
+	:GetSorted
+	:Set()
+	:SetFunc
+	:Update
+	:Increment
+
+
+]]
+local DataStoreService = game:GetService("DataStoreService")
 local DataStores = {}
 
 local studioPrint = false -- if true, all DataStore accesses will be printed out in studio
@@ -26,35 +38,45 @@ if isStudio then -- Set up fake data stores for studio testing
 			return func(data, ...)
 		end
 	end
-	add("Get", function(data, key) return data[key] end)
-	add("Set", function(data, key, value) data[key] = value end)
+	add("Get", function(data, key) return true, data[key] end)
+	-- todo GetSorted
+	add("Set", function(data, key, value) data[key] = value; return true, value end)
 	add("SetFunc", function(data, key, getValue)
 		local value = getValue()
 		data[key] = value
-		return value
+		return true, value
 	end)
-	add("Remove", function(data, key) data[key] = nil end)
-	add("Update", function(data, key, func) data[key] = func(data[key]) end)
+	add("Remove", function(data, key) data[key] = nil; return true end)
+	add("Update", function(data, key, func)
+		local value = func(data[key])
+		data[key] = value
+		return true, value
+	end)
+	add("Increment", function(data, key, amount)
+		local value = data[key] + amount
+		data[key] = value
+		return true, value
+	end)
 else
-	local function attemptRequest(requestFunc, shouldCancel, genContext)
+	local function attemptRequest(requestFunc, shouldCancel, genContext, keepRetrying)
 		local tries = 0
 		while true do
 			local success, data = pcall(requestFunc)
 			if success then
-				return data
+				return true, data
 			end
 			tries = tries + 1
 			local errNum = tonumber(data:find("%d%d%d"))
 			local max = maxTries[errNum]
-			if not errNum or not max or tries >= maxTries then
+			if not errNum or not max or (tries >= maxTries and not keepRetrying) then
 				local context = genContext and genContext()
-				error(("%sDataStore failed: %s"):format(
+				return false, ("%sDataStore failed: %s"):format(
 					context and context .. " " or "",
-					tostring(data)))
+					tostring(data))
 			end
-			if shouldCancel and shouldCancel() then return nil end
+			if shouldCancel and shouldCancel() then return nil, "Cancelled" end
 			local context = genContext and genContext()
-			warn(("%sDataStore error (but trying again): %s"):format(
+			warn(("%sDataStore error (but trying again): %s"):format( -- todo not needed past debugging
 					context and context .. " " or "",
 					tostring(data)))
 			wait(waitTimeBetweenAttempts)
@@ -68,19 +90,29 @@ else
 			tostring(key),
 			value and (action == "Update" and " with " or " = ") .. tostring(value))
 	end
-	function DataStores.Get(dataStore, key, shouldCancel, context)
+	function DataStores.Get(dataStore, key, shouldCancel, keepRetrying, context)
 		return attemptRequest(
 			function() return dataStore:GetAsync(key) end,
 			shouldCancel,
-			function() return merge(context, "Get", dataStore, key) end)
+			function() return merge(context, "Get", dataStore, key) end,
+			keepRetrying)
 	end
-	function DataStores.Set(dataStore, key, value, shouldCancel, context)
-		attemptRequest(
-			function() dataStore:SetAsync(key, value) end,
+	function DataStores.GetSorted(dataStore, isAscending, pageSize, minValue, maxValue, shouldCancel, keepRetrying, context)
+		assert(dataStore:IsA("OrderedDataStore"), "GetSorted only valid for OrderedDataStores")
+		return attemptRequest(
+			function() return dataStore:GetSortedAsync(isAscending, pageSize, minValue, maxValue) end,
 			shouldCancel,
-			function() return merge(context, "Set", dataStore, key, value) end)
+			function() return merge(context, "Get", dataStore, "{SortedAsync}") end,
+			keepRetrying)
 	end
-	function DataStores.SetFunc(dataStore, key, getValue, shouldCancel, context)
+	function DataStores.Set(dataStore, key, value, shouldCancel, keepRetrying, context)
+		attemptRequest(
+			function() dataStore:SetAsync(key, value); return value end,
+			shouldCancel,
+			function() return merge(context, "Set", dataStore, key, value) end,
+			keepRetrying)
+	end
+	function DataStores.SetFunc(dataStore, key, getValue, shouldCancel, keepRetrying, context)
 		local value
 		attemptRequest(
 			function()
@@ -88,22 +120,27 @@ else
 				dataStore:SetAsync(key, value)
 			end,
 			shouldCancel,
-			function() return merge(context, "Set", dataStore, key, value or getValue()) end)
+			function() return merge(context, "Set", dataStore, key, value or getValue()) end,
+			keepRetrying)
 		return value
 	end
-	function DataStores.Update(dataStore, key, updateFunc, context)
+	function DataStores.Update(dataStore, key, updateFunc, keepRetrying, context)
 		return attemptRequest(function()
-			return dataStore:UpdateAsync(key, updateFunc)
-		end, function() return merge(context, "Update", dataStore, key, updateFunc) end)
+				return dataStore:UpdateAsync(key, updateFunc)
+			end,
+			function() return merge(context, "Update", dataStore, key, updateFunc) end,
+			keepRetrying)
 	end
-	function DataStores.Remove(dataStore, key, context)
+	function DataStores.Remove(dataStore, key, keepRetrying, context)
 		return attemptRequest(function()
-			return dataStore:RemoveAsync(key)
-		end, function() return merge(context, "Remove", dataStore, key) end)
+				return dataStore:RemoveAsync(key)
+			end,
+			function() return merge(context, "Remove", dataStore, key) end,
+			keepRetrying)
 	end
 end
 
-function DataStores.new(dataStore)
+function DataStores.Wrap(dataStore)
 	--	Returns an object that allows you to say obj:Set(key, value, shouldCancel=nil, context=nil) and so on
 	return setmetatable({}, {
 		__index = function(_, key)
@@ -117,6 +154,14 @@ function DataStores.new(dataStore)
 		end,
 		__newindex = dataStore,
 	})
+end
+for _, name in ipairs({"GetDataStore", "GetGlobalDataStore", "GetOrderedDataStore"}) do
+	DataStores[name] = function(_, ...)
+		return DataStores.Wrap(DataStoreService[name](DataStoreService, ...))
+	end
+end
+function DataStores:GetRequestBudgetForRequestType(...)
+	return DataStoreService:GetRequestBudgetForRequestType(...)
 end
 
 return DataStores

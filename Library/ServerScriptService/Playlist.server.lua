@@ -3,34 +3,9 @@
 -- TODO Consider using UpdateAsync or calling GetAsync after 30 sec to see if data store changed (for if player was in another server that saved late, ex due to data stores being down)
 -- TODO Use DataStores module
 
-local DataStores = require(game.ServerScriptService.DataStores)
-local DataStore = game:GetService("DataStoreService"):GetDataStore("Playlists")
+local DataStore = require(game.ServerScriptService.DataStores):GetDataStore("Playlists")
 local saveTimeMin = 60 -- can save once this many seconds (plus when the player leaves)
 local maxPlaylistLength = 9
--- Data store config
-local maxTries = 3
-local timeBetweenTries = 5
-local function GetAsync(key, shouldCancel)
-	local success, msg
-	for i = 1, maxTries do
-		success, msg = pcall(DataStore.GetAsync, DataStore, key)
-		if success then break end
-		wait(timeBetweenTries)
-		local cancel = shouldCancel()
-		if cancel then return false, cancel end
-	end
-	return success, msg
-end
-local function SetAsync(key, getValue)
-	local success, msg, value
-	for i = 1, maxTries do
-		value = getValue()
-		success, msg = pcall(DataStore.SetAsync, DataStore, key, value)
-		if success then return true, value end
-		wait(timeBetweenTries)
-	end
-	return false, msg
-end
 
 local function tablesEqual(a, b)
 	if #a ~= #b then return false end
@@ -44,7 +19,7 @@ local playerProfile = {}
 local function PlaylistProfile(player)
 	local self = {}
 	local key = "user_"..player.UserId
-	local success, playlist = GetAsync(key, function() return not player.Parent end)
+	local success, playlist = DataStore:Get(key, function() return not player.Parent end)
 	if not player.Parent then return end -- player left
 	if not success then
 		playlist = false -- todo handle this on client
@@ -72,7 +47,7 @@ local function PlaylistProfile(player)
 	function self:SaveNow()
 		if saving then return end
 		saving = true
-		local success, value = SetAsync(key, self.Get)
+		local success, value = DataStore:SetFunc(key, self.Get)
 		nextSave = tick() + saveTimeMin
 		saving = false
 		if success and value == playlist then

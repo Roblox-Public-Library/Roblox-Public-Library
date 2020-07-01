@@ -1,0 +1,63 @@
+(If you install the Todo+ extension you can toggle a task being done with Alt+d and create a new task with Ctrl+Enter)
+--------------------------
+Playlist:
+	☐ need client side playlist code (should work with ClientProfile) or rewrite "CustomPlaylistDrop" in Menus.client
+
+Music:
+	✔ bridge between Menus.client and Profile class, supporting...
+		✔ :GetEnabled()
+		✔ :SetEnabled(enabled)
+		✔ :GetActivePlaylistName()
+		✔ :SetActivePlaylistName(name)
+		✔ :CustomPlaylistHasContent()
+		✔ .CustomPlaylistNowExists:Event
+		✔ .CustomPlaylistNowEmpty
+
+Profile:
+	☐ need to be able to encode it in a way that supports versions (ex version number?)
+	✔ Algorithm that can handle merging
+		> see SaveableSet
+	☐ Add Recently Read books to profile
+Support these book operations:
+	☐ favoriting a book
+		☐ ImageButton star, like on Roblox's site. Change its icon when the change is confirmed (put it in a grayed out state while saving)
+		☐ store it in the user's profile
+		☐ store it in the book's list of people who have favourited it using UpdateAsync
+	☐ mark book as read/unread
+		☐ TextButton that grays out while confirming change; text must change to "Mark as Read"/"Mark as Unread"
+		☐ store in user's profile
+		☐ store/remove it in book's list of who's read it (UpdateAsync)
+
+
+Book gui script:
+	☐ needs rewrite
+
+
+
+--------------------------
+Data Flow Plan (Profiles):
+--------------------------
+OnEnter:
+	☐ DataStoreLoad -> profileData
+	☐ Profile.Deserialize/Decode -> profile
+	☐ profiles[player] = profile
+	☐ fire profileLoaded for the player (can be created on demand; only fire if it exists)
+	☐ mark when next autosave can occur
+
+User clicks Music Off:
+	☐ gui asks Music
+	☐ Music gets a ref to the current profile and can check :IsMusicEnabled()
+	☐ Music should then react to new value of MusicEnabled
+	☐ ClientProfile uses remote to notify server of change
+	☐ Server records it and marks profile as changed
+	☐ activate autosave routine/queue as needed
+
+User clicks a book:
+	☐ book gui asks ClientProfile for fav/read/etc details
+	☐ book gui asks BookContent module for content (which keeps it only while the book is in your inventory; maybe also the last book you had opened)
+		☐ asks for content from server
+
+Say we use the most basic table syntax (so it's simple to view/edit). What data could be stored in one key?
+ex, Favorites=[1,532,531]
+so if we assume there are 10k books and that each ID is 4 digits long, then we need 5 digits per favourite is ~50,000 characters and the limit is 260,000 characters!
+So we could do that for now
