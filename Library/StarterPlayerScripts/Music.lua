@@ -1,3 +1,7 @@
+--[[Music
+Handles playing music and keeping the profile up-to-date with the user's musical preferences
+
+]]
 local Music = {}
 local Marketplace = game:GetService("MarketplaceService")
 local TweenService = game:GetService("TweenService")
@@ -74,6 +78,8 @@ curTrack.Parent = localPlayer
 nextTrack.Parent = localPlayer
 local curMusic = {} -- shuffled version of curPlaylist
 local curMusicIndex = 1
+local nextTrackStarted = Instance.new("BindableEvent")
+Music.NextTrackStarted = nextTrackStarted.Event
 
 local defaultVolume = .3
 local function getMusicVolume()
@@ -84,9 +90,11 @@ local function musicVolumeChanged() -- todo if user changes music volume, ensure
 end
 local base = profile.SetMusicEnabled
 function profile:SetMusicEnabled(value)
-	if base(value) then return true end
+	if base(self, value) then return true end
 	musicVolumeChanged()
 end
+function Music:GetEnabled() return profile:GetMusicEnabled() end
+function Music:SetEnabled(value) return profile:SetMusicEnabled(value) end
 
 function Music:GetCurSongDesc() -- todo use from gui?
 	return getDesc(curMusic[curMusicIndex])
@@ -102,16 +110,6 @@ local function getNextSong(forceReshuffle) -- returns id, SoundId
 	curMusicIndex = curMusicIndex + 1
 	return id, soundId
 end
--- local function prepareNextSong()
--- 	curMusicIndex = curMusicIndex + 1
--- 	if not curMusic[curMusicIndex] then
--- 		-- Note: need to reclone from curPlaylist each time since the playlist could have changed
--- 		curMusic = shuffleAvoidFirst({unpack(curPlaylist)}, curTrackId)
--- 		nextTrackId = curMusic[1]
--- 		nextTrack.SoundId = "rbxassetid://" .. nextTrackId
--- 		curMusicIndex = 2
--- 	end
--- end
 local playlistModified
 local function playNextSong()
 	curTrack:Stop()
@@ -124,7 +122,7 @@ local function playNextSong()
 	curTrack.Volume = getMusicVolume()
 	curTrack:Play()
 	nextTrackId, nextTrack.SoundId = getNextSong()
-	-- todo if gui is displaying cur song name, fire an event here "NextTrackStarted"
+	nextTrackStarted:Fire()
 end
 curTrack.Ended:Connect(playNextSong)
 nextTrack.Ended:Connect(playNextSong)

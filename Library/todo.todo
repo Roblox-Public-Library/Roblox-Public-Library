@@ -1,7 +1,30 @@
 (If you install the Todo+ extension you can toggle a task being done with Alt+d and create a new task with Ctrl+Enter)
 --------------------------
-Playlist:
-	☐ need client side playlist code (should work with ClientProfile) or rewrite "CustomPlaylistDrop" in Menus.client
+Custom Playlist:
+	✔ Do not continue work on this feature until Poll confirms whether we need it or not
+		Poll Result - a number of people use it, though few would care if they could have more than one
+	> need to rewrite "CustomPlaylistDrop" in Menus.client
+	> Gui will have "x" to delete entry and then 1+ rows for sound IDs
+	> after pressing enter a label with Title (Length) is supposed to show up (maybe "by Creator" as well?)
+	On Enter of one of the IDs:
+		☐ Validate the input. If it's no good, revert to previous value.
+			☐ Tell user what's wrong by sending a notification
+			 ( can only do that on the client ) - yup, this is all client code oh ok
+			 the server side is Profile (the client Profile is also responsible for transmitting; the Music module tells the client Profile)
+		☐ Music:TrySetCustomPlaylistTrack(index, id)
+			will return true OR false, reason
+			if it fails, tell user why via notification like before
+			& revert text box
+		☐ If successful, if there is no empty text box, create another row
+	On startup:
+		☐ Populate the Music list with all the default music (with Name, Length, creator)
+		☐ On "+" Activated, copy into new slot in the playlist
+	> For now, do not support multiple playlists - most players will only use 1 at most (and not popular feature anyway)
+	Currently playing display:
+		> In the main menu, or the custom playlist editor
+		☐ Create this display
+		☐ When the current music changes, activate an event
+		☐ When the event fires, update the Currently Playing display
 
 Music:
 	✔ bridge between Menus.client and Profile class, supporting...
@@ -13,12 +36,27 @@ Music:
 		✔ .CustomPlaylistNowExists:Event
 		✔ .CustomPlaylistNowEmpty
 
+Teleport:
+	☐ Shared teleport code
+	☐ ConfirmationBox module (that doesn't know anything about teleport)
+	☐ Have teleport scripts use shared teleport code
+
+Bugs:
+	✔ Can't toggle Music on/off
+	☐ Playlist says "Center" instead of "Default"
+	☐ Opening Book Finder doesn't close menu
+
 Profile:
-	☐ need to be able to encode it in a way that supports versions (ex version number?)
 	✔ Algorithm that can handle merging
-		> see SaveableSet
+	> see SaveableSet
 	☐ Add Recently Read books to profile
-Support these book operations:
+	☐ serialize profile and its contents (ex via SaveableSet) both for over the network and to/from the data store
+		☐ for data store only, need to be able to encode with a version so that they can be upgraded over time (or use tables with string keys that we can change over time)
+			x if we use string keys to upgrade, then you have to check every possible string key, "just in case"
+	☐
+
+New Book Gui:
+	For now we can add on to the existing book gui
 	☐ favoriting a book
 		☐ ImageButton star, like on Roblox's site. Change its icon when the change is confirmed (put it in a grayed out state while saving)
 		☐ store it in the user's profile
@@ -27,11 +65,8 @@ Support these book operations:
 		☐ TextButton that grays out while confirming change; text must change to "Mark as Read"/"Mark as Unread"
 		☐ store in user's profile
 		☐ store/remove it in book's list of who's read it (UpdateAsync)
-
-
-Book gui script:
-	☐ needs rewrite
-
+	☐ some way to add to "pouch"?
+	☐ need to rewrite the BookGui script
 
 
 --------------------------

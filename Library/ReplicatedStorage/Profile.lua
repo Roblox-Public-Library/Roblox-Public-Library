@@ -6,8 +6,6 @@ function Profile.new()
 		activePlaylistName = "Default",
 		customPlaylist = {},
 		-- FavoriteBooks = {},
-		-- LikedBooks = {},
-		-- DislikedBooks = {},
 		-- BooksRead = {},
     }, Profile)
 end

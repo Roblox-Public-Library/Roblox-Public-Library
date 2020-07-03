@@ -6,7 +6,7 @@ for _, setName in ipairs({"SetMusicEnabled", "SetActivePlaylistName", "SetCustom
 	local remote = remotes[setName]
 	profile[setName] = function(self, ...)
 		if base(self, ...) then return end -- no change
-		remote:Fire(...)
+		remote:FireServer(...)
 	end
 end
 return profile
