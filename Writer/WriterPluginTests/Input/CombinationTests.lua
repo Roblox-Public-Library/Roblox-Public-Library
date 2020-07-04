@@ -1,5 +1,5 @@
 local Nexus = require("NexusUnitTesting")
-local Combination = require(game.ServerStorage.BookWriterPlugin.Plugin.Input.Combination)
+local Combination = require(game:GetService("ServerStorage").BookWriterPlugin.Plugin.Input.Combination)
 
 local Shift = Enum.ModifierKey.Shift
 local Ctrl = Enum.ModifierKey.Ctrl

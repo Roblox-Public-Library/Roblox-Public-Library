@@ -1,4 +1,5 @@
-local ListSet = require(game.ReplicatedStorage.ListSet)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ListSet = require(ReplicatedStorage.ListSet)
 
 local SaveableSet = setmetatable({}, ListSet)
 SaveableSet.__index = SaveableSet

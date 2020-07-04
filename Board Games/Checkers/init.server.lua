@@ -1,6 +1,7 @@
+local StarterPlayer = game:GetService("StarterPlayer")
 local special = {
-	StarterPlayerScripts = game.StarterPlayer.StarterPlayerScripts,
-	StarterCharacterScripts = game.StarterPlayer.StarterCharacterScripts,
+	StarterPlayerScripts = StarterPlayer.StarterPlayerScripts,
+	StarterCharacterScripts = StarterPlayer.StarterCharacterScripts,
 }
 for _, folder in ipairs(script:GetChildren()) do
 	local dest = special[folder.Name] or game[folder.Name]

@@ -1,7 +1,7 @@
-local ReplicatedStorage = game.ReplicatedStorage
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local gui = ReplicatedStorage.Guis.Menus
 
-local localPlayer = game.Players.LocalPlayer
+local localPlayer = game:GetService("Players").LocalPlayer
 local playerGui = localPlayer.PlayerGui
 gui.Parent = playerGui
 local BookSearch = require(script.Parent.BookSearch)

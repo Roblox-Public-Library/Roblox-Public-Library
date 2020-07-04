@@ -14,12 +14,13 @@ Player needs to be able to do the following to a book (ignoring the gui/input):
     -Add to a custom list (in the future if not now)
     To support that functionality, we need client side functions that signal remotes that the server side is listening to.
 ]]
-local DataStores = require(game.ServerScriptService.DataStores)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local DataStores = require(game:GetService("ServerScriptService").DataStores)
 local profileStore = DataStores:GetDataStore("Profiles")
 local oldPlaylistStore = DataStores:GetDataStore("Playlists")
-local Profile = require(game.ReplicatedStorage.Profile)
-local Players = game.Players
-local remotes = game.ReplicatedStorage.Remotes
+local Profile = require(ReplicatedStorage.Profile)
+local Players = game:GetService("Players")
+local remotes = ReplicatedStorage.Remotes
 
 local profiles = {} -- Player->Profile
 Players.PlayerAdded:Connect(function(player)

@@ -3,7 +3,9 @@
 -- TODO Consider using UpdateAsync or calling GetAsync after 30 sec to see if data store changed (for if player was in another server that saved late, ex due to data stores being down)
 -- TODO Use DataStores module
 
-local DataStore = require(game.ServerScriptService.DataStores):GetDataStore("Playlists")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local DataStore = require(game:GetService("ServerScriptService").DataStores):GetDataStore("Playlists")
 local saveTimeMin = 60 -- can save once this many seconds (plus when the player leaves)
 local maxPlaylistLength = 9
 
@@ -84,7 +86,7 @@ getPlaylist.OnServerInvoke = function(player)
 	end
 	return playerProfile[player]:Get()
 end
-getPlaylist.Parent = game.ReplicatedStorage
+getPlaylist.Parent = ReplicatedStorage
 
 local savePlaylist = Instance.new("RemoteEvent")
 savePlaylist.Name = "SavePlaylist"
@@ -99,11 +101,11 @@ savePlaylist.OnServerEvent:Connect(function(player, playlist)
 	local profile = playerProfile[player]
 	profile:Set(playlist)
 end)
-game.Players.PlayerAdded:Connect(PlaylistProfile)
-for _, player in ipairs(game.Players:GetPlayers()) do
+Players.PlayerAdded:Connect(PlaylistProfile)
+for _, player in ipairs(Players:GetPlayers()) do
 	PlaylistProfile(player)
 end
-game.Players.PlayerRemoving:Connect(function(player)
+Players.PlayerRemoving:Connect(function(player)
 	local profile = playerProfile[player]
 	if profile then
 		profile:PlayerLeft()

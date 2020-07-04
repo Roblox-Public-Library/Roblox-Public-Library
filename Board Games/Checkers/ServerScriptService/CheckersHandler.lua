@@ -1,5 +1,7 @@
 --This file manages all checker games server side and creates needed remotes
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 -- Setup remotes
 local function create(parent, type, name)
 	local obj = Instance.new(type)
@@ -7,7 +9,7 @@ local function create(parent, type, name)
 	obj.Parent = parent
 	return obj
 end
-local remotes = game.ReplicatedStorage.Remotes.Checkers
+local remotes = ReplicatedStorage.Remotes.Checkers
 for _, name in ipairs({
 	"NewGame", --(checkersModel, redOnTop)
 	"StartTurn", --(checkersModel, team)
@@ -24,7 +26,7 @@ for _, name in ipairs({
 	create(remotes, "RemoteFunction", name)
 end
 
-local Checkers = game.ReplicatedStorage.Checkers
+local Checkers = ReplicatedStorage.Checkers
 local Board = require(Checkers.Board)
 local Move = Board.Move
 local Game = require(Checkers.Game)(remotes)

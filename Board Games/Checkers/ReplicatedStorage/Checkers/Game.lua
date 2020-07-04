@@ -1,4 +1,4 @@
-local Players = game.Players
+local Players = game:GetService("Players")
 local Board = require(script.Parent.Board)
 local Move = Board.Move
 

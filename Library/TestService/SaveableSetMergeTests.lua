@@ -1,5 +1,6 @@
 local Nexus = require("NexusUnitTesting")
-local SaveableSet = require(game.ReplicatedStorage.SaveableSet)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SaveableSet = require(ReplicatedStorage.SaveableSet)
 
 local function toList(dict)
 	local list = {}

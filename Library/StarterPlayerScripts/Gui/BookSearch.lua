@@ -5,9 +5,11 @@ local module = {}
 local TweenService = game:GetService("TweenService")
 local tweenInfo = TweenInfo.new(0.3)
 
-local books = game.ReplicatedStorage:WaitForChild("GetBooks"):InvokeServer()
-local gui = game.ReplicatedStorage.Guis.SearchGui
-local localPlayer = game.Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local books = ReplicatedStorage:WaitForChild("GetBooks"):InvokeServer()
+local gui = ReplicatedStorage.Guis.SearchGui
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
 gui.Parent = localPlayer.PlayerGui
 
 local resultsFrame = gui.Results

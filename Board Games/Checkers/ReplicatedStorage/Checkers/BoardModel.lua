@@ -8,7 +8,7 @@ local BoardModel = {}
 BoardModel.__index = BoardModel
 
 local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Linear, Enum.EasingDirection.In, 0, false, 0)
-local storage = game.ServerStorage.Checkers
+local storage = game:GetService("ServerStorage").Checkers
 local boardTileToModel = {
 	r = storage.RedPiece,
 	R = storage.RedKingedPiece,
@@ -47,7 +47,7 @@ function BoardModel:WhatIsPart(part)
 end
 function BoardModel:PartToCoord(part)
 	--	returns Vector2 coordinate of part IF part is a square or piece
-	
+
 end
 ]]
 

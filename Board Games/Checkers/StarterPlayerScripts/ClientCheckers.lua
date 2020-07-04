@@ -1,14 +1,15 @@
 --This file manages all checker games client side
-local Checkers = game.ReplicatedStorage.Checkers
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Checkers = ReplicatedStorage.Checkers
 local Board = require(Checkers.Board)
 local Move = Board.Move
 local BoardModel = require(Checkers.BoardModel)
 
-local remotes = game.ReplicatedStorage.Remotes.Checkers
+local remotes = ReplicatedStorage.Remotes.Checkers
 local checkersModelToGame = {}
 local Game = require(Checkers.Game)(remotes)
 
-local localPlayer = game.Players.LocalPlayer
+local localPlayer = game:GetService("Players").LocalPlayer
 
 local validMoves
 local playerGame

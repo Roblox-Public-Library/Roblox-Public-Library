@@ -1,9 +1,9 @@
 --[[Music
 Handles playing music and keeping the profile up-to-date with the user's musical preferences
-
 ]]
 local Music = {}
 local Marketplace = game:GetService("MarketplaceService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local profile = require(script.Parent.Profile)
 
@@ -68,7 +68,7 @@ local function removeRef(id)
 	end
 end
 
-local localPlayer = game.Players.LocalPlayer
+local localPlayer = game:GetService("Players").LocalPlayer
 local curPlaylist -- list of song IDs to play
 local curTrackId, nextTrackId -- numeric form
 local curTrack = Instance.new("Sound")
@@ -148,7 +148,8 @@ end
 function Music:Disable()
 	profile:SetMusicEnabled(false)
 end
-local crazyMusic = game.ReplicatedStorage.DefaultMusic:GetChildren()
+
+local crazyMusic = ReplicatedStorage.DefaultMusic:GetChildren()
 defaultPlaylist = {}
 for i, s in ipairs(crazyMusic) do
 	local id = tonumber(s.SoundId:match("%d+"))

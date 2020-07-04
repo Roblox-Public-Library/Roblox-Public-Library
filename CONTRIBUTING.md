@@ -36,9 +36,9 @@ For other guidelines, refer to <https://roblox.github.io/lua-style-guide/>, but 
 * Do not add `function MyClass.isMyClass(instance)` if the class may be inherited from.
   * Try to avoid checking whether something "is" of a particular class except for when validating arguments.
   * It's better to have a function defined on a class, like "MyClass:CanSave()", or just check to see whether the function is defined before using it; this way other classes can be passed in as well.
-  * For custom classes which support `:IsA` functionality, see `game.ReplicatedStorage.Utilities.Class`. Note that `:Is` is used to ensure the Script Analysis window does not complain.
+  * For custom classes which support `:IsA` functionality, see `ReplicatedStorage.Utilities.Class`. Note that `:Is` is used to ensure the Script Analysis window does not complain.
 * Allow mixed tables (but be cautious with them - you can't send them to any Remote/Bindable Event/Function, nor the data stores)
-* There is nothing wrong with using `workspace` or `game.Players`. Use `GetService` for any service that is not visible in the Explorer window.
+* There is nothing wrong with using `workspace` (though for all other services, use `:GetService()`).
 * Use `local funcName = function() end` instead of `local function funcName() end` to emphasize that `funcName` is a variable and changes in the code.
 * Use your editor's text wrapping instead of manually entering newlines in code or comments.
   * There's nothing wrong with having multiple lines of comments (ex one line per concept).
@@ -56,9 +56,9 @@ Movement interface:
 ]]
 local MessagingService = game:GetService("MessagingService")
 
-local RS = game.ReplicatedStorage
-local Assert = require(RS.Utilities.Assert)
-local Resources = require(RS.Resources)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Assert = require(ReplicatedStorage.Utilities.Assert)
+local Resources = require(ReplicatedStorage.Resources)
 local OtherModule = require(script.Parent.OtherModule)
 
 local MyModule = {}
@@ -70,7 +70,7 @@ end
 function MyModule.LineEquation(m, x, b)
 	--	Returns the result of m*x + b
 	Assert.Number(m) -- slope
-	assert(type(x) == "number") -- (this is okay too, but the Assert library gives more information) 
+	assert(type(x) == "number") -- (this is okay too, but the Assert library gives more information)
 	b = b or 0
 	-- The above 3 lines document the arguments. ex, in "b = b or 0", we're making it clear the type & default value.
 	--	More information about the arguments can be added as a comment beside each.

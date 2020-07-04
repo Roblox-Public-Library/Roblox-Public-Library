@@ -1,5 +1,6 @@
 local Nexus = require("NexusUnitTesting")
-local Writer = require(game.ReplicatedStorage.Writer)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Writer = require(ReplicatedStorage.Writer)
 local Formats = Writer.Formats
 
 local parse = Formats.CustomMarkdown.ParseText

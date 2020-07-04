@@ -1,5 +1,6 @@
 local Nexus = require("NexusUnitTesting")
-local Writer = require(game.ReplicatedStorage.Writer)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Writer = require(ReplicatedStorage.Writer)
 local FileContent, DocumentController, Formats = Writer.FileContent, Writer.DocumentController, Writer.Formats
 
 local Test = Nexus.UnitTest:Extend()

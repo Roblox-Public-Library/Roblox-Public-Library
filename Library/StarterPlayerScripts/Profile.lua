@@ -1,5 +1,6 @@
-local remotes = game.ReplicatedStorage.Remotes
-local Profile = require(game.ReplicatedStorage.Profile)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local remotes = ReplicatedStorage.Remotes
+local Profile = require(ReplicatedStorage.Profile)
 local profile = Profile.Deserialize(remotes.GetProfile:InvokeServer())
 for _, setName in ipairs({"SetMusicEnabled", "SetActivePlaylistName", "SetCustomPlaylistTrack"}) do
 	local base = profile[setName]

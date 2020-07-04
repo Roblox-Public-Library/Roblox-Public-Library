@@ -26,7 +26,8 @@ local function onPlayerAdded(player)
 		onCharacterAdded(player.Character)
 	end
 end
-game.Players.PlayerAdded:Connect(onPlayerAdded)
-for _, player in ipairs(game.Players:GetPlayers()) do
+local Players = game:GetService("Players")
+Players.PlayerAdded:Connect(onPlayerAdded)
+for _, player in ipairs(Players:GetPlayers()) do
 	onPlayerAdded(player)
 end
