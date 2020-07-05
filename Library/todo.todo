@@ -1,11 +1,27 @@
 (If you install the Todo+ extension you can toggle a task being done with Alt+d and create a new task with Ctrl+Enter)
 --------------------------
+TopBar:
+	☐ Credit https://github.com/1ForeverHD/HDAdmin/tree/master/Projects/Topbar%2B for coords/sizes
+	☐ Transparency of bg image:
+		.5 rest
+		.72 hover
+		.33 click
+	☐ Settings gear (from TopBar+): http://www.roblox.com/asset/?id=2484556379
+	Music:
+		✔ Get musical note icon
+		☐ Create dropdown list
+		☐ Make the gui functional
+	About or FAQ:
+		✔ Get icon (maybe a "?")
+		☐ Should have commands/controls and credits
+	Book Finder:
+		✔ Get magnifying icon
+
 Custom Playlist:
-	✔ Do not continue work on this feature until Poll confirms whether we need it or not
-		Poll Result - a number of people use it, though few would care if they could have more than one
-	> need to rewrite "CustomPlaylistDrop" in Menus.client
-	> Gui will have "x" to delete entry and then 1+ rows for sound IDs
-	> after pressing enter a label with Title (Length) is supposed to show up (maybe "by Creator" as well?)
+	Poll results suggest that this isn't a top priority. Most who use it are interested in having multiple custom playlists.
+	Old code is commented out; see "CustomPlaylistDrop" in Menus.client
+	☐ Gui will have "x" to delete entry and then 1+ rows for sound IDs
+	☐ after pressing enter a label with Title (Length) is supposed to show up (maybe "by Creator" as well?)
 	On Enter of one of the IDs:
 		☐ Validate the input. If it's no good, revert to previous value.
 			☐ Tell user what's wrong by sending a notification
@@ -26,34 +42,34 @@ Custom Playlist:
 		☐ When the current music changes, activate an event
 		☐ When the event fires, update the Currently Playing display
 
-Music:
-	✔ bridge between Menus.client and Profile class, supporting...
-		✔ :GetEnabled()
-		✔ :SetEnabled(enabled)
-		✔ :GetActivePlaylistName()
-		✔ :SetActivePlaylistName(name)
-		✔ :CustomPlaylistHasContent()
-		✔ .CustomPlaylistNowExists:Event
-		✔ .CustomPlaylistNowEmpty
+Book Pouch/Inventory:
+	☐ Perhaps "Books" or "Inventory" text should be on far left side (rotated 90 degrees), at least when the pouch is closed
+	☐ Starts out open (but invisible if you're not carrying any books)
+	☐ A ScrollingFrame (only scrolls if needed) to hold each book
+	☐ It should save books you previously had in your inventory
+	☐ An "x" beside each book to get rid of it
+	☐ When you click on a book, it opens it up
 
 Teleport:
+	WhirlPlay is working on this
 	☐ Shared teleport code
 	☐ ConfirmationBox module (that doesn't know anything about teleport)
 	☐ Have teleport scripts use shared teleport code
 
 Bugs:
 	✔ Can't toggle Music on/off
-	☐ Playlist says "Center" instead of "Default"
-	☐ Opening Book Finder doesn't close menu
+	✔ Toggling music on/off doesn't actually work
+	✔ Playlist says "Center" instead of "Default"
+	✔ Playlist label should be init to whatever the user's preference is and updated appropriately
+	✔ Opening Book Finder doesn't close menu
 
 Profile:
 	✔ Algorithm that can handle merging
 	> see SaveableSet
-	☐ Add Recently Read books to profile
+	☐ Add Recently Read books to profile (OR just use book inventory?)
 	☐ serialize profile and its contents (ex via SaveableSet) both for over the network and to/from the data store
 		☐ for data store only, need to be able to encode with a version so that they can be upgraded over time (or use tables with string keys that we can change over time)
 			x if we use string keys to upgrade, then you have to check every possible string key, "just in case"
-	☐
 
 New Book Gui:
 	For now we can add on to the existing book gui
@@ -65,7 +81,7 @@ New Book Gui:
 		☐ TextButton that grays out while confirming change; text must change to "Mark as Read"/"Mark as Unread"
 		☐ store in user's profile
 		☐ store/remove it in book's list of who's read it (UpdateAsync)
-	☐ some way to add to "pouch"?
+	☐ some way to add to "pouch"
 	☐ need to rewrite the BookGui script
 
 

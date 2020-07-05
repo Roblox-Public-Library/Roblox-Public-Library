@@ -81,12 +81,12 @@ local curMusicIndex = 1
 local nextTrackStarted = Instance.new("BindableEvent")
 Music.NextTrackStarted = nextTrackStarted.Event
 
-local defaultVolume = .3
+local defaultVolume = 0.3
 local function getMusicVolume()
 	return (profile:GetMusicEnabled() and defaultVolume or 0)
 end
 local function musicVolumeChanged() -- todo if user changes music volume, ensure this is run
-	curMusic.Volume = getMusicVolume()
+	curTrack.Volume = getMusicVolume()
 end
 local base = profile.SetMusicEnabled
 function profile:SetMusicEnabled(value)
@@ -111,9 +111,9 @@ local function getNextSong(forceReshuffle) -- returns id, SoundId
 	return id, soundId
 end
 local playlistModified
-local function playNextSong()
+local function playNextSong(startingNewPlaylist)
 	curTrack:Stop()
-	if playlistModified then
+	if playlistModified or startingNewPlaylist then
 		playlistModified = false
 		nextTrackId, nextTrack.SoundId = getNextSong(true)
 	end
@@ -129,7 +129,7 @@ nextTrack.Ended:Connect(playNextSong)
 local function setPlaylist(playlist)
 	if #playlist == 0 then error("Playlist cannot be empty") end
 	curPlaylist = playlist
-	playNextSong()
+	playNextSong(true)
 end
 local defaultPlaylist -- initialized below
 local customPlaylist = profile:GetCustomPlaylist() -- treat as read-only; can be modified through profile:SetCustomPlaylistTrack

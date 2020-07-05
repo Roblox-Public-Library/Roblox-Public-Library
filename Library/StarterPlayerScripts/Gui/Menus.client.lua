@@ -1,11 +1,13 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local gui = ReplicatedStorage.Guis.Menus
 
+local BookSearch = require(script.Parent.BookSearch)
+local music = require(script.Parent.Parent.Music)
+local profile = require(script.Parent.Parent.Profile)
+
 local localPlayer = game:GetService("Players").LocalPlayer
 local playerGui = localPlayer.PlayerGui
 gui.Parent = playerGui
-local BookSearch = require(script.Parent.BookSearch)
-local music = require(script.Parent.Parent.Music)
 
 local sfx = ReplicatedStorage.SFX
 
@@ -72,6 +74,7 @@ local function openMenuForButtonAndRun(button, func)
 end
 openMenuForButtonAndRun(menuDrop.BookFinder, function()
 	displayMenu(BookSearch)
+	displayDropdown(nil)
 end)
 local playlistDrop = main.PlaylistDrop
 local customPlaylistDrop = main.CustomPlaylistDrop
@@ -103,10 +106,12 @@ events.BookClosed:Connect(function()
 	gui.Enabled = true
 end)
 
-
-
 do -- PlaylistDrop (allow selection between playlists)
 	local curPlaylistName = music:GetActivePlaylistName()
+	local function updateCurrentPlaylistName()
+		menuDrop.Playlist.TextLabel.Text = curPlaylistName
+	end
+	updateCurrentPlaylistName()
 
 	local selectedColor = Color3.fromRGB(42, 45, 54)
 	local normalColor = Color3.fromRGB(100, 104, 111)
@@ -122,7 +127,6 @@ do -- PlaylistDrop (allow selection between playlists)
 	updateColors()
 	local function setActivePlaylist(name)
 		music:SetActivePlaylistName(name)
-		curPlaylistName = name
 		updateColors()
 	end
 	for i, v in ipairs(buttons) do
@@ -140,6 +144,14 @@ do -- PlaylistDrop (allow selection between playlists)
 	music.CustomPlaylistNowEmpty:Connect(function()
 		playlistDrop.Custom.Visible = false
 	end)
+
+	local base = profile.SetActivePlaylistName
+	function profile:SetActivePlaylistName(value)
+		if base(self, value) then return end -- no change
+		curPlaylistName = value
+		updateCurrentPlaylistName()
+		updateColors()
+	end
 end
 
 -- do -- CustomPlaylistDrop
@@ -263,14 +275,3 @@ end
 -- Music
 -- Playlist
 -- Book
---[[todo
-when playlist changes (currently a StringValue; change that?):
-menuDrop.Playlist.TextLabel.Text = playlist.Value
-
-BookSearch must now be a ModuleScript and support :Open() :Close()
-when a book is opened (should be a BindableEvent):
-
-when a book is closed:
-	ensureAtMainMenu()
-	BookSearch:Unhide()
-]]
