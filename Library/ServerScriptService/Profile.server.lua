@@ -46,12 +46,11 @@ Players.PlayerAdded:Connect(function(player)
     end
 end)
 Players.PlayerRemoving:Connect(function(player)
-    -- todo call cleanup on profile
     local value = profiles[player]
     if typeof(value) == "Instance" then -- it's an event; a thread is waiting on the profile loading
         value:Fire(nil)
-        value:Destroy()
     end
+    value:Destroy()
     profiles[player] = nil
 end)
 

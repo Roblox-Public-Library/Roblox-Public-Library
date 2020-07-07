@@ -1,19 +1,16 @@
 (If you install the Todo+ extension you can toggle a task being done with Alt+d and create a new task with Ctrl+Enter)
 --------------------------
 TopBar:
-	☐ Credit https://github.com/1ForeverHD/HDAdmin/tree/master/Projects/Topbar%2B for coords/sizes
-	☐ Transparency of bg image:
-		.5 rest
-		.72 hover
-		.33 click
-	☐ Settings gear (from TopBar+): http://www.roblox.com/asset/?id=2484556379
+	✔ Credit https://github.com/1ForeverHD/HDAdmin/tree/master/Projects/Topbar%2B for coords/sizes
+	✔ Transparency of bg image
+	✔ Settings gear (from TopBar+): http://www.roblox.com/asset/?id=2484556379
 	Music:
 		✔ Get musical note icon
-		☐ Create dropdown list
+		✔ Create dropdown list
 		☐ Make the gui functional
 	About or FAQ:
 		✔ Get icon (maybe a "?")
-		☐ Should have commands/controls and credits
+		✔ Should have commands/controls and credits
 	Book Finder:
 		✔ Get magnifying icon
 
@@ -55,6 +52,15 @@ Teleport:
 	☐ Shared teleport code
 	☐ ConfirmationBox module (that doesn't know anything about teleport)
 	☐ Have teleport scripts use shared teleport code
+	☐ Automatically fetch place name from id and display it in the model and the confirmation message
+	☐ Ensure message isn't triggered multiple times while the player is idling/moving around
+	☐ Auto-cancel if the player moves away a certain distance
+	☐ If a player declines, don't let the message trigger again until they've moved away at least a bit
+
+	☐ Can we write any tests for this?
+		> Can't easily test player
+
+
 
 Bugs:
 	✔ Can't toggle Music on/off
@@ -84,6 +90,10 @@ New Book Gui:
 	☐ some way to add to "pouch"
 	☐ need to rewrite the BookGui script
 
+Consider these assets:
+	Star = "rbxassetid://706790939"
+	StarOutline = "rbxassetid://706767490"
+	StarWithBorder = "rbxassetid://706767649"
 
 --------------------------
 Data Flow Plan (Profiles):

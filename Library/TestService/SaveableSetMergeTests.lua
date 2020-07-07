@@ -2,15 +2,15 @@ local Nexus = require("NexusUnitTesting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SaveableSet = require(ReplicatedStorage.SaveableSet)
 
-local function toList(dict)
+local function toList(set)
 	local list = {}
-	for v, _ in pairs(dict) do
+	for v, _ in pairs(set) do
 		list[#list + 1] = v
 	end
 	return list
 end
-local function concatSortDict(dict)
-	local list = toList(dict)
+local function concatSortSet(set)
+	local list = toList(set)
 	table.sort(list)
 	return table.concat(list, ",")
 end
@@ -20,8 +20,8 @@ local function test(name, lastRead, cur, newRead, expected)
 		local ss = SaveableSet.FromList(cur)
 		ss:UpdateLastData(lastRead)
 		ss:MergeData(newRead)
-		local output = concatSortDict(ss.Indices)
-		t:AssertEquals(expected, output)
+		local output = concatSortSet(ss.Indices)
+		t:AssertEquals(output, expected)
 	end)
 end
 test("No contents",	{}, {}, {}, "")

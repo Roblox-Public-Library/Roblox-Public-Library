@@ -54,6 +54,9 @@ local function getDesc(id) -- id can be input from user (but is expected to be a
 	end
 	return desc
 end
+function Music:GetDescForId(id)
+	return getDesc(id)
+end
 local idToNumRefs = {}
 local function addRef(id)
 	idToNumRefs[id] = (idToNumRefs[id] or 0) + 1
@@ -88,17 +91,15 @@ end
 local function musicVolumeChanged() -- todo if user changes music volume, ensure this is run
 	curTrack.Volume = getMusicVolume()
 end
-local base = profile.SetMusicEnabled
-function profile:SetMusicEnabled(value)
-	if base(self, value) then return true end
-	musicVolumeChanged()
-end
+profile.MusicEnabledChanged:Connect(musicVolumeChanged)
+
 function Music:GetEnabled() return profile:GetMusicEnabled() end
 function Music:SetEnabled(value) return profile:SetMusicEnabled(value) end
 
-function Music:GetCurSongDesc() -- todo use from gui?
+function Music:GetCurSongDesc()
 	return getDesc(curMusic[curMusicIndex])
 end
+function Music:GetCurSongId() return curTrackId end
 
 local function getNextSong(forceReshuffle) -- returns id, SoundId
 	if forceReshuffle or not curMusic[curMusicIndex] then
@@ -132,26 +133,21 @@ local function setPlaylist(playlist)
 	playNextSong(true)
 end
 local defaultPlaylist -- initialized below
-local customPlaylist = profile:GetCustomPlaylist() -- treat as read-only; can be modified through profile:SetCustomPlaylistTrack
+local customPlaylists = profile:GetCustomPlaylists() -- treat as read-only; can be modified through profile:SetCustomPlaylistTrack
+local defaultPlaylists = {} -- name -> defaultPlaylist
+local defaultPlaylistNames = {} -- list
+local function addDefaultPlaylist(name, list)
+	defaultPlaylists[name] = list
+	defaultPlaylistNames[#defaultPlaylistNames + 1] = list
+end
 local function activePlaylistNameChanged(name)
-	setPlaylist(name == "Default" and defaultPlaylist or customPlaylist)
+	setPlaylist(defaultPlaylists[name] or customPlaylists[name] or next(defaultPlaylist))
 end
-local base = profile.SetActivePlaylistName
-function profile:SetActivePlaylistName(value)
-	if base(value) then return true end
-	activePlaylistNameChanged(value)
-end
-
-function Music:Enable()
-	profile:SetMusicEnabled(true)
-end
-function Music:Disable()
-	profile:SetMusicEnabled(false)
-end
+profile.ActivePlaylistNameChanged:Connect(activePlaylistNameChanged)
 
 local crazyMusic = ReplicatedStorage.DefaultMusic:GetChildren()
 defaultPlaylist = {}
-for i, s in ipairs(crazyMusic) do
+for i, s in ipairs(crazyMusic) do -- init default music & refs to it
 	local id = tonumber(s.SoundId:match("%d+"))
 	defaultPlaylist[i] = id
 	addRef(id)
@@ -175,11 +171,30 @@ function Music:GoCrazy()
 	end)
 end
 activePlaylistNameChanged(profile:GetActivePlaylistName())
-function Music:GetActivePlaylistName() return profile:GetActivePlaylistName() end
-function Music:SetActivePlaylistName(value) return profile:SetActivePlaylistName(value) end
 
-for _, id in ipairs(customPlaylist) do
-	addRef(id)
+function Music:GetPlaylist(name)
+	return defaultPlaylists[name] or customPlaylists[name]
+end
+function Music:GetDefaultPlaylists()
+	return defaultPlaylistNames
+end
+local sortedPlaylistNames
+local function updateSortedPlaylistNames()
+	sortedPlaylistNames = {}
+	for name, list in pairs(customPlaylists) do
+		sortedPlaylistNames[#sortedPlaylistNames + 1] = name
+	end
+	table.sort(sortedPlaylistNames)
+end
+profile.CustomPlaylistsChanged:Connect(updateSortedPlaylistNames)
+function Music:GetSortedCustomPlaylistNames()
+	return sortedPlaylistNames
+end
+
+for name, playlist in pairs(customPlaylists) do
+	for _, id in ipairs(playlist) do
+		addRef(id)
+	end
 end
 function Music:CustomPlaylistHasContent()
 	return #customPlaylist > 0

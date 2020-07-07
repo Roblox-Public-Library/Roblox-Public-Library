@@ -11,35 +11,23 @@ local function toSet(list)
 	end
 	return set
 end
-local function toList(set)
-	local list = {}
-	for v, _ in pairs(set) do
-		list[#list + 1] = v
-	end
-	return list
-end
-local function concatSortSet(set)
-	local list = toList(set)
-	table.sort(list)
-	return table.concat(list, ",")
-end
-local function merge(lastRead, cur, newRead)
-	local new = {}
-	for k, v in pairs(cur) do
-		-- If it's in lastRead, only keep it if it's still in newRead
-		-- If it isn't in lastRead, it's been added so it doesn't matter if it's in newRead or not
-		if (not lastRead[k]) or newRead[k] then
-			new[k] = true
-		end
-	end
-	for k, v in pairs(newRead) do
-		-- Note: we don't need to check cur[k] because it would already have been dealt with if it existed
-		if not lastRead[k] then -- added
-			new[k] = true
-		end
-	end
-	return new
-end
+-- local function merge(lastRead, cur, newRead)
+-- 	local new = {}
+-- 	for k, v in pairs(cur) do
+-- 		-- If it's in lastRead, only keep it if it's still in newRead
+-- 		-- If it isn't in lastRead, it's been added so it doesn't matter if it's in newRead or not
+-- 		if (not lastRead[k]) or newRead[k] then
+-- 			new[k] = true
+-- 		end
+-- 	end
+-- 	for k, v in pairs(newRead) do
+-- 		-- Note: we don't need to check cur[k] because it would already have been dealt with if it existed
+-- 		if not lastRead[k] then -- added
+-- 			new[k] = true
+-- 		end
+-- 	end
+-- 	return new
+-- end
 
 for _, name in ipairs({"new", "FromList"}) do
 	local base = SaveableSet[name]
