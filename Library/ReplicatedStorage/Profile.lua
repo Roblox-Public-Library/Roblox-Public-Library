@@ -3,7 +3,9 @@ local Utilities = ReplicatedStorage.Utilities
 local Assert = require(Utilities.Assert)
 local Functions = require(Utilities.Functions)
 
-local Profile = {}
+local Profile = {
+	MAX_PLAYLIST_NAME_LENGTH = 30,
+}
 Profile.__index = Profile
 function Profile.new()
     return setmetatable({
@@ -20,7 +22,7 @@ local eventNames = {
 	"CustomPlaylistsChanged", --() -- fires when a custom playlist is created, removed, or renamed
 	"CustomPlaylistChanged", --(name, index, newValue)
 }
-getLowerName = Functions.Cache(function(name)
+local getLowerName = Functions.Cache(function(name)
 	return name:sub(1, 1):lower() .. name:sub(2)
 end)
 for _, name in ipairs(eventNames) do
@@ -63,8 +65,8 @@ end
 function Profile:SetCustomPlaylistTrack(name, index, id)
 	--	Returns true if no change
 	Assert.String(name)
-	Assert.Number(index)
-	if id then Assert.Number(id) end
+	Assert.Integer(index)
+	if id then Assert.Integer(id) end
 	local playlist = self.customPlaylists[name]
 	local created
 	if not playlist then
@@ -84,6 +86,14 @@ function Profile:SetCustomPlaylistTrack(name, index, id)
 		self.customPlaylistsChanged:Fire()
 		self.customPlaylists[name] = nil
 	end
+end
+function Profile:RemoveCustomPlaylistTrack(name, index)
+	--	Returns true if nothing changed
+	Assert.String(name)
+	Assert.Integer(index)
+	local playlist = self.customPlaylists[name]
+	if not playlist or not playlist[index] then return true end
+	table.remove(playlist, index)
 end
 function Profile:RenameCustomPlaylist(oldName, newName)
 	Assert.String(oldName)

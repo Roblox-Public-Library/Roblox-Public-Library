@@ -4,6 +4,7 @@ Handles playing music and keeping the profile up-to-date with the user's musical
 local Music = {}
 local Marketplace = game:GetService("MarketplaceService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Assert = require(ReplicatedStorage.Utilities.Assert)
 local TweenService = game:GetService("TweenService")
 local profile = require(script.Parent.Profile)
 
@@ -30,7 +31,7 @@ local function getDesc(id) -- id can be input from user (but is expected to be a
 	--	returns desc OR false, reasonForUser
 	local desc = idToDesc[id]
 	if not desc then
-		if id <= 0 then return false, "That is not a valid sound id" end
+		if id <= 0 then return false, "That is not a valid sound id (id must be positive)" end
 		local success, data = pcall(function()
 			return Marketplace:GetProductInfo(id)
 		end)
@@ -42,8 +43,8 @@ local function getDesc(id) -- id can be input from user (but is expected to be a
 				return false, "Attempt to retrieve data failed: " .. data
 			end
 		end
-		if data.AssetTypeId ~= Enum.AssetType.Audio then
-			return false, "That is not a valid sound id"
+		if data.AssetTypeId ~= Enum.AssetType.Audio.Value then
+			return false, "That id does not point to a sound"
 		end
 		local name = data.Name
 		if data.Creator.Name == "ROBLOX" and data.Description:find("Courtesy of APM Music") then
@@ -88,7 +89,7 @@ local defaultVolume = 0.3
 local function getMusicVolume()
 	return (profile:GetMusicEnabled() and defaultVolume or 0)
 end
-local function musicVolumeChanged() -- todo if user changes music volume, ensure this is run
+local function musicVolumeChanged()
 	curTrack.Volume = getMusicVolume()
 end
 profile.MusicEnabledChanged:Connect(musicVolumeChanged)
@@ -100,6 +101,7 @@ function Music:GetCurSongDesc()
 	return getDesc(curMusic[curMusicIndex])
 end
 function Music:GetCurSongId() return curTrackId end
+function Music:GetCurSong() return curTrack end
 
 local function getNextSong(forceReshuffle) -- returns id, SoundId
 	if forceReshuffle or not curMusic[curMusicIndex] then
@@ -137,11 +139,16 @@ local customPlaylists = profile:GetCustomPlaylists() -- treat as read-only; can 
 local defaultPlaylists = {} -- name -> defaultPlaylist
 local defaultPlaylistNames = {} -- list
 local function addDefaultPlaylist(name, list)
+	Assert.String(name)
+	Assert.List(list)
+	for _, id in ipairs(list) do
+		Assert.Integer(id)
+	end
 	defaultPlaylists[name] = list
-	defaultPlaylistNames[#defaultPlaylistNames + 1] = list
+	defaultPlaylistNames[#defaultPlaylistNames + 1] = name
 end
 local function activePlaylistNameChanged(name)
-	setPlaylist(defaultPlaylists[name] or customPlaylists[name] or next(defaultPlaylist))
+	setPlaylist(defaultPlaylists[name] or customPlaylists[name] or defaultPlaylists[next(defaultPlaylists)])
 end
 profile.ActivePlaylistNameChanged:Connect(activePlaylistNameChanged)
 
@@ -152,6 +159,7 @@ for i, s in ipairs(crazyMusic) do -- init default music & refs to it
 	defaultPlaylist[i] = id
 	addRef(id)
 end
+addDefaultPlaylist("Default", defaultPlaylist)
 function Music:GoCrazy()
 	curTrack:Pause()
 	for _, s in ipairs(crazyMusic) do
@@ -170,6 +178,7 @@ function Music:GoCrazy()
 		TweenService:CreateTween(curTrack, TweenInfo.new(2, Enum.EasingStyle.Linear), {Volume = getMusicVolume()})
 	end)
 end
+-- Note: all default playlists must be created by this point
 activePlaylistNameChanged(profile:GetActivePlaylistName())
 
 function Music:GetPlaylist(name)
@@ -186,6 +195,7 @@ local function updateSortedPlaylistNames()
 	end
 	table.sort(sortedPlaylistNames)
 end
+updateSortedPlaylistNames()
 profile.CustomPlaylistsChanged:Connect(updateSortedPlaylistNames)
 function Music:GetSortedCustomPlaylistNames()
 	return sortedPlaylistNames
@@ -196,6 +206,7 @@ for name, playlist in pairs(customPlaylists) do
 		addRef(id)
 	end
 end
+-- TODO rewrite below
 function Music:CustomPlaylistHasContent()
 	return #customPlaylist > 0
 end
@@ -203,8 +214,9 @@ local customNowExists = Instance.new("BindableEvent")
 local customNowEmpty = Instance.new("BindableEvent")
 Music.CustomPlaylistNowExists = customNowExists.Event
 Music.CustomPlaylistNowEmpty = customNowEmpty.Event
-function Music:TrySetCustomPlaylistTrack(index, id)
-	assert(index >= 1 and index <= #customPlaylist + 1, "Index is out of range")
+function Music:TrySetCustomPlaylistTrack(name, index, id)
+	Assert.String(name)
+	Assert.Integer(index, 1, #customPlaylist + 1, "Index")
 	local prev = customPlaylist[index]
 	if prev == id then return true end
 	local desc, problem = getDesc(id)
