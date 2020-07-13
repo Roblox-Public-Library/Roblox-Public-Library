@@ -1,1 +1,1 @@
-require(game:GetService("ReplicatedStorage").TeleportRequester).Setup(script.Parent)
+require(game:GetService("ReplicatedStorage").Portals).Setup(script.Parent)

@@ -1,45 +1,50 @@
-local screenFrame = script.Parent.ScreenFrame
-local messageFrame = screenFrame.MessageFrame
+local MessageBox = {}
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local screenGui = ReplicatedStorage.Guis.ScreenGui
+local messageFrame = screenGui.MessageFrame
 local yesBtn = messageFrame.ButtonL
 local noBtn = messageFrame.ButtonR
-local fullScreenButton = screenFrame.FullScreenButton
+local fullScreenButton = screenGui.FullScreenButton
+local msgShowing = false
+local event = Instance.new("BindableEvent")
 
-local replicatedStorage = game:GetService("ReplicatedStorage")
-local TeleOpenGui = replicatedStorage.TeleOpenGui
-local TeleGuiClosed = replicatedStorage.TeleGuiClosed
-
-local placeId = 0
-
--- Show message(or change to new place)
-TeleOpenGui.OnClientEvent:Connect(function(id, name)
-	messageFrame.TextLabel.Text = "Teleport to "..name.."?"
-	placeId = id
-	screenFrame.Visible = true
-end)
-
--- Teleport player
-yesBtn.MouseButton1Click:Connect(function()
-	game:GetService("TeleportService"):Teleport(placeId)
-end)
-
--- Close GUI, inform server
-local function closeGui()
-	screenFrame.Visible = false
-	TeleGuiClosed:FireServer()
+function MessageBox.Show(prompt, confirmText, cancelText)
+	--	Will show the user 'prompt' and yield until they confirm/cancel or until MessageBox.Show is called again (this counts as cancelling)
+	--	Will return true if they confirmed (false otherwise)
+	if msgShowing then
+		event:Fire(false)
+	end
+	messageFrame.TextLabel.Text = prompt
+	yesBtn.Text = confirmText
+	noBtn.Text = cancelText
+	msgShowing = true
+	screenGui.Enabled = true
+	local response = event.Event:Wait()
+	screenGui.Enabled = false
+	msgShowing = false
+	return response
 end
-noBtn.MouseButton1Click:Connect(closeGui) -- todo: .Activated works for all input types
-fullScreenButton.MouseButton1Click:Connect(closeGui)
+local function cancel()
+	event:Fire(false)
+end
+MessageBox.Close = cancel
+
+yesBtn.Activated:Connect(function()
+	event:Fire(true)
+end)
+noBtn.Activated:Connect(cancel)
+fullScreenButton.Activated:Connect(cancel)
 
 -- Make text bold when mouse hovers over
-for _, button in pairs(messageFrame:GetChildren()) do
+for _, button in ipairs(messageFrame:GetChildren()) do
 	if button:IsA("TextButton") then
-
         button.MouseEnter:Connect(function()
 			button.Font = "SourceSansBold"
 		end)
 		button.MouseLeave:Connect(function()
 			button.Font = "SourceSans"
 		end)
-
 	end
 end
+return MessageBox
