@@ -14,6 +14,12 @@ TopBar:
 	Book Finder:
 		✔ Get magnifying icon
 
+Profile / Music:
+	☐ Profile *has* music and can ask Music to serialize/etc
+	☐ Music has functions for active playlist/etc instead of Profile
+	Server-side Note:
+		No need to check whether the profile has changed; it's easier to just assume that it has and autosave regardless
+
 Custom Playlist:
 	Data structure to save:
 		☐ Each playlist must have a unique id (per user)

@@ -1,10 +1,4 @@
 --[[TODO
-Data store should be a list of IDs for each list
-	Perhaps lists should have names (so we can easily add more lists later)
-Profile could have preferences (ex Music On/Off)
-Profile should have custom playlist(s)
-Profile should convert lists to dictionaries for fast lookup (and vice versa when saving)
-
 Player needs to be able to do the following to a book (ignoring the gui/input):
 	-Favourite
 	-Like
@@ -79,7 +73,8 @@ end
 local function newEvent(name, func)
 	--  func(player, profile, ...):true if profile has NOT been changed by the request
 	new("RemoteEvent", name).OnServerEvent:Connect(function(player, ...)
-		if func(player, getProfile(player), ...) then return end -- no change
+		local profile = getProfile(player)
+		if not profile or func(player, profile, ...) then return end -- player left or no change
 		-- profile modified
 		-- (?) profile.modified = true
 		-- todo trigger auto-save
@@ -89,7 +84,8 @@ local function newFunction(name, func)
 	--  func(player, profile, ...):true, ... if profile has NOT been changed by the request
 	--		The returned '...' is returned to the remote function
 	new("RemoteFunction", name).OnServerEvent:Connect(function(player, ...)
-		if func(player, getProfile(player), ...) then return end -- no change
+		local profile = getProfile(player)
+		if not profile or func(player, profile, ...) then return end -- no change
 		-- profile modified
 		-- (?) profile.modified = true
 		-- todo trigger auto-save

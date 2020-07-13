@@ -216,7 +216,13 @@ Music.CustomPlaylistNowExists = customNowExists.Event
 Music.CustomPlaylistNowEmpty = customNowEmpty.Event
 function Music:TrySetCustomPlaylistTrack(name, index, id)
 	Assert.String(name)
-	Assert.Integer(index, 1, #customPlaylist + 1, "Index")
+	local customPlaylist = customPlaylists[name]
+	if not customPlaylist then
+		if not id then return true end
+		customPlaylist = {}
+		customPlaylists[name] = customPlaylist
+	end
+	Assert.Integer(index, 1, #customPlaylist + 1)
 	local prev = customPlaylist[index]
 	if prev == id then return true end
 	local desc, problem = getDesc(id)
@@ -246,6 +252,10 @@ function Music:TrySetCustomPlaylistTrack(name, index, id)
 		end
 	end
 	return true
+end
+function Music:RemoveCustomPlaylistTrack(name, index)
+	Assert.String(name)
+	Assert.Integer(index, 1, #customPlaylist)
 end
 
 return Music

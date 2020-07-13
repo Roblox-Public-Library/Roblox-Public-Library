@@ -1,23 +1,23 @@
 local Nexus = require("NexusUnitTesting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Profile = require(ReplicatedStorage.Profile)
+local Music = require(ReplicatedStorage.Music)
 
-local ProfileTest = Nexus.UnitTest:Extend()
-function ProfileTest:__new(name, func)
+local MusicTest = Nexus.UnitTest:Extend()
+function MusicTest:__new(name, func)
 	self:InitializeSuper(name)
 	self:SetRun(function(t)
 		func(t, self.p)
 	end)
 	Nexus:RegisterUnitTest(self)
 end
-function ProfileTest:Setup()
-	self.p = Profile.new()
+function MusicTest:Setup()
+	self.p = Music.new()
 end
-function ProfileTest:Teardown()
+function MusicTest:Teardown()
 	self.p:Destroy()
 end
 
-ProfileTest.new("Create and rename custom playlists", function(t, p)
+MusicTest.new("Create and rename custom playlists", function(t, p)
 	t:AssertNil(next(p:GetCustomPlaylists()), "no custom playlists to start with")
 	p:SetCustomPlaylistTrack("a", 1, 123)
 	local playlist = p:GetCustomPlaylist("a")
