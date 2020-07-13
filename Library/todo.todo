@@ -60,7 +60,7 @@ Book Pouch/Inventory:
 
 Teleport:
 	✔ When player touches portal, server tells client to inquire about teleporting to the appropriate ID (with RemoteEvent)
-	☐ MessageBox is client only
+	✔ MessageBox is client only
 	☐ Client side handler of remote knows to teleport
 	☐ Client keeps track of distance
 	☐ When client moves away or presses no/etc, tell the server that they're not interested
