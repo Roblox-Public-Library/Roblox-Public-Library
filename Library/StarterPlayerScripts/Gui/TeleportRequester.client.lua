@@ -27,7 +27,7 @@ local function watchPlayer(player, tele)
 	-- todo close MessageBox if it's open to this particular teleport
 	remotes.TeleportClear:FireServer() -- todo also call this if player selects Cancel
 end
-
+--[[todo
 
 
 
@@ -35,3 +35,4 @@ end
 
 			local watch = coroutine.create(watchPlayer)
 			coroutine.resume(watch, player, tele)
+]]

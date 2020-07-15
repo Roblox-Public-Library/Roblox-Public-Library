@@ -414,7 +414,7 @@ do -- Music
 				table.remove(customPlaylist, i)
 				if boxWithFocus then boxWithFocus:ReleaseFocus(false) end
 				updatePlaylist()
-			end)
+			end),
 			box:GetPropertyChangedSignal("Text"):Connect(function()
 				if deleting then return end
 			end),
