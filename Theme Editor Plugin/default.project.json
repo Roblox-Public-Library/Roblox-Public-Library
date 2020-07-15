@@ -1,0 +1,13 @@
+{
+	"name": "root-project",
+	"tree": {
+		"$className": "DataModel",
+		"ServerStorage": {
+			"$className": "ServerStorage",
+			"Theme Editor Plugin": {
+				"$path": ".",
+				"$ignoreUnknownInstances": true
+			}
+		}
+	}
+}
