@@ -1,4 +1,4 @@
-(If you install the Todo+ extension you can toggle a task being done with Alt+d and create a new task with Ctrl+Enter)
+ (If you install the Todo+ extension you can toggle a task being done with Alt+d and create a new task with Ctrl+Enter)
 --------------------------
 TopBar:
 	✔ Credit https://github.com/1ForeverHD/HDAdmin/tree/master/Projects/Topbar%2B for coords/sizes
@@ -59,16 +59,20 @@ Book Pouch/Inventory:
 	☐ When you click on a book, it opens it up
 
 Teleport:
+	✔ When player touches portal, server tells client to inquire about teleporting to the appropriate ID (with RemoteEvent)
+	✔ MessageBox is client only
+	☐ Client side handler of remote knows to teleport
+	☐ Client keeps track of distance
+	☐ When client moves away or presses no/etc, tell the server that they're not interested
 	WhirlPlay is working on this
-	☐ Shared teleport code
-	☐ ConfirmationBox module (that doesn't know anything about teleport)
-	☐ Have teleport scripts use shared teleport code
-	☐ Automatically fetch place name from id and display it in the model and the confirmation message
-	☐ Ensure message isn't triggered multiple times while the player is idling/moving around
-	☐ Auto-cancel if the player moves away a certain distance
-	☐ If a player declines, don't let the message trigger again until they've moved away at least a bit
-
-	☐ Can we write any tests for this?
+	✔ Shared teleport code
+	✔ ConfirmationBox module (that doesn't know anything about teleport)
+	✔ Have teleport scripts use shared teleport code
+	✔ Automatically fetch place name from id and display it in the model and the confirmation message
+	✔ Ensure message isn't triggered multiple times while the player is idling/moving around
+	✔ Auto-cancel if the player moves away a certain distance
+	✔ If a player declines, don't let the message trigger again until they've moved away at least a bit
+	✘ Can we write any tests for this?
 		> Can't easily test player
 
 
