@@ -133,7 +133,7 @@ local function setConnections()
 			end
 			if curTheme.Value then
 				newTheme = curTheme.Value:Clone()
-				local _, _, baseName, num = newTheme.Name:find("(.*) ?%((%d+)%)")
+				local _, _, baseName, num = newTheme.Name:find("(.*?) %((%d+)%)")
 				newTheme.Name = ("%s (%d)"):format(baseName or newTheme.Name, (num or 1) + 1)
 				newTheme.Parent = editor
 			else
