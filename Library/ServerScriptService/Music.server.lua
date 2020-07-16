@@ -4,24 +4,14 @@ local Utilities = ReplicatedStorage.Utilities
 local Assert = require(Utilities.Assert)
 local String = require(Utilities.String)
 
---todo for profile: NewRemote.newFolder(remotes, "Music", getMusic)
-
 local Music = require(ReplicatedStorage.Music)
--- function Music:assertId(id, allowPlusOne)
--- 	Assert.Integer(id, 1, #self.customPlaylists + (allowPlusOne and 1 or 0)) -- todo fix
--- end
--- function Music:assertTrack(id, index)
 
--- end
-local remoteEvents = {
-
-}
 function Music.InitRemotes(newRemote)
 	newRemote:Event("SetEnabled", function(player, music, value)
 		return music:SetEnabled(value)
 	end)
 	newRemote:Event("SetActivePlaylist", function(player, music, id)
-		return music:SetActivePlaylistName(id)
+		return music:SetActivePlaylist(id)
 	end)
 	newRemote:Event("SetCustomPlaylistTrack", function(player, music, id, index, songId)
 		return music:SetCustomPlaylistTrack(id, index, songId)

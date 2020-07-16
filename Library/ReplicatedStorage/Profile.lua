@@ -2,12 +2,15 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Utilities = ReplicatedStorage.Utilities
 local Assert = require(Utilities.Assert)
 local Functions = require(Utilities.Functions)
+local Music = require(ReplicatedStorage.Music)
 
 local Profile = {}
 Profile.__index = Profile
 local vars = {
 	-- field -> Class with .new and .Deserialize
-	Music = Music, -- Public read-only field
+	-- The following capitalized fields are public but should be treated as read-only
+	Music = Music,
+	BookPouch = BookPouch,
 	-- favoriteBooks = SaveableSet,
 	-- readBooks = SaveableSet,
 }

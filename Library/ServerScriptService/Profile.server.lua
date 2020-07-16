@@ -9,15 +9,19 @@ Player needs to be able to do the following to a book (ignoring the gui/input):
 	To support that functionality, we need client side functions that signal remotes that the server side is listening to.
 ]]
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TextService = game:GetService("TextService")
-local DataStores = require(game:GetService("ServerScriptService").DataStores)
-local profileStore = DataStores:GetDataStore("Profiles")
-local oldPlaylistStore = DataStores:GetDataStore("Playlists")
 local Profile = require(ReplicatedStorage.Profile)
-local Players = game:GetService("Players")
 local Utilities = ReplicatedStorage.Utilities
 local String = require(Utilities.String)
 local remotes = ReplicatedStorage.Remotes
+
+local ServerScriptService = game:GetService("ServerScriptService")
+local DataStores = require(ServerScriptService.DataStores)
+local profileStore = DataStores:GetDataStore("Profiles")
+local oldPlaylistStore = DataStores:GetDataStore("Playlists")
+local Music = require(ServerScriptService.Music)
+local NewRemote = require(ServerScriptService.NewRemote)
+
+local Players = game:GetService("Players")
 
 local profiles = {} -- Player->Profile
 Players.PlayerAdded:Connect(function(player)
@@ -69,71 +73,8 @@ end
 new("RemoteFunction", "GetProfile").OnServerInvoke = function(player)
 	return getProfile(player):Serialize()
 end
-
-local function newEvent(name, func)
-	--  func(player, profile, ...):true if profile has NOT been changed by the request
-	new("RemoteEvent", name).OnServerEvent:Connect(function(player, ...)
-		local profile = getProfile(player)
-		if not profile or func(player, profile, ...) then return end -- player left or no change
-		-- profile modified
-		-- (?) profile.modified = true
-		-- todo trigger auto-save
-	end)
+local function getMusic(player)
+	local profile = getProfile(player)
+	return profile and profile.Music
 end
-local function newFunction(name, func)
-	--  func(player, profile, ...):true, ... if profile has NOT been changed by the request
-	--		The returned '...' is returned to the remote function
-	new("RemoteFunction", name).OnServerEvent:Connect(function(player, ...)
-		local profile = getProfile(player)
-		if not profile or func(player, profile, ...) then return end -- no change
-		-- profile modified
-		-- (?) profile.modified = true
-		-- todo trigger auto-save
-	end)
-end
-newEvent("SetMusicEnabled", function(player, profile, value)
-	assert(type(value) == "boolean")
-	return profile:SetMusicEnabled(value)
-end)
-newEvent("SetActivePlaylistName", function(player, profile, value)
-	assert(type(value) == "string")
-	return profile:SetActivePlaylistName(value)
-end)
-newEvent("SetCustomPlaylistTrack", function(player, profile, name, index, id)
-	assert(type(name) == "string" and type(index) == "number" and (not id or type(id) == "number"))
-	return profile:SetCustomPlaylistTrack(index, id)
-end)
-newEvent("RemoveCustomPlaylistTrack", function(player, profile, name, index)
-	assert(type(name) == "string" and type(index) == "number")
-	return profile:RemoveCustomPlaylistTrack(index, id)
-end)
-newFunction("RenameCustomPlaylist", function(player, profile, oldName, newName)
-	--[[First value returned is 'changed' (for newFunction code)
-	Remote returns: success, tryAgain
-		tryAgain only returned if not success. If true, the user can try the same string again later.
-	]]
-	assert(type(oldName) == "string" and type(newName) == "string")
-	if oldName == newName then error("Can't rename to same name") end
-	-- Note: we don't care if the playlist actually exists as the client may be trying to rename a
-	--if not profile:GetCustomPlaylist(name) then error("No playlist with name " .. oldName) end
-	if newName ~= String.Trim(newName) then error("newName is not trimmed") end
-	if #newName > profile.MAX_PLAYLIST_NAME_LENGTH then
-		error("newName is too long")
-	end
-	-- We need to filter the new name unless it is like "Custom #1"
-	local success, result
-	if newName:match("Custom #%d+") == newName then
-		success, result = true, true
-	end
-	local success, result = pcall(function()
-		local result = TextService:FilterStringAsync(newName, player.UserId, Enum.TextFilterContext.PrivateChat)
-		return result:GetNonChatStringForUserAsync(player.UserId)
-	end)
-	if not success then
-		return false, false, true
-	elseif result ~= newName then
-		return false, false, false
-	end
-	local changed = not profile:RenameCustomPlaylist(oldName, newName)
-	return changed, true
-end)
+Music.InitRemotes(NewRemote.newFolder(remotes, "Music", getMusic))

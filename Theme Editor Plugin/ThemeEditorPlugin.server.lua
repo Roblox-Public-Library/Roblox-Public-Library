@@ -39,6 +39,10 @@ Theme Editor (in ServerStorage) layout:
 	Instructions (disabled script)
 	Current Theme:StringValue
 	(all other themes, as folders, here)
+
+Overlapping themes (optional):
+	Cross reference the different theme folders and if they have the same parts as children they are likely related
+	Print any differences that the related themes have to notify user ?
 ]]
 
 local ServerStorage = game:GetService("ServerStorage")
@@ -56,33 +60,106 @@ local widget = plugin:CreateDockWidgetPluginGui("Main", widgetInfo)
 widget.Name = "Theme Editor"
 widget.Title = "Theme Editor"
 script.Parent.Widget:Clone().Parent = widget
+local considerConnections -- defined below
 
 local toolbar = plugin:CreateToolbar("Theme Editor")
 local themeEditorButton = toolbar:CreateButton("Theme Editor", "Open the theme editor", "")
 themeEditorButton.Click:Connect(function()
 	widget.Enabled = not widget.Enabled
+	considerConnections()
 end)
 
-local editor = ServerStorage:FindFirstChild("Theme Editor")
-if not editor then
+local function setInstalled(installed)
+	installed = not not installed
+	widget.Widget.InstallButton.Visible = not installed
+	widget.Widget.ThemesFrame.NewThemeButton.Visible = installed
+	widget.Widget.PartsFrame.ApplyButton.Visible = installed
+end
+local editor
+local curTheme
+local defaultFolder
+local function installFinish(wasInstalled)
+	curTheme = editor:FindFirstChild("Current Theme")
+	if not curTheme then
+		curTheme = Instance.new("ObjectValue")
+		curTheme.Name = "Current Theme"
+		curTheme.Parent = editor
+		if wasInstalled then
+			print("Installed Current Theme ObjectValue")
+		end
+	end
+	defaultFolder = editor:FindFirstChild("Default") or editor:FindFirstChildOfClass("Folder")
+	if not defaultFolder then -- No themes
+		defaultFolder = Instance.new("Folder")
+		defaultFolder.Name = "Default"
+		defaultFolder.Parent = editor
+		if wasInstalled then
+			print("Added Default theme folder")
+		end
+		local color = Instance.new("ColorValue")
+		color.Name = "Theme Color"
+		color.Parent = defaultFolder
+	end
+	if not curTheme.Value then
+		curTheme.Value = defaultFolder
+	end
+end
+
+editor = ServerStorage:FindFirstChild("Theme Editor")
+setInstalled(editor)
+if editor then
+	installFinish(true)
+end
+
+widget.Widget.InstallButton.MouseButton1Click:Connect(function()
 	editor = Instance.new("Folder")
 	editor.Name = "Theme Editor"
 	editor.Parent = ServerStorage
 	local readme = script.Parent.Instructions:Clone()
 	readme.Parent = editor
 	plugin:OpenScript(readme)
+	setInstalled(true)
+	installFinish(false)
+	considerConnections()
+end)
+
+local cons
+local function setConnections()
+	cons = {
+		widget.Widget.ThemesFrame.NewThemeButton.MouseButton1Click:Connect(function()
+			local newTheme
+			if not curTheme.Value or not curTheme.Value.Parent then -- no cur theme (or was deleted)
+				curTheme.Value = editor:FindFirstChild("Default") or editor:FindFirstChildOfClass("Folder") or nil
+			end
+			if curTheme.Value then
+				newTheme = curTheme.Value:Clone()
+				local _, _, baseName, num = newTheme.Name:find("(.*) ?%((%d+)%)")
+				newTheme.Name = ("%s (%d)"):format(baseName or newTheme.Name, (num or 1) + 1)
+				newTheme.Parent = editor
+			else
+				installFinish(true)
+			end
+		end),
+	}
 end
-local curTheme = editor:FindFirstChild("Current Theme")
-if not curTheme then
-	curTheme = Instance.new("ObjectValue")
-	curTheme.Name = "Current Theme"
-	curTheme.Parent = editor
+local function disconnectConnections()
+	for _, con in ipairs(cons) do
+		con:Disconnect()
+	end
+	cons = nil
 end
-if not editor:FindFirstChildOfClass("Folder") then -- No themes
-	local default = Instance.new("Folder")
-	default.Name = "Default"
-	default.Parent = editor
+function considerConnections()
+	if editor and widget.Enabled then
+		if not cons then
+			setConnections()
+		end
+	else
+		if cons then
+			disconnectConnections()
+		end
+	end
 end
+considerConnections()
 
 local props = {"Material", "Color", "Transparency", "Reflectance"}
 local function matchWorkspaceToTheme(theme)

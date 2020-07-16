@@ -1,26 +1,76 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Assert = require(ReplicatedStorage.Utilities.Assert)
+local Class = require(ReplicatedStorage.Utilities.Class)
+--[[Playlist:
+.Name
+.Id (0 or negative for default ones, 1+ for custom)
+.Songs:List<Song Id>
+.]]
+local Playlist = Class.New("Playlist")
+function Playlist.new(name, id, songs)
+	return setmetatable({
+		Name = Assert.String(name),
+		Id = Assert.Integer(id),
+		Songs = Assert.List(songs),
+	}, Playlist)
+end
+function Playlist:Serialize()
+	assert(self.Id > 0, "Can only serialize custom playlists")
+	return self
+end
+function Playlist.Deserialize(data)
+	return setmetatable(data, Playlist)
+end
+
+local defaultPlaylists = {} -- id -> playlist
+local listOfDefaultPlaylists = {} -- List<playlist>
+local function addDefaultPlaylist(name, id, list)
+	local playlist = Playlist.new(name, id, list)
+	for _, id in ipairs(list) do
+		Assert.Integer(id)
+	end
+	defaultPlaylists[id] = playlist
+	listOfDefaultPlaylists[#listOfDefaultPlaylists + 1] = name
+	return playlist
+end
+
+local defaultSongs = {}
+for i, s in ipairs(ReplicatedStorage.DefaultMusic:GetChildren()) do
+	local id = tonumber(s.SoundId:match("%d+"))
+	defaultSongs[i] = id
+end
+local defaultPlaylist = addDefaultPlaylist("Default", 0, defaultSongs)
+
 local Music = {
 	MAX_PLAYLIST_NAME_LENGTH = 30,
+	DefaultPlaylists = defaultPlaylists, -- id -> playlist
+	ListOfDefaultPlaylists = listOfDefaultPlaylists,
 }
 Music.__index = Music
-local eventNames = { -- todo client side
-	"ActivePlaylistChanged", --(id)
-	"EnabledChanged", --(enabled)
-	"CustomPlaylistsChanged", --() -- fires when a custom playlist is created, removed, or renamed
-	"CustomPlaylistChanged", --(id, index, newValue)
-}
 function Music.new()
 	return setmetatable({
 		enabled = true,
-		activePlaylist = 0, -- id
-		customPlaylists = {}, -- name -> List<sound id>
+		activePlaylist = defaultPlaylist, -- Playlist
+		customPlaylists = {}, -- id -> Playlist
 	}, Music)
 end
 function Music:Serialize()
-	return self
+	local customList = {}
+	for id, playlist in pairs(self.customPlaylists) do
+		customList[#customList + 1] = playlist:Serialize()
+	end
+	return {
+		enabled = self.enabled,
+		activePlaylistId = self.activePlaylist and self.activePlaylist.Id or 0,
+		customPlaylists = customList,
+	}
 end
 function Music.Deserialize(data)
+	local customPlaylists = {}
+	for _, playlist in ipairs(data.customPlaylists) do
+		customPlaylists[playlist.Id] = playlist
+	end
+	data.customPlaylists = customPlaylists
 	return setmetatable(data, Music)
 end
 function Music:GetEnabled()
@@ -31,59 +81,67 @@ function Music:SetEnabled(value)
 	if self.enabled == value then return true end -- no change
 	self.enabled = value
 end
-function Music:GetActivePlaylistName()
-	return self.activePlaylistName
+function Music:GetActivePlaylist()
+	return self.activePlaylist
 end
-function Music:SetActivePlaylistName(value)
-	if self.activePlaylistName == value then return true end -- no change
-	if not self.customPlaylists[value] then error("No playlist exists with the name: " .. tostring(value)) end
-	self.activePlaylistName = value
-	self.activePlaylistNameChanged:Fire(value)
+function Music:SetActivePlaylist(id)
+	if self.activePlaylistId == id then return true end -- no change
+	self.activePlaylist = self.DefaultPlaylists[id] or self.customPlaylists[id] or error("No playlist exists with id: " .. tostring(id))
+	self.activePlaylistId = id
 end
 function Music:GetCustomPlaylists() -- treat as read-only. Returned value will be modified by calling :SetCustomPlaylistTrack
 	return self.customPlaylists
 end
-function Music:GetCustomPlaylist(name) -- treat as read-only. Returned value will be modified by calling :SetCustomPlaylistTrack
-	return self.customPlaylists[name]
+function Music:GetCustomPlaylist(id) -- treat as read-only. Returned value will be modified by calling :SetCustomPlaylistTrack
+	return self.customPlaylists[id]
 end
-function Music:SetCustomPlaylistTrack(name, index, id)
+function Music:makeNewPlaylist(songs) -- todo maybe call this not SetCustomPlaylistTrack
+	local idsInUse = {}
+	for _, playlist in ipairs(self.customPlaylists) do
+		idsInUse[playlist.Id] = true
+	end
+	local newId = 1
+	while idsInUse[newId] do
+		newId = newId + 1
+	end
+	local playlist = Playlist.new(newName, newId, songs or {})
+	-- todo add to playlists
+	return playlist
+end
+function Music:removeCustomPlaylist(playlist)
+	self.customPlaylists[playlist.Id] = nil
+	self.CustomPlaylistsChanged:Fire()
+end
+function Music:SetCustomPlaylistTrack(id, index, songId)
 	--	Returns true if no change
-	Assert.String(name)
+	Assert.Integer(id)
 	Assert.Integer(index)
-	if id then Assert.Integer(id) end
-	local playlist = self.customPlaylists[name]
-	local created
+	if songId then Assert.Integer(songId) end
+	local playlist = self.customPlaylists[id]
 	if not playlist then
-		if not id then return true end
-		playlist = {}
-		self.customPlaylists[name] = playlist
-		created = true
-	elseif playlist[index] == id then
+		if not songId then return true end
+		playlist = self:makeNewPlaylist({songId})
+		self.CustomPlaylistsChanged:Fire()
+	elseif playlist.Songs[index] == id then
 		return true
-	end
-	assert(index >= 1 and index <= #playlist + 1, "Index is out of range")
-	playlist[index] = id
-	self.customPlaylistChanged:Fire(name, index, id)
-	if created then
-		self.customPlaylistsChanged:Fire()
-	elseif (not id) and #playlist == 0 then
-		self.customPlaylistsChanged:Fire()
-		self.customPlaylists[name] = nil
+	else
+		assert(index >= 1 and index <= #playlist.Songs + 1, "Index is out of range")
+		playlist.Songs[index] = id
+		self.CustomPlaylistChanged:Fire(playlist)
+		if (not songId) and #playlist == 0 then
+			self:removeCustomPlaylist(playlist)
+		end
 	end
 end
-function Music:RemoveCustomPlaylistTrack(name, index)
+function Music:RemoveCustomPlaylistTrack(id, index)
 	--	Returns true if nothing changed
-	Assert.String(name)
-	Assert.Integer(index)
-	local playlist = self.customPlaylists[name]
-	if not playlist or not playlist[index] then return true end
-	table.remove(playlist, index)
+	return self:SetCustomPlaylistTrack(id, index, nil)
 end
-function Music:RenameCustomPlaylist(oldName, newName)
-	Assert.String(oldName)
+function Music:RenameCustomPlaylist(id, newName)
+	Assert.Integer(id)
 	Assert.String(newName)
-	local customPlaylists = self.customPlaylists
-	assert(not customPlaylists[newName], "A playlist with that name already exists")
-	customPlaylists[newName] = customPlaylists[oldName] or error("No playlist exists with that name")
-	customPlaylists[oldName] = nil
+	local customPlaylist = self.customPlaylists[id]
+	if not customPlaylist then error("No playlist exists with id " .. tostring(id)) end
+	if customPlaylist.Name == newName then return true end
+	customPlaylist.Name = newName
 end

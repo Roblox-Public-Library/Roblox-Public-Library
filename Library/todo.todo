@@ -15,8 +15,8 @@ TopBar:
 		✔ Get magnifying icon
 
 Profile / Music:
-	☐ Profile *has* music and can ask Music to serialize/etc
-	☐ Music has functions for active playlist/etc instead of Profile
+	✔ Profile *has* music and can ask Music to serialize/etc
+	✔ Music has functions for active playlist/etc instead of Profile
 	Server-side Note:
 		No need to check whether the profile has changed; it's easier to just assume that it has and autosave regardless
 

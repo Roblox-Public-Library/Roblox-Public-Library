@@ -22,7 +22,7 @@ function NewRemote.newFolder(parent, name, ...)
 end
 function NewRemote:Event(name, func)
 	--	func(player, arg from getArg, ... from remote)
-	local e = Instance.new("Event")
+	local e = Instance.new("RemoteEvent")
 	e.Name = name
 	e.Parent = self.folder
 	local getArg = self.getArg
@@ -33,7 +33,7 @@ function NewRemote:Event(name, func)
 end
 function NewRemote:Function(name, func)
 	--	func(player, arg from getArg, ... from remote):... to return to the remote
-	local e = Instance.new("Function")
+	local e = Instance.new("RemoteFunction")
 	e.Name = name
 	e.Parent = self.folder
 	local getArg = self.getArg

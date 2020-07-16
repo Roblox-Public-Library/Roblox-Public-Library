@@ -1,4 +1,6 @@
 --[[
+no changes will be made to workspace until you click apply
+
 local default = game.ServerStorage["Theme Editor"].Default:GetChildren()
 for i, part in ipairs(default) do
 	default[part.Name] = part

@@ -1,5 +1,5 @@
 local String = {}
-function String.Trim(s) -- Is trim6 from http://lua-users.org/wiki/StringTrim. Equivalent $Trim above.
+function String.Trim(s) -- Is trim6 from http://lua-users.org/wiki/StringTrim.
 	return s:match'^()%s*$' and '' or s:match'^%s*(.*%S)'
 end
 function String.Split(s, char)

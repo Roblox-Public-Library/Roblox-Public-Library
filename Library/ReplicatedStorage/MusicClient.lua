@@ -1,12 +1,65 @@
 --[[Music
-Handles playing music and keeping the profile up-to-date with the user's musical preferences
+Handles playing music and keeping the server up-to-date with the user's musical preferences
 ]]
-local Music = {}
 local Marketplace = game:GetService("MarketplaceService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Music = require(ReplicatedStorage.Music)
+local remotes = ReplicatedStorage.Remotes
 local Assert = require(ReplicatedStorage.Utilities.Assert)
+local Event = require(ReplicatedStorage.Utilities.Event)
+local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
-local profile = require(script.Parent.Profile)
+local music = require(script.Parent.ProfileClient).Music
+
+local Playlist = Music.Playlist
+
+local setToEventName = {
+	SetEnabled = "EnabledChanged",
+	SetActivePlaylist = "ActivePlaylistChanged",
+}
+for _, setName in ipairs({"SetEnabled", "SetActivePlaylist", "SetCustomPlaylistTrack", "RemoveCustomPlaylistTrack"}) do
+	local base = music[setName]
+	local remote = remotes[setName]
+	local eventName = setToEventName[setName]
+	if eventName then
+		local event = Event()
+		music[eventName] = event
+		music[setName] = function(self, ...)
+			if base(self, ...) then return true end -- no change
+			remote:FireServer(...)
+			event:Fire(...)
+		end
+	else
+		music[setName] = function(self, ...)
+			if base(self, ...) then return true end -- no change
+			remote:FireServer(...)
+		end
+	end
+end
+music.CustomPlaylistsChanged = Event() -- fires when a custom playlist is created, removed, or renamed
+local base = music.RenameCustomPlaylist
+function music:RenameCustomPlaylist(id, newName) -- Do not call with unfiltered name (use InvokeRenameCustomPlaylist instead)
+	if base(id, newName) then return true end
+	self.CustomPlaylistsChanged:Fire()
+end
+
+function music:InvokeRenameCustomPlaylist(oldName, newName)
+	--	returns true if rename was successful (yields)
+	local success, tryAgain = remotes.RenameCustomPlaylist:InvokeServer(oldName, newName)
+	if not success then
+		StarterGui:SetCore("SendNotification", {
+			Title = ("'%s' Rename Failed"):format(oldName),
+			Text = tryAgain
+				and "Roblox encountered a problem; try the name again later"
+				or "That name was filtered",
+			Duration = 4,
+		})
+		return false
+	else
+		music:RenameCustomPlaylist(oldName, newName)
+		return true
+	end
+end
 
 local rnd = Random.new()
 local function shuffleAvoidFirst(list, whatToAvoidInFirstSpot)
@@ -73,29 +126,26 @@ local function removeRef(id)
 end
 
 local localPlayer = game:GetService("Players").LocalPlayer
-local curPlaylist -- list of song IDs to play
+local curSongList -- list of song IDs to play
 local curTrackId, nextTrackId -- numeric form
 local curTrack = Instance.new("Sound")
 local nextTrack = Instance.new("Sound") -- what will be played once the current track is finished
 -- Idea is that nextTrack loads while curTrack plays
 curTrack.Parent = localPlayer
 nextTrack.Parent = localPlayer
-local curMusic = {} -- shuffled version of curPlaylist
+local curMusic = {} -- shuffled version of curSongList
 local curMusicIndex = 1
 local nextTrackStarted = Instance.new("BindableEvent")
 Music.NextTrackStarted = nextTrackStarted.Event
 
 local defaultVolume = 0.3
 local function getMusicVolume()
-	return (profile:GetMusicEnabled() and defaultVolume or 0)
+	return (music:GetEnabled() and defaultVolume or 0)
 end
 local function musicVolumeChanged()
 	curTrack.Volume = getMusicVolume()
 end
-profile.MusicEnabledChanged:Connect(musicVolumeChanged)
-
-function Music:GetEnabled() return profile:GetMusicEnabled() end
-function Music:SetEnabled(value) return profile:SetMusicEnabled(value) end
+music.EnabledChanged:Connect(musicVolumeChanged)
 
 function Music:GetCurSongDesc()
 	return getDesc(curMusic[curMusicIndex])
@@ -105,7 +155,7 @@ function Music:GetCurSong() return curTrack end
 
 local function getNextSong(forceReshuffle) -- returns id, SoundId
 	if forceReshuffle or not curMusic[curMusicIndex] then
-		curMusic = shuffleAvoidFirst({unpack(curPlaylist)}, curTrackId)
+		curMusic = shuffleAvoidFirst({unpack(curSongList)}, curTrackId)
 		curMusicIndex = 1
 	end
 	local id = curMusic[curMusicIndex]
@@ -129,37 +179,27 @@ local function playNextSong(startingNewPlaylist)
 end
 curTrack.Ended:Connect(playNextSong)
 nextTrack.Ended:Connect(playNextSong)
-local function setPlaylist(playlist)
-	if #playlist == 0 then error("Playlist cannot be empty") end
-	curPlaylist = playlist
+local function setSongList(songList)
+	if #songList == 0 then error("Song list cannot be empty") end
+	curSongList = songList
 	playNextSong(true)
 end
 local defaultPlaylist -- initialized below
-local customPlaylists = profile:GetCustomPlaylists() -- treat as read-only; can be modified through profile:SetCustomPlaylistTrack
-local defaultPlaylists = {} -- name -> defaultPlaylist
-local defaultPlaylistNames = {} -- list
-local function addDefaultPlaylist(name, list)
-	Assert.String(name)
-	Assert.List(list)
-	for _, id in ipairs(list) do
-		Assert.Integer(id)
+local customPlaylists = music:GetCustomPlaylists() -- treat as read-only; can be modified through music:SetCustomPlaylistTrack
+local defaultPlaylists = music.DefaultPlaylists -- id -> defaultPlaylist
+local function activePlaylistChanged(playlist)
+	setSongList(playlist.Songs)
+end
+activePlaylistChanged(music:GetActivePlaylist())
+music.ActivePlaylistChanged:Connect(activePlaylistChanged)
+
+for _, playlist in ipairs(music.ListOfDefaultPlaylists) do -- add refs to default playlists
+	for _, songId in ipairs(playlist.Songs) do
+		addRef(songId)
 	end
-	defaultPlaylists[name] = list
-	defaultPlaylistNames[#defaultPlaylistNames + 1] = name
 end
-local function activePlaylistNameChanged(name)
-	setPlaylist(defaultPlaylists[name] or customPlaylists[name] or defaultPlaylists[next(defaultPlaylists)])
-end
-profile.ActivePlaylistNameChanged:Connect(activePlaylistNameChanged)
 
 local crazyMusic = ReplicatedStorage.DefaultMusic:GetChildren()
-defaultPlaylist = {}
-for i, s in ipairs(crazyMusic) do -- init default music & refs to it
-	local id = tonumber(s.SoundId:match("%d+"))
-	defaultPlaylist[i] = id
-	addRef(id)
-end
-addDefaultPlaylist("Default", defaultPlaylist)
 function Music:GoCrazy()
 	curTrack:Pause()
 	for _, s in ipairs(crazyMusic) do
@@ -178,14 +218,9 @@ function Music:GoCrazy()
 		TweenService:CreateTween(curTrack, TweenInfo.new(2, Enum.EasingStyle.Linear), {Volume = getMusicVolume()})
 	end)
 end
--- Note: all default playlists must be created by this point
-activePlaylistNameChanged(profile:GetActivePlaylistName())
 
 function Music:GetPlaylist(name)
 	return defaultPlaylists[name] or customPlaylists[name]
-end
-function Music:GetDefaultPlaylists()
-	return defaultPlaylistNames
 end
 local sortedPlaylistNames
 local function updateSortedPlaylistNames()
@@ -196,7 +231,7 @@ local function updateSortedPlaylistNames()
 	table.sort(sortedPlaylistNames)
 end
 updateSortedPlaylistNames()
-profile.CustomPlaylistsChanged:Connect(updateSortedPlaylistNames)
+music.CustomPlaylistsChanged:Connect(updateSortedPlaylistNames)
 function Music:GetSortedCustomPlaylistNames()
 	return sortedPlaylistNames
 end
@@ -232,7 +267,7 @@ function Music:TrySetCustomPlaylistTrack(name, index, id)
 	if prev then
 		removeRef(prev)
 	end
-	profile:SetCustomPlaylistTrack(index, id)
+	music:SetCustomPlaylistTrack(index, id)
 	if id then
 		addRef(id)
 		if #customPlaylist == 1 then

@@ -6,13 +6,16 @@ A handy gear/settings icon is also available from them: http://www.roblox.com/as
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
-local Assert = require(ReplicatedStorage.Utilities.Assert)
+local Utilities = ReplicatedStorage.Utilities
+local Assert = require(Utilities.Assert)
+local String = require(Utilities.String)
 local gui = ReplicatedStorage.Guis.Menus
 local topBar = ReplicatedStorage.Guis.TopBar
 
 local BookSearch = require(script.Parent.BookSearch)
 local music = require(script.Parent.Parent.Music)
-local profile = require(script.Parent.Parent.Profile)
+local profile = require(ReplicatedStorage.ProfileClient)
+local GuiUtilities = require(ReplicatedStorage.Gui.Utilities)
 
 local localPlayer = game:GetService("Players").LocalPlayer
 local playerGui = localPlayer.PlayerGui
@@ -26,18 +29,7 @@ local inputTypeIsClick = {
 	[Enum.UserInputType.Touch] = true,
 }
 
-local function handleVerticalScrollingFrame(sf, layout)
-	Assert.IsA(sf, "ScrollingFrame")
-	layout = layout
-		and Assert.IsA(layout, "UIGridStyleLayout") -- must support AbsoluteContentSize
-		or sf:FindFirstChildWhichIsA("UIGridStyleLayout")
-		or error("No UIGridStyleLayout in " .. tostring(sf))
-	local function update()
-		sf.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y)
-	end
-	update()
-	return layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(update)
-end
+local handleVerticalScrollingFrame = GuiUtilities.HandleVerticalScrollingFrame
 
 local displayedMenu
 local function displayMenu(menu)
@@ -388,6 +380,7 @@ do -- Music
 	handleVerticalScrollingFrame(customTracks)
 	local customName = playlistEditor.CustomName
 	local customPlaylistName -- nil for "new with no songs yet" state
+	local customPlaylist = {}
 	local customTemplate = customTracks.Row
 	-- customTemplate is also the "enter new id" row
 	customTemplate.LayoutOrder = 1e6
@@ -400,10 +393,11 @@ do -- Music
 		obj.ID.Text = ""
 		obj.Title.Text = music:GetDescForId(id)
 	end
+	local customObjs
 	local function updatePlaylist()
 		customObjs:AdaptToList(customPlaylist, adaptToPlaylist)
 	end
-	local customObjs; customObjs = ObjectList.new(function(i)
+	customObjs = ObjectList.new(function(i)
 		local obj = customTemplate:Clone()
 		obj.LayoutOrder = i
 		obj.Parent = customTracks
@@ -452,8 +446,8 @@ do -- Music
 		}
 	end)
 	customName.FocusLost:Connect(function(enterPressed)
-		profile:InvokeRenameCustomPlaylist(oldName, newName)
-
+		local newName = String.Trim(customName.Text)
+		profile:InvokeRenameCustomPlaylist(customName.PlaceholderText, newName)
 	end)
 	local function editPlaylist(name)
 		--	name should be nil/false if this is a new playlist
@@ -512,10 +506,10 @@ do -- Music
 	viewPlaylistButton.Activated:Connect(function()
 		local options = {}
 		local cur = viewPlaylistLabel.Text
-		for _, name in ipairs(music:GetDefaultPlaylists()) do
-			options[#options + 1] = name ~= cur
-				and name
-				or Option(name, Enum.Font.SourceSansBold, false)
+		for _, playlist in ipairs(music.ListOfDefaultPlaylists) do
+			options[#options + 1] = playlist.Id ~= curId
+				and playlist.Name
+				or Option(playlist.Name, Enum.Font.SourceSansBold, false)
 		end
 		for _, name in ipairs(music:GetSortedCustomPlaylistNames()) do
 			options[#options + 1] = name ~= cur
