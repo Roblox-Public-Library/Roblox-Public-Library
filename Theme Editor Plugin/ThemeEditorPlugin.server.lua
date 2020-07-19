@@ -96,7 +96,7 @@ local function installFinish(wasInstalled)
 		if wasInstalled then
 			print("Added Default theme folder")
 		end
-		local color = Instance.new("ColorValue")
+		local color = Instance.new("Color3Value")
 		color.Name = "Theme Color"
 		color.Parent = defaultFolder
 	end

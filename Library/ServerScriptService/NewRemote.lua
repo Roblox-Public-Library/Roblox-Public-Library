@@ -28,7 +28,8 @@ function NewRemote:Event(name, func)
 	local getArg = self.getArg
 	e.OnServerEvent:Connect(function(player, ...)
 		local arg = getArg(player)
-		if not arg or func(player, arg, ...) then return end -- player left or no change
+		if not arg then return end -- player left
+		func(player, arg, ...)
 	end)
 end
 function NewRemote:Function(name, func)
@@ -37,10 +38,10 @@ function NewRemote:Function(name, func)
 	e.Name = name
 	e.Parent = self.folder
 	local getArg = self.getArg
-	e.OnServerEvent:Connect(function(player, ...)
+	function e.OnServerInvoke(player, ...)
 		local arg = getArg(player)
 		if not arg then return end -- player left
 		return func(player, arg, ...)
-	end)
+	end
 end
 return NewRemote

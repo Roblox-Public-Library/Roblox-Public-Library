@@ -6,6 +6,7 @@ A handy gear/settings icon is also available from them: http://www.roblox.com/as
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
+local MessageBox = require(ReplicatedStorage.MessageBox)
 local Utilities = ReplicatedStorage.Utilities
 local Assert = require(Utilities.Assert)
 local String = require(Utilities.String)
@@ -13,7 +14,7 @@ local gui = ReplicatedStorage.Guis.Menus
 local topBar = ReplicatedStorage.Guis.TopBar
 
 local BookSearch = require(script.Parent.BookSearch)
-local music = require(script.Parent.Parent.Music)
+local music = require(ReplicatedStorage.MusicClient)
 local profile = require(ReplicatedStorage.ProfileClient)
 local GuiUtilities = require(ReplicatedStorage.Gui.Utilities)
 
@@ -46,7 +47,7 @@ local function displayMenu(menu)
 		displayedMenu:Open()
 	end
 end
-local closeMenu = displayMenu -- meant for use in connections; works so long as no arguments sent
+local function closeMenu() displayMenu() end -- meant for use in connections
 
 local topBarMenus = {}
 local function menuFromFrame(obj)
@@ -70,10 +71,8 @@ function ObjectList:get(i)
 	local list = self.list
 	local value = list[i]
 	if not value then
-		local cons
-		value, cons = self.init(i)
+		value, self.cons[i] = self.init(i)
 		list[i] = value
-		self.cons[i] = cons
 	end
 	return value
 end
@@ -136,14 +135,14 @@ function ButtonList:destroy(i)
 	self.isEnabled[i] = nil
 end
 function ButtonList:SetEnabled(i, value)
+	Assert.Integer(i, 1)
 	value = not not value
 	self:get(i).AutoButtonColor = value
 	self.isEnabled[i] = value
 end
 function ButtonList:AdaptToList(newList, adaptButtonReturnEnabled)
 	for i, item in ipairs(newList) do
-		local button = self:get(i)
-		self:SetEnabled(button, adaptButtonReturnEnabled(button, item))
+		self:SetEnabled(i, adaptButtonReturnEnabled(self:get(i), item))
 	end
 	self:destroyRest(#newList + 1)
 end
@@ -211,9 +210,6 @@ local dropdown = {} do
 		Assert.IsA(beneath, "GuiObject")
 		extraXSize = extraXSize and Assert.Number(extraXSize) or 0
 		clearCons()
-		for i, op in ipairs(options) do
-			print(i, type(op) == "table" and op.Text or op)
-		end
 		local function update()
 			local pos = beneath.AbsolutePosition
 			local size = beneath.AbsoluteSize
@@ -221,7 +217,6 @@ local dropdown = {} do
 			dropdownFrame.Position = UDim2.new(0, pos.X, 0, posY)
 			local availSpace = gui.AbsoluteSize.Y * MAX_BOTTOM_Y_SCALE - posY
 			dropdownFrame.Size = UDim2.new(0, size.X + extraXSize, 0, math.min(list:Count() * listSizeY, availSpace))
-			print("update dropdownFrame", dropdownFrame.Size, "|", list:Count(), listSizeY, availSpace)
 		end
 		update()
 		dropdownFrame.Visible = true
@@ -346,178 +341,273 @@ do -- Music
 		end
 	end)
 
-	-- Playlist Selector
-	local playlistButton = content.Header.Playlist
-	local playlistLabel = playlistButton.PlaylistLabel
-	local function editPlaylistDropdownHandler(i, text)
-		if i == 1 then
-			profile:SetMusicEnabled(false)
-			playlistLabel.Text = "Off"
-		else
-			profile:SetMusicEnabled(true)
-			profile:SetActivePlaylistName(text)
-			playlistLabel.Text = text
-		end
-		sfx.PageTurn:Play()
+	-- Playlist Dropdown Helper Functions
+	local function makeOption(playlist, disabled)
+		local text = ("%s (%d)"):format(playlist.Name, #playlist.Songs)
+		return disabled and Option(text, Enum.Font.SourceSansBold, false) or text
 	end
-	playlistButton.Activated:Connect(function()
-		local cur = profile:GetMusicEnabled() and profile:GetActivePlaylistName()
-		local options = {
-			not cur and {Text = "Off", Font = Enum.Font.SourceSansBold, Enabled = false} or "Off",
-			cur == "Default" and {Text = "Default", Font = Enum.Font.SourceSansBold, Enabled = false} or "Default",
-		}
-		for _, name in ipairs(music:GetSortedCustomPlaylistNames()) do
-			options[#options + 1] = cur ~= name
-				and name
-				or Option(name, Enum.Font.SourceSansBold, false)
+	local function addDefaultPlaylistsToOptions(n, options, indexToPlaylist, curPlaylist)
+		--	curPlaylist: currently selected playlist in the dropdown control
+		for _, playlist in ipairs(music.ListOfDefaultPlaylists) do
+			n = n + 1
+			options[n] = makeOption(playlist, curPlaylist == playlist)
+			indexToPlaylist[n] = playlist
 		end
-		dropdown:Open(options, editPlaylistDropdownHandler, playlistButton)
-	end)
+		return n
+	end
+	local function addCustomPlaylistsToOptions(n, options, indexToPlaylist, curPlaylist, includeEmpty)
+		--	curPlaylist: currently selected playlist in the dropdown control
+		for _, playlist in ipairs(includeEmpty and music:GetSortedCustomPlaylists() or music:GetSortedCustomPlaylistsWithContent()) do
+			n = n + 1
+			options[n] = makeOption(playlist, curPlaylist == playlist)
+			indexToPlaylist[n] = playlist
+		end
+	end
+
+	do -- Playlist Selector
+		local playlistButton = content.Header.Playlist -- Used to open the dropdown
+		local playlistLabel = playlistButton.PlaylistLabel -- Used to show which playlist is active
+		local indexToPlaylist
+		local function playlistSelectorDropdownHandler(i, text)
+			if i == 1 then
+				music:SetEnabled(false)
+				playlistLabel.Text = "Off"
+			else
+				music:SetEnabled(true)
+				music:SetActivePlaylist(indexToPlaylist[i])
+				playlistLabel.Text = text
+			end
+			sfx.PageTurn:Play()
+		end
+		playlistButton.Activated:Connect(function()
+			local cur = music:GetEnabled() and music:GetActivePlaylist()
+			local options = {not cur and {Text = "Off", Font = Enum.Font.SourceSansBold, Enabled = false} or "Off"}
+			indexToPlaylist = {}
+			local n = 1
+			n = addDefaultPlaylistsToOptions(n, options, indexToPlaylist, cur)
+			addCustomPlaylistsToOptions(n, options, indexToPlaylist, cur)
+			dropdown:Open(options, playlistSelectorDropdownHandler, playlistButton)
+		end)
+	end
 
 	-- Playlist Editor
+	local appendSong
 	local playlistEditor = content.PlaylistEditor
-	local customTracks = playlistEditor.CustomTracks
-	handleVerticalScrollingFrame(customTracks)
-	local customName = playlistEditor.CustomName
-	local customPlaylistName -- nil for "new with no songs yet" state
-	local customPlaylist = {}
-	local customTemplate = customTracks.Row
-	-- customTemplate is also the "enter new id" row
-	customTemplate.LayoutOrder = 1e6
-	customTemplate.ID.PlaceholderText = "Song ID #"
-	customTemplate.Title.Text = ""
-	local deleting = false
-	local boxWithFocus
-	local function adaptToPlaylist(obj, id)
-		obj.ID.PlaceholderText = id
-		obj.ID.Text = ""
-		obj.Title.Text = music:GetDescForId(id)
-	end
-	local customObjs
-	local function updatePlaylist()
-		customObjs:AdaptToList(customPlaylist, adaptToPlaylist)
-	end
-	customObjs = ObjectList.new(function(i)
-		local obj = customTemplate:Clone()
-		obj.LayoutOrder = i
-		obj.Parent = customTracks
-		local box = obj.ID
-		local prevText = ""
-		return obj, {
-			obj.DeleteHolder.Delete.Activated:Connect(function()
-				table.remove(customPlaylist, i)
-				if boxWithFocus then boxWithFocus:ReleaseFocus(false) end
-				updatePlaylist()
-			end),
-			box:GetPropertyChangedSignal("Text"):Connect(function()
-				if deleting then return end
-			end),
-			box.Focused:Connect(function()
-				boxWithFocus = box
-			end),
-			box.FocusLost:Connect(function(enterPressed)
-				if boxWithFocus == box then
-					boxWithFocus = nil
-				end
-				if box.Text == "" or box.Text == prevText then return end
-				if enterPressed then
-					local id = tonumber(box.Text)
-					local problem
-					if id then
-						box.Text = id
-						music:TrySetCustomPlaylistTrack(customPlaylistName, i, id)
-						customPlaylist[i] = id
-						updatePlaylist()
-					else
-						problem = "Enter in the number only"
+	do
+		local customTracks = playlistEditor.CustomTracks
+		handleVerticalScrollingFrame(customTracks)
+		local newRow = customTracks.Row
+		newRow.LayoutOrder = 1e6
+		newRow.ID.PlaceholderText = "Song ID #"
+		newRow.Title.Text = ""
+		local customTemplate = newRow:Clone()
+		do -- Cannot delete the new song row
+			local button = newRow.DeleteHolder.Delete
+			button.AutoButtonColor = false
+			button.Text = ""
+			button.Active = false
+			button.BackgroundTransparency = 1
+		end
+		local customName = playlistEditor.CustomName
+		local updatePlaylist, updatePlaylistName -- defined below
+		local customPlaylist
+		local deletePlaylist = playlistEditor.DeleteCustom
+		local con
+		local nameCon
+		local function setCustomPlaylist(playlist)
+			if con then
+				con:Disconnect()
+				nameCon:Disconnect()
+				con = nil
+			end
+			customPlaylist = playlist
+			if playlist then
+				con = customPlaylist.SongsChanged:Connect(updatePlaylist)
+				nameCon = customPlaylist.NameChanged:Connect(updatePlaylistName)
+				newRow.Visible = true
+				deletePlaylist.Visible = true
+			else
+				newRow.Visible = false
+				deletePlaylist.Visible = false
+			end
+			updatePlaylistName()
+			updatePlaylist()
+		end
+		local deleting = false
+		local boxWithFocus
+		local function adaptToPlaylist(obj, id)
+			obj.ID.PlaceholderText = id
+			obj.ID.Text = ""
+			obj.Title.Text = music:GetDescForId(id)
+		end
+		local customObjs
+		updatePlaylist = function()
+			customObjs:AdaptToList(customPlaylist and customPlaylist.Songs or {}, adaptToPlaylist)
+			newRow.ID.Text = ""
+		end
+		updatePlaylistName = function()
+			customName.PlaceholderText = customPlaylist and customPlaylist.Name or "Create/Edit"
+			customName.Text = ""
+		end
+		deletePlaylist.Activated:Connect(function()
+			if not customPlaylist then return end
+			if not MessageBox.Show(("Are you sure you want to delete %s?"):format(customPlaylist.Name)) then return end
+			local playlist = customPlaylist
+			setCustomPlaylist(nil)
+			music:RemoveCustomPlaylist(playlist)
+		end)
+
+		local function setupBoxHandler(row, onSongEntered)
+			local box = row.ID
+			local prevText = ""
+			return {
+				box:GetPropertyChangedSignal("Text"):Connect(function()
+					if deleting or box.Text == prevText then return end
+					-- Only allow positive integers
+					if not box.Text:match("^%d*$") then
+						box.Text = prevText
 					end
-					if problem then
-						StarterGui:SetCore("SendNotification", {
-							Title = "Invalid Sound ID",
-							Text = problem,
-							Duration = 3,
-						})
+					prevText = box.Text
+				end),
+				box.Focused:Connect(function()
+					boxWithFocus = box
+				end),
+				box.FocusLost:Connect(function(enterPressed)
+					if boxWithFocus == box then
+						boxWithFocus = nil
+					end
+					if box.Text == "" or box.Text == box.PlaceholderText then return end
+					if enterPressed then
+						local songId = tonumber(box.Text)
+						if songId then
+							box.Text = songId
+							onSongEntered(songId)
+						else
+							StarterGui:SetCore("SendNotification", {
+								Title = "Invalid Sound ID",
+								Text = "Enter in the number only",
+								Duration = 3,
+							})
+							box.Text = ""
+						end
+					else
 						box.Text = ""
 					end
-				else
-					box.Text = ""
+				end)
+			}
+		end
+		function appendSong(songId)
+			newRow.ID.Text = ""
+			if not customPlaylist then
+				local newPlaylist = music:InvokeCreateCustomPlaylist({Songs = {songId}})
+				if newPlaylist then
+					setCustomPlaylist(newPlaylist)
 				end
+				return
+			end
+			music:InvokeSetCustomPlaylistTrack(customPlaylist, #customPlaylist.Songs + 1, songId)
+		end
+		setupBoxHandler(newRow, appendSong)
+		customObjs = ObjectList.new(function(i)
+			local row = customTemplate:Clone()
+			row.LayoutOrder = i
+			row.Parent = customTracks
+			local cons = setupBoxHandler(row, function(songId) music:InvokeSetCustomPlaylistTrack(customPlaylist, i, songId) end)
+			cons[#cons + 1] = row.DeleteHolder.Delete.Activated:Connect(function()
+				music:RemoveCustomPlaylistTrack(customPlaylist, i)
+				if boxWithFocus then boxWithFocus:ReleaseFocus(false) end
 			end)
-		}
-	end)
-	customName.FocusLost:Connect(function(enterPressed)
-		local newName = String.Trim(customName.Text)
-		profile:InvokeRenameCustomPlaylist(customName.PlaceholderText, newName)
-	end)
-	local function editPlaylist(name)
-		--	name should be nil/false if this is a new playlist
-		customName.Text = ""
-		if name then
-			customName.PlaceholderText = name
-
-			-- todo fill contents
-		else
-			customName.PlaceholderText = music:GetNewPlaylistName()
-			--	todo unit test GetNewPlaylistName? - if "Custom #1" already exists, do "Custom #2"
-			-- todo clear out contents
-		end
-		sfx.PageTurn:Play()
-	end
-
-	playlistEditor.CustomNameArrow.Activated:Connect(function()
-		local options = {{Text = "New", Font = Enum.Font.SourceSansItalic}}
-		for _, name in ipairs(music:GetSortedCustomPlaylistNames()) do
-			options[#options + 1] = name
-		end
-		local function handler(i, text)
-			editPlaylist(i > 1 and text)
-			-- todo
-		end
-		dropdown:Open(options, handler, playlistButton)
-	end)
-
-	-- Playlist Viewer
-	local viewPlaylist -- list of ids
-	local viewPlaylistButton = playlistEditor.ViewPlaylist
-	local viewPlaylistLabel = viewPlaylistButton.Label
-	local viewTracks = playlistEditor.ViewTracks
-	handleVerticalScrollingFrame(viewTracks)
-	local viewTemplate = viewTracks.Row
-	viewTemplate.Parent = nil
-	local viewObjs = ObjectList.new(function(i)
-		local obj = viewTemplate:Clone()
-		obj.Parent = viewTracks
-		return obj, obj.CopyHolder.Copy.Activated:Connect(function()
-			-- todo copy this song id to the playlist being edited
-			appendSong(viewPlaylist[i])
+			return row, cons
 		end)
-	end)
-	local function setPlaylistToView(name)
-		viewPlaylistLabel.Text = name
-		viewObjs:AdaptToList(music:GetPlaylist(name) or error("No playlist named " .. tostring(name)), function(obj, songId)
-			obj.Title.Text = music:GetDescForId(songId)
+		customName.FocusLost:Connect(function(enterPressed)
+			local newName = String.Trim(customName.Text):sub(1, music.MAX_PLAYLIST_NAME_LENGTH)
+			if newName == "" then return end
+			local existing = music:GetCustomPlaylistByName(newName)
+			if existing then
+				setCustomPlaylist(existing)
+			elseif not customPlaylist then
+				music:InvokeCreateCustomPlaylist({Name = newName})
+			else
+				music:InvokeRenameCustomPlaylist(customPlaylist, newName)
+			end
+		end)
+		customName:GetPropertyChangedSignal("Text"):Connect(function()
+			if #customName.Text > music.MAX_PLAYLIST_NAME_LENGTH then
+				customName.Text = customName.Text:sub(1, music.MAX_PLAYLIST_NAME_LENGTH)
+			end
+		end)
+		setCustomPlaylist(nil)
+
+		local customNameArrow = playlistEditor.CustomNameArrow
+		local indexToPlaylist
+		local function editPlaylistDropdownHandler(i, text)
+			if i == 1 then -- new
+				local newCustomPlaylist = music:InvokeCreateCustomPlaylist()
+				if not newCustomPlaylist then return end
+				setCustomPlaylist(newCustomPlaylist)
+			else
+				setCustomPlaylist(indexToPlaylist[i])
+			end
+			sfx.PageTurn:Play()
+		end
+		customNameArrow.Activated:Connect(function()
+			local options = {{Text = "New", Font = Enum.Font.SourceSansItalic}}
+			indexToPlaylist = {}
+			addCustomPlaylistsToOptions(1, options, indexToPlaylist, customPlaylist, true)
+			dropdown:Open(options, editPlaylistDropdownHandler, customName, customNameArrow.AbsoluteSize.X)
 		end)
 	end
-	setPlaylistToView("Default")
-	local function viewDropdownHandler(i, text)
-		setPlaylistToView(text)
-		sfx.PageTurn:Play()
+
+	do -- Playlist Viewer
+		local viewPlaylist
+		local viewPlaylistButton = playlistEditor.ViewPlaylist
+		local viewPlaylistLabel = viewPlaylistButton.Label
+		local viewTracks = playlistEditor.ViewTracks
+		handleVerticalScrollingFrame(viewTracks)
+		local viewTemplate = viewTracks.Row
+		viewTemplate.Parent = nil
+		local indexToPlaylist
+		local viewObjs = ObjectList.new(function(i)
+			local obj = viewTemplate:Clone()
+			obj.Parent = viewTracks
+			return obj, obj.CopyHolder.Copy.Activated:Connect(function()
+				appendSong(viewPlaylist.Songs[i])
+			end)
+		end)
+		local cons
+		local function setPlaylistToView(playlist)
+			viewPlaylist = playlist
+			viewPlaylistLabel.Text = playlist.Name
+			viewObjs:AdaptToList(playlist.Songs, function(obj, songId)
+				obj.Title.Text = music:GetDescForId(songId)
+			end)
+			if cons then
+				for _, con in ipairs(cons) do con:Disconnect() end
+			end
+			local function refresh() setPlaylistToView(viewPlaylist) end
+			cons = {
+				viewPlaylist.NameChanged:Connect(refresh),
+				viewPlaylist.SongsChanged:Connect(refresh),
+			}
+		end
+		music.CustomPlaylistsChanged:Connect(function()
+			if not music:GetPlaylist(viewPlaylist.Id) then -- playlist deleted
+				setPlaylistToView(music:GetActivePlaylist())
+			end
+		end)
+		setPlaylistToView(music:GetActivePlaylist())
+		local function viewDropdownHandler(i, text)
+			setPlaylistToView(indexToPlaylist[i])
+			sfx.PageTurn:Play()
+		end
+		viewPlaylistButton.Activated:Connect(function()
+			local options = {}
+			indexToPlaylist = {}
+			local n = addDefaultPlaylistsToOptions(0, options, indexToPlaylist, viewPlaylist)
+			addCustomPlaylistsToOptions(n, options, indexToPlaylist, viewPlaylist)
+			dropdown:Open(options, viewDropdownHandler, viewPlaylistButton)
+		end)
 	end
-	viewPlaylistButton.Activated:Connect(function()
-		local options = {}
-		local cur = viewPlaylistLabel.Text
-		for _, playlist in ipairs(music.ListOfDefaultPlaylists) do
-			options[#options + 1] = playlist.Id ~= curId
-				and playlist.Name
-				or Option(playlist.Name, Enum.Font.SourceSansBold, false)
-		end
-		for _, name in ipairs(music:GetSortedCustomPlaylistNames()) do
-			options[#options + 1] = name ~= cur
-				and name
-				or Option(name, Enum.Font.SourceSansBold, false)
-		end
-		dropdown:Open(options, viewDropdownHandler, viewPlaylistButton)
-	end)
 end
 
 topBarMenus[topBar.Right.Search] = BookSearch

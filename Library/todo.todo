@@ -21,40 +21,47 @@ Profile / Music:
 		No need to check whether the profile has changed; it's easier to just assume that it has and autosave regardless
 
 Custom Playlist:
+	Bugs:
+		✔ View playlist not updated when editing same one
+		☐ After deleting a playlist, "+" doesn't create a new one
+		☐ Switching playlists bug (GetCurSongDesc fails - curMusic[curMusicIndex] is nil)
+		☐ If APM music were stored, will it cause an error?
+	Unfinished:
+		☐ Load existing playlists from old data store
+	Polish:
+		✔ Show # of songs beside each playlist name in all views
 	Data structure to save:
-		☐ Each playlist must have a unique id (per user)
-		☐ Must store the "next" playlist id for each user
-		☐ All requests/functions should use this id (they currently use the name)
+		✔ Each playlist must have a unique id (per user)
+		✔ Must store the "next" playlist id for each user
+		✔ All requests/functions should use this id (they currently use the name)
 	Checks to perform on server:
-		☐ Name must be unique
+		✔ Name must be unique
 		✔ Name must get through filtering or be "Custom #%d+"
 	For new playlists, server must support either:
-		☐ 1. Can change the name of a playlist that doesn't exist
-		☐ 2. Can create an empty playlist (and maybe even save it?)
+		1. Can change the name of a playlist that doesn't exist
+		✔ 2. Can create an empty playlist (and maybe even save it?)
 	On init:
 		✔ Dropdown contains all editable playlists
-		☐ Open editor to active custom playlist else any custom playlist else "Custom #1"
-	When user changes the name of the playlist:
-
+		✔ Open editor to active custom playlist else any custom playlist else "Custom #1"
 	✔ Gui will have "x" to delete entry and then 1+ rows for sound IDs
 	✔ after pressing enter a label with Title (Length) is supposed to show up (maybe "by Creator" as well?)
 	On Enter of one of the IDs:
 		✔ Validate the input. If it's no good, revert to previous value.
 			✔ Tell user what's wrong by sending a notification
-		☐ Music:TrySetCustomPlaylistTrack(index, id)
+		✔ Music:TrySetCustomPlaylistTrack(index, id)
 			will return true OR false, reason
 			if it fails, tell user why via notification like before
 			& revert text box
-		☐ If successful, if there is no empty text box, create another row
+		✔ If successful, if there is no empty text box, create another row
 	On startup:
-		☐ Populate the Music list with all the default music (with Name, Length, creator)
-		☐ On "+" Activated, copy into new slot in the playlist
+		✔ Populate the Music list with all the default music (with Name, Length, creator)
+		✔ On "+" Activated, copy into new slot in the playlist
 	> For now, do not support multiple playlists - most players will only use 1 at most (and not popular feature anyway)
 	Currently playing display:
 		> In the main menu, or the custom playlist editor
-		☐ Create this display
-		☐ When the current music changes, activate an event
-		☐ When the event fires, update the Currently Playing display
+		✔ Create this display
+		✔ When the current music changes, activate an event
+		✔ When the event fires, update the Currently Playing display
 
 Book Pouch/Inventory:
 	☐ Perhaps "Books" or "Inventory" text should be on far left side (rotated 90 degrees), at least when the pouch is closed

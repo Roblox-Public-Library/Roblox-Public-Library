@@ -1,5 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local MessageBox = require(script.Parent.MessageBox)
+local MessageBox = require(ReplicatedStorage.MessageBox)
 local remotes = ReplicatedStorage.Remotes
 local AUTO_CLOSE_RADIUS = 3
 

@@ -18,7 +18,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local DataStores = require(ServerScriptService.DataStores)
 local profileStore = DataStores:GetDataStore("Profiles")
 local oldPlaylistStore = DataStores:GetDataStore("Playlists")
-local Music = require(ServerScriptService.Music)
+local Music = require(ServerScriptService.MusicServer)
 local NewRemote = require(ServerScriptService.NewRemote)
 
 local Players = game:GetService("Players")
@@ -50,8 +50,8 @@ Players.PlayerRemoving:Connect(function(player)
 	local value = profiles[player]
 	if typeof(value) == "Instance" then -- it's an event; a thread is waiting on the profile loading
 		value:Fire(nil)
+		value:Destroy()
 	end
-	value:Destroy()
 	profiles[player] = nil
 end)
 

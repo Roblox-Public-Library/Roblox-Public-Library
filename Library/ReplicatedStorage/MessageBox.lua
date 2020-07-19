@@ -1,7 +1,8 @@
 local MessageBox = {}
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local screenGui = ReplicatedStorage.Guis.ScreenGui
+local screenGui = ReplicatedStorage.Guis.MessageBoxGui
+screenGui.Parent = game:GetService("Players").LocalPlayer.PlayerGui
 local messageFrame = screenGui.MessageFrame
 local yesBtn = messageFrame.ButtonL
 local noBtn = messageFrame.ButtonR
@@ -16,8 +17,8 @@ function MessageBox.Show(prompt, confirmText, cancelText)
 		event:Fire(false)
 	end
 	messageFrame.TextLabel.Text = prompt
-	yesBtn.Text = confirmText
-	noBtn.Text = cancelText
+	yesBtn.Text = confirmText or "Yes"
+	noBtn.Text = cancelText or "No"
 	msgShowing = true
 	screenGui.Enabled = true
 	local response = event.Event:Wait()

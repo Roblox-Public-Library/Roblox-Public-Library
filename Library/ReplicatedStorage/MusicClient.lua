@@ -4,7 +4,7 @@ Handles playing music and keeping the server up-to-date with the user's musical 
 local Marketplace = game:GetService("MarketplaceService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Music = require(ReplicatedStorage.Music)
-local remotes = ReplicatedStorage.Remotes
+local remotes = ReplicatedStorage.Remotes.Music
 local Assert = require(ReplicatedStorage.Utilities.Assert)
 local Event = require(ReplicatedStorage.Utilities.Event)
 local StarterGui = game:GetService("StarterGui")
@@ -13,39 +13,78 @@ local music = require(script.Parent.ProfileClient).Music
 
 local Playlist = Music.Playlist
 
+local defaultBaseFunc = function(setName) return music[setName] end
+local setToBaseFunc = {
+	RemoveCustomPlaylistTrack = function(setName)
+		return function(self, playlist, index)
+			playlist:RemoveSong(index)
+		end
+	end
+}
 local setToEventName = {
 	SetEnabled = "EnabledChanged",
 	SetActivePlaylist = "ActivePlaylistChanged",
 }
-for _, setName in ipairs({"SetEnabled", "SetActivePlaylist", "SetCustomPlaylistTrack", "RemoveCustomPlaylistTrack"}) do
-	local base = music[setName]
+local handleArgsDefault = function(...) return ... end
+local setToHandleRemoteArgs = {
+	SetActivePlaylist = function(playlist, index, songId)
+		return playlist.Id, index, songId
+	end,
+	RemoveCustomPlaylistTrack = function(playlist, index)
+		return playlist.Id, index
+	end,
+	RemoveCustomPlaylist = function(playlist)
+		return playlist.Id
+	end,
+}
+for _, setName in ipairs({"SetEnabled", "SetActivePlaylist", "RemoveCustomPlaylistTrack", "RemoveCustomPlaylist"}) do
+	local base = (setToBaseFunc[setName] or defaultBaseFunc)(setName)
 	local remote = remotes[setName]
 	local eventName = setToEventName[setName]
+	local argsHandler = setToHandleRemoteArgs[setName] or handleArgsDefault
 	if eventName then
 		local event = Event()
 		music[eventName] = event
 		music[setName] = function(self, ...)
 			if base(self, ...) then return true end -- no change
-			remote:FireServer(...)
+			remote:FireServer(argsHandler(...))
 			event:Fire(...)
 		end
 	else
 		music[setName] = function(self, ...)
 			if base(self, ...) then return true end -- no change
-			remote:FireServer(...)
+			remote:FireServer(argsHandler(...))
 		end
 	end
 end
 music.CustomPlaylistsChanged = Event() -- fires when a custom playlist is created, removed, or renamed
-local base = music.RenameCustomPlaylist
-function music:RenameCustomPlaylist(id, newName) -- Do not call with unfiltered name (use InvokeRenameCustomPlaylist instead)
-	if base(id, newName) then return true end
-	self.CustomPlaylistsChanged:Fire()
-end
 
-function music:InvokeRenameCustomPlaylist(oldName, newName)
-	--	returns true if rename was successful (yields)
-	local success, tryAgain = remotes.RenameCustomPlaylist:InvokeServer(oldName, newName)
+function music:InvokeCreateCustomPlaylist(data)
+	--	Returns the new playlist if successful, otherwise notifies the user of the problem
+	local success, data = remotes.CreateCustomPlaylist:InvokeServer(data)
+	if success then
+		return self:addNewPlaylist(Playlist.Deserialize(data))
+	else
+		StarterGui:SetCore("SendNotification", {
+			Title = "Create New Playlist Failed",
+			Text = data,
+			Duration = 4,
+		})
+		return false
+	end
+end
+function music:InvokeRenameCustomPlaylist(playlist, newName)
+	--	Yields. Notifies the player if something goes wrong.
+	local oldName = playlist.Name
+	if newName == oldName then return end
+	if self:GetCustomPlaylistByName(newName) then
+		StarterGui:SetCore("SendNotification", {
+			Title = ("'%s' Rename Failed"):format(oldName),
+			Text = ("You already have a playlist named '%s'"):format(newName),
+			Duration = 5,
+		})
+	end
+	local success, tryAgain = remotes.RenameCustomPlaylist:InvokeServer(playlist.Id, newName)
 	if not success then
 		StarterGui:SetCore("SendNotification", {
 			Title = ("'%s' Rename Failed"):format(oldName),
@@ -54,10 +93,22 @@ function music:InvokeRenameCustomPlaylist(oldName, newName)
 				or "That name was filtered",
 			Duration = 4,
 		})
-		return false
 	else
-		music:RenameCustomPlaylist(oldName, newName)
-		return true
+		playlist:SetName(newName)
+		self.CustomPlaylistsChanged:Fire()
+	end
+end
+function music:InvokeSetCustomPlaylistTrack(playlist, index, songId)
+	local problem = Music.AnyProblemWithSongId(songId)
+		or remotes.SetCustomPlaylistTrack:InvokeServer(playlist.Id, index, songId)
+	if problem then
+		StarterGui:SetCore("SendNotification", {
+			Title = "Song ID " .. songId,
+			Text = problem,
+			Duration = 4,
+		})
+	else
+		playlist:SetSong(index, songId)
 	end
 end
 
@@ -111,19 +162,10 @@ end
 function Music:GetDescForId(id)
 	return getDesc(id)
 end
-local idToNumRefs = {}
-local function addRef(id)
-	idToNumRefs[id] = (idToNumRefs[id] or 0) + 1
-end
-local function removeRef(id)
-	local num = idToNumRefs[id]
-	if num == 1 then
-		idToNumRefs[id] = nil
-		idToDesc[id] = nil
-	else
-		idToNumRefs[id] = num - 1
-	end
-end
+
+music.NoRefsLeft:Connect(function(id)
+	idToDesc[id] = nil
+end)
 
 local localPlayer = game:GetService("Players").LocalPlayer
 local curSongList -- list of song IDs to play
@@ -136,7 +178,7 @@ nextTrack.Parent = localPlayer
 local curMusic = {} -- shuffled version of curSongList
 local curMusicIndex = 1
 local nextTrackStarted = Instance.new("BindableEvent")
-Music.NextTrackStarted = nextTrackStarted.Event
+Music.NextTrackStarted = nextTrackStarted.Event -- todo if not when gui is done, delete
 
 local defaultVolume = 0.3
 local function getMusicVolume()
@@ -146,6 +188,13 @@ local function musicVolumeChanged()
 	curTrack.Volume = getMusicVolume()
 end
 music.EnabledChanged:Connect(musicVolumeChanged)
+music.EnabledChanged:Connect(function(enabled)
+	if enabled then
+		curTrack:Resume()
+	else
+		curTrack:Pause()
+	end
+end)
 
 function Music:GetCurSongDesc()
 	return getDesc(curMusic[curMusicIndex])
@@ -193,12 +242,6 @@ end
 activePlaylistChanged(music:GetActivePlaylist())
 music.ActivePlaylistChanged:Connect(activePlaylistChanged)
 
-for _, playlist in ipairs(music.ListOfDefaultPlaylists) do -- add refs to default playlists
-	for _, songId in ipairs(playlist.Songs) do
-		addRef(songId)
-	end
-end
-
 local crazyMusic = ReplicatedStorage.DefaultMusic:GetChildren()
 function Music:GoCrazy()
 	curTrack:Pause()
@@ -219,78 +262,27 @@ function Music:GoCrazy()
 	end)
 end
 
-function Music:GetPlaylist(name)
-	return defaultPlaylists[name] or customPlaylists[name]
+local sortedPlaylists
+local playlistComparer = function(a, b) return a.Name < b.Name end
+local function updateSortedPlaylists()
+	sortedPlaylists = {}
+	for name, playlist in pairs(customPlaylists) do
+		sortedPlaylists[#sortedPlaylists + 1] = playlist
+	end
+	table.sort(sortedPlaylists, playlistComparer)
 end
-local sortedPlaylistNames
-local function updateSortedPlaylistNames()
-	sortedPlaylistNames = {}
-	for name, list in pairs(customPlaylists) do
-		sortedPlaylistNames[#sortedPlaylistNames + 1] = name
-	end
-	table.sort(sortedPlaylistNames)
+updateSortedPlaylists()
+music.CustomPlaylistsChanged:Connect(updateSortedPlaylists)
+function Music:GetSortedCustomPlaylists()
+	return sortedPlaylists
 end
-updateSortedPlaylistNames()
-music.CustomPlaylistsChanged:Connect(updateSortedPlaylistNames)
-function Music:GetSortedCustomPlaylistNames()
-	return sortedPlaylistNames
-end
-
-for name, playlist in pairs(customPlaylists) do
-	for _, id in ipairs(playlist) do
-		addRef(id)
-	end
-end
--- TODO rewrite below
-function Music:CustomPlaylistHasContent()
-	return #customPlaylist > 0
-end
-local customNowExists = Instance.new("BindableEvent")
-local customNowEmpty = Instance.new("BindableEvent")
-Music.CustomPlaylistNowExists = customNowExists.Event
-Music.CustomPlaylistNowEmpty = customNowEmpty.Event
-function Music:TrySetCustomPlaylistTrack(name, index, id)
-	Assert.String(name)
-	local customPlaylist = customPlaylists[name]
-	if not customPlaylist then
-		if not id then return true end
-		customPlaylist = {}
-		customPlaylists[name] = customPlaylist
-	end
-	Assert.Integer(index, 1, #customPlaylist + 1)
-	local prev = customPlaylist[index]
-	if prev == id then return true end
-	local desc, problem = getDesc(id)
-	if problem then
-		return false, problem
-	end
-	if prev then
-		removeRef(prev)
-	end
-	music:SetCustomPlaylistTrack(index, id)
-	if id then
-		addRef(id)
-		if #customPlaylist == 1 then
-			customNowExists:Fire()
-		end
-	elseif #customPlaylist == 0 then
-		customNowEmpty:Fire()
-	end
-	if self:GetActivePlaylistName() == "Custom" then
-		if #customPlaylist == 0 then
-			self:SetActivePlaylistName("Default")
-		else
-			playlistModified = true
-			if curTrackId == prev then
-				playNextSong()
-			end
+function Music:GetSortedCustomPlaylistsWithContent()
+	local t = {}
+	for _, playlist in ipairs(sortedPlaylists) do
+		if #playlist.Songs > 0 then
+			t[#t + 1] = playlist
 		end
 	end
-	return true
+	return t
 end
-function Music:RemoveCustomPlaylistTrack(name, index)
-	Assert.String(name)
-	Assert.Integer(index, 1, #customPlaylist)
-end
-
-return Music
+return music

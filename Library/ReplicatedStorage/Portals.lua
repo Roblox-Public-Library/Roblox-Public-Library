@@ -48,12 +48,13 @@ end)
 return {
 	Setup = function(tele)
 		local parent = tele.Parent
-		local id = tele.Parent.id.Value
+		local id = parent.id.Value
 		if not type(id) == "number" and math.floor(id) == id then
 			error(tele:GetFullName() .. "'s ID must be an integer, not " .. tostring(id))
 		end
 		local placeName = getPlaceName(id)
 		if placeName ~= "" then
+			local f = parent.TextBrick.Front.Frame
 			parent.TextBrick.Front.Frame.TextLabel.Text = placeName
 		end
 		tele.Touched:Connect(function(hit)
