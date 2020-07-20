@@ -1,5 +1,21 @@
  (If you install the Todo+ extension you can toggle a task being done with Alt+d and create a new task with Ctrl+Enter)
 --------------------------
+Book Pouch/Inventory:
+	Interface:
+		✔ Perhaps "Books" or "Inventory" text should be on far left side (rotated 90 degrees), at least when the pouch is closed
+		✔ Starts out open (but invisible if you're not carrying any books) @done(20-07-19 12:57)
+		✔ A ScrollingFrame (only scrolls if needed) to hold each book @done(20-07-19 12:57)
+		☐ It should save books you previously had in your inventory
+			This will be automatic when integrated into Profile
+		✔ An "x" beside each book to remove it from the inventory @done(20-07-19 12:56)
+		✔ When you click on a book in the pouch, it opens up @done(20-07-19 12:56)
+	Integration with Profile:
+		☐ Needs BookPouch class with .new/:Serialize/.Deserialize so it can be stored in the data stores and transmitted to the client
+	Files Needed:
+		☐ BookPouch in ReplicatedStorage for the class and common behaviour
+		☐ BookPouchServer to handle server-side remotes (to allow client to add/remove books)
+		☐ BookPouchClient and/or BookPouchGui to call those remotes and show the list in the interface
+
 TopBar:
 	✔ Credit https://github.com/1ForeverHD/HDAdmin/tree/master/Projects/Topbar%2B for coords/sizes
 	✔ Transparency of bg image
@@ -7,7 +23,7 @@ TopBar:
 	Music:
 		✔ Get musical note icon
 		✔ Create dropdown list
-		☐ Make the gui functional
+		✔ Make the gui functional
 	About or FAQ:
 		✔ Get icon (maybe a "?")
 		✔ Should have commands/controls and credits
@@ -23,11 +39,15 @@ Profile / Music:
 Custom Playlist:
 	Bugs:
 		✔ View playlist not updated when editing same one
-		☐ After deleting a playlist, "+" doesn't create a new one
-		☐ Switching playlists bug (GetCurSongDesc fails - curMusic[curMusicIndex] is nil)
-		☐ If APM music were stored, will it cause an error?
+		✔ After deleting a playlist, "+" doesn't create a new one
+		✔ After deleting a playlist, the currently active playlist should be reset to the default (if it was the deleted one)
+		✔ Switching playlists bug (GetCurSongDesc fails - curMusic[curMusicIndex] is nil)
+		✔ If APM music were stored, will it cause an error? Is this handled properly?
 	Unfinished:
-		☐ Load existing playlists from old data store
+		✔ Load existing playlists from old data store
+	Untested:
+		✔ Try temporarily limiting # of playlists and songs to very small to test
+		✔ Try loading (from fake data) APM music and make sure it's removed
 	Polish:
 		✔ Show # of songs beside each playlist name in all views
 	Data structure to save:
@@ -63,14 +83,6 @@ Custom Playlist:
 		✔ When the current music changes, activate an event
 		✔ When the event fires, update the Currently Playing display
 
-Book Pouch/Inventory:
-	☐ Perhaps "Books" or "Inventory" text should be on far left side (rotated 90 degrees), at least when the pouch is closed
-	☐ Starts out open (but invisible if you're not carrying any books)
-	☐ A ScrollingFrame (only scrolls if needed) to hold each book
-	☐ It should save books you previously had in your inventory
-	☐ An "x" beside each book to get rid of it
-	☐ When you click on a book, it opens it up
-
 Teleport:
 	✔ When player touches portal, server tells client to inquire about teleporting to the appropriate ID (with RemoteEvent)
 	✔ MessageBox is client only
@@ -100,9 +112,8 @@ Bugs:
 Profile:
 	✔ Algorithm that can handle merging
 	> see SaveableSet
-	☐ Add Recently Read books to profile (OR just use book inventory?)
-	☐ serialize profile and its contents (ex via SaveableSet) both for over the network and to/from the data store
-		☐ for data store only, need to be able to encode with a version so that they can be upgraded over time (or use tables with string keys that we can change over time)
+	✔ serialize profile and its contents (ex via SaveableSet) both for over the network and to/from the data store
+		✘ for data store only, need to be able to encode with a version so that they can be upgraded over time (or use tables with string keys that we can change over time)
 			x if we use string keys to upgrade, then you have to check every possible string key, "just in case"
 
 New Book Gui:

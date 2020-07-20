@@ -10,9 +10,8 @@ Player needs to be able to do the following to a book (ignoring the gui/input):
 ]]
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Profile = require(ReplicatedStorage.Profile)
-local Utilities = ReplicatedStorage.Utilities
-local String = require(Utilities.String)
 local remotes = ReplicatedStorage.Remotes
+local AUTOSAVE_FREQ = 60
 
 local ServerScriptService = game:GetService("ServerScriptService")
 local DataStores = require(ServerScriptService.DataStores)
@@ -33,7 +32,14 @@ Players.PlayerAdded:Connect(function(player)
 			profile = Profile.Deserialize(profileData)
 		else
 			profile = Profile.new()
-			-- todo look up oldPlaylistStore; add to profile if it exists
+			local success, songs = oldPlaylistStore:Get("user_" .. player.UserId, function() return not player.Parent end, true)
+			if success then
+				if songs then
+					profile.Music:CreateNewPlaylist(nil, Music.FilterSongs(songs))
+				end
+			else
+				warn("Data store failed to load old profile for", player.Name .. ":", songs)
+			end
 		end
 	else
 		warn("Data store failed to load profile for", player.Name .. ":", profileData)
@@ -42,17 +48,37 @@ Players.PlayerAdded:Connect(function(player)
 	local event = profiles[player]
 	profiles[player] = profile
 	if event then
-		event:Fire(profile)
+		event:Fire()
 		event:Destroy()
 	end
-end)
-Players.PlayerRemoving:Connect(function(player)
-	local value = profiles[player]
-	if typeof(value) == "Instance" then -- it's an event; a thread is waiting on the profile loading
-		value:Fire(nil)
-		value:Destroy()
+	while true do
+		wait(AUTOSAVE_FREQ)
+		if not player.Parent then break end
+		profileStore:SetFunc(player.UserId, function()
+			return profile:Serialize()
+		end, function() return not player.Parent end)
 	end
+end)
+local savingThreads = 0
+Players.PlayerRemoving:Connect(function(player)
+	local profile = profiles[player]
+	if typeof(profile) == "Instance" then -- it's an event; a thread is waiting on the profile loading
+		profile:Fire(nil)
+	else
+		savingThreads = savingThreads + 1
+		pcall(function()
+			profileStore:Set(player.UserId, profile:Serialize())
+		end)
+		savingThreads = savingThreads - 1
+	end
+	profile:Destroy()
 	profiles[player] = nil
+end)
+
+game:BindToClose(function()
+	repeat
+		wait()
+	until savingThreads == 0
 end)
 
 local function new(type, name)
@@ -66,7 +92,8 @@ local function getProfile(player) -- note: can return nil if the player leaves b
 	if not profile then
 		local event = Instance.new("BindableEvent")
 		profiles[player] = event
-		profile = event.Event:Wait()
+		event.Event:Wait()
+		profile = profiles[player]
 	end
 	return profile
 end

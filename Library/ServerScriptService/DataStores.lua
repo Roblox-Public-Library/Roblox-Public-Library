@@ -6,13 +6,10 @@ DataStore:
 	:SetFunc
 	:Update
 	:Increment
-
-
 ]]
 local DataStoreService = game:GetService("DataStoreService")
 local DataStores = {}
 
-local studioPrint = false -- if true, all DataStore accesses will be printed out in studio
 local isStudio = game:GetService("RunService"):IsStudio()
 
 local maxTries = {

@@ -84,12 +84,45 @@ function Playlist:Serialize()
 	assert(self.Id > 0, "Can only serialize custom playlists")
 	return {Id = self.Id, Name = self.Name, Songs = self.Songs}
 end
+local function filterSongs(songs)
+	Assert.List(songs)
+	local num = #songs
+	if num == 0 then return songs end
+	local event = Instance.new("BindableEvent")
+	local problemIds = {}
+	for _, songId in ipairs(songs) do
+		coroutine.wrap(function()
+			if anyProblemWithSongId(songId) then
+				problemIds[songId] = true
+			end
+			num = num - 1
+			if num == 0 then
+				event:Fire()
+				event:Destroy()
+			end
+		end)()
+	end
+	if num > 0 then
+		event.Event:Wait()
+	end
+	local validSongs = {}
+	for _, songId in ipairs(songs) do
+		if not problemIds[songId] then
+			validSongs[#validSongs + 1] = songId
+		end
+	end
+	return validSongs
+end
+function Playlist.DeserializeDataStore(data)
+	return Playlist.new(data.Id, data.Name, filterSongs(data.Songs))
+end
 function Playlist.Deserialize(data)
-	return setmetatable({
-		Id = data.Id,
-		Name = data.Name,
-		Songs = data.Songs,
-	}, Playlist)
+	return Playlist.new(data.Id, data.Name, data.Songs)
+end
+function Playlist:Destroy()
+	for _, songId in ipairs(Assert.List(self.Songs)) do
+		removeRef(songId)
+	end
 end
 AddEventsToSerializable.Bindable(Playlist, {"NameChanged", "SongsChanged"})
 
@@ -120,15 +153,12 @@ local Music = {
 	-- 	100 songs in a playlist, if each id is 9 chars long, would be 970 chars
 	--	Total max size: ~20k (out of 260k limit)
 	--	This allows the profile to have space for everything else
-	-- Size estimate per playlist with JSON Encoding
-	-- {"Id"= = self.Id, Name = self.Name, Songs = self.Songs}
 	DefaultPlaylists = defaultPlaylists, -- id -> playlist
 	ListOfDefaultPlaylists = listOfDefaultPlaylists,
 	AnyProblemWithSongId = anyProblemWithSongId,
 	NoRefsLeft = noRefsLeft.Event, --(songId) -- triggered when a song is removed from all playlists
-	-- AddSongIdRef = addRef, -- should be used to temporarily add a song id (ex when caching info before you know if you'll keep it)
-	-- RemoveSongIdRef = removeRef, -- todo are these 2 needed?
-	Playlist = Playlist
+	Playlist = Playlist,
+	FilterSongs = filterSongs,
 }
 Music.__index = Music
 function Music.new()
@@ -150,18 +180,28 @@ function Music:Serialize()
 		customPlaylists = customList,
 	}
 end
-function Music.Deserialize(data)
+local function getDefaultPlaylist()
+	return defaultPlaylists[0] or defaultPlaylists[next(defaultPlaylists)]
+end
+local function deserialize(data, deserializePlaylist)
 	local customPlaylists = {}
 	local nameToPlaylist = {}
-	for _, playlist in ipairs(data.customPlaylists) do
+	for _, playlistData in ipairs(data.customPlaylists) do
+		local playlist = deserializePlaylist(playlistData)
 		customPlaylists[playlist.Id] = playlist
 		nameToPlaylist[playlist.Name] = playlist
 	end
-	data.activePlaylist = defaultPlaylists[data.activePlaylistId] or customPlaylists[data.activePlaylistId] or defaultPlaylists[next(defaultPlaylists)]
+	data.activePlaylist = defaultPlaylists[data.activePlaylistId] or customPlaylists[data.activePlaylistId] or getDefaultPlaylist()
 	data.activePlaylistId = nil
 	data.customPlaylists = customPlaylists
 	data.nameToPlaylist = nameToPlaylist
 	return setmetatable(data, Music)
+end
+function Music.DeserializeDataStore(data)
+	return deserialize(data, Playlist.DeserializeDataStore)
+end
+function Music.Deserialize(data)
+	return deserialize(data, Playlist.Deserialize)
 end
 function Music:GetEnabled()
 	return self.enabled
@@ -215,7 +255,6 @@ end
 function Music:addNewPlaylist(playlist)
 	self.customPlaylists[playlist.Id] = playlist
 	self.nameToPlaylist[playlist.Name] = playlist
-	self.CustomPlaylistsChanged:Fire()
 	return playlist
 end
 function Music:CreateNewPlaylist(name, songs)
@@ -231,10 +270,22 @@ function Music:CreateNewPlaylist(name, songs)
 	end
 	return true, self:addNewPlaylist(Playlist.new(self:newPlaylistId(), name or self:getNewPlaylistName(), songs or {}))
 end
+function Music:RemoveCustomPlaylistTrack(playlist, index)
+	playlist:RemoveSong(index)
+	if playlist == self:GetActivePlaylist() and #playlist.Songs == 0 then
+		self:SetActivePlaylist(getDefaultPlaylist())
+	end
+end
 function Music:RemoveCustomPlaylist(playlist)
 	self.customPlaylists[playlist.Id] = nil
 	self.nameToPlaylist[playlist.Name] = nil
-	self.CustomPlaylistsChanged:Fire()
+	if self.activePlaylist == playlist then
+		self:SetActivePlaylist(getDefaultPlaylist())
+	end
 end
-AddEventsToSerializable.Event(Music, {"CustomPlaylistsChanged"})
+function Music:Destroy()
+	for _, playlist in ipairs(self.customPlaylists) do
+		playlist:Destroy()
+	end
+end
 return Music

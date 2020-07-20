@@ -162,7 +162,7 @@ local dropdown = {} do
 	local listSizeY = template.Size.Y.Offset
 	handleVerticalScrollingFrame(dropdownFrame)
 	local event = Instance.new("BindableEvent")
-	dropdown.OptionSelected = event.Event --(index, text)
+	dropdown.OptionSelected = event.Event --(index)
 	local MAX_BOTTOM_Y_SCALE = 0.9 -- bottom of dropdown cannot reach past this scale on screen
 
 	local list = ButtonList.new(function()
@@ -172,7 +172,7 @@ local dropdown = {} do
 	end)
 	list.Activated:Connect(function(i, button, enabled)
 		if enabled then
-			event:Fire(i, button.Text)
+			event:Fire(i)
 		end
 		dropdown:Close()
 	end)
@@ -206,7 +206,7 @@ local dropdown = {} do
 	local UserInputService = game:GetService("UserInputService")
 	function dropdown:Open(options, handler, beneath, extraXSize)
 		setOptions(options) -- options:List<text:string or {.Text .Font=SourceSans .Enabled=true}>
-		Assert.Function(handler) --(index selected, text)
+		Assert.Function(handler) --(index selected)
 		Assert.IsA(beneath, "GuiObject")
 		extraXSize = extraXSize and Assert.Number(extraXSize) or 0
 		clearCons()
@@ -314,20 +314,22 @@ do -- Music
 
 	local currentlyPlayingProgress = content.CurrentlyPlayingProgress
 	local currentlyPlayingLabel = content.CurrentlyPlaying
+	local currentlyPlayingBar = currentlyPlayingProgress.Bar
 	local function updateProgress()
 		local sound = music:GetCurSong()
 		if sound and sound.IsPlaying then
-			currentlyPlayingProgress.Visible = true
-			currentlyPlayingLabel.Visible = true
 			currentlyPlayingLabel.Text = ("%s (#%d) %s/%s"):format(
 				music:GetCurSongDesc() or "?", -- "?" would only happen if they saved a song that is no longer allowed. TODO filter these out on load, then remove the "?" here.
 				music:GetCurSongId(),
 				toTime(sound.TimePosition),
 				toTime(sound.TimeLength))
-			currentlyPlayingProgress.Bar.Size = UDim2.new(sound.TimePosition / sound.TimeLength, 0, 1, 0)
+			currentlyPlayingProgress.BackgroundTransparency = 0
+			currentlyPlayingBar.BackgroundTransparency = 0
+			currentlyPlayingBar.Size = UDim2.new(sound.TimePosition / sound.TimeLength, 0, 1, 0)
 		else
-			currentlyPlayingLabel.Visible = false
-			currentlyPlayingProgress.Visible = false
+			currentlyPlayingLabel.Text = ""
+			currentlyPlayingProgress.BackgroundTransparency = 1
+			currentlyPlayingBar.BackgroundTransparency = 1
 		end
 	end
 	-- Continously call updateProgress while menu is open
@@ -368,17 +370,26 @@ do -- Music
 		local playlistButton = content.Header.Playlist -- Used to open the dropdown
 		local playlistLabel = playlistButton.PlaylistLabel -- Used to show which playlist is active
 		local indexToPlaylist
-		local function playlistSelectorDropdownHandler(i, text)
+		playlistLabel.Text = music:GetEnabled()
+			and music:GetActivePlaylist().Name
+			or "Off"
+		local function playlistSelectorDropdownHandler(i)
 			if i == 1 then
-				music:SetEnabled(false)
+				music:InvokeSetEnabled(false)
 				playlistLabel.Text = "Off"
 			else
-				music:SetEnabled(true)
-				music:SetActivePlaylist(indexToPlaylist[i])
-				playlistLabel.Text = text
+				music:InvokeSetEnabled(true)
+				local playlist = indexToPlaylist[i]
+				music:InvokeSetActivePlaylist(playlist)
+				playlistLabel.Text = playlist.Name
 			end
 			sfx.PageTurn:Play()
 		end
+		music.ActivePlaylistChanged:Connect(function(playlist)
+			if music:GetEnabled() then
+				playlistLabel.Text = playlist.Name
+			end
+		end)
 		playlistButton.Activated:Connect(function()
 			local cur = music:GetEnabled() and music:GetActivePlaylist()
 			local options = {not cur and {Text = "Off", Font = Enum.Font.SourceSansBold, Enabled = false} or "Off"}
@@ -433,6 +444,11 @@ do -- Music
 			updatePlaylistName()
 			updatePlaylist()
 		end
+		music.PlaylistRemoved:Connect(function(playlist)
+			if playlist == customPlaylist then
+				setCustomPlaylist(nil)
+			end
+		end)
 		local deleting = false
 		local boxWithFocus
 		local function adaptToPlaylist(obj, id)
@@ -453,8 +469,7 @@ do -- Music
 			if not customPlaylist then return end
 			if not MessageBox.Show(("Are you sure you want to delete %s?"):format(customPlaylist.Name)) then return end
 			local playlist = customPlaylist
-			setCustomPlaylist(nil)
-			music:RemoveCustomPlaylist(playlist)
+			music:InvokeRemoveCustomPlaylist(playlist)
 		end)
 
 		local function setupBoxHandler(row, onSongEntered)
@@ -476,7 +491,10 @@ do -- Music
 					if boxWithFocus == box then
 						boxWithFocus = nil
 					end
-					if box.Text == "" or box.Text == box.PlaceholderText then return end
+					if box.Text == "" or box.Text == box.PlaceholderText then
+						box.Text = ""
+						return
+					end
 					if enterPressed then
 						local songId = tonumber(box.Text)
 						if songId then
@@ -514,7 +532,7 @@ do -- Music
 			row.Parent = customTracks
 			local cons = setupBoxHandler(row, function(songId) music:InvokeSetCustomPlaylistTrack(customPlaylist, i, songId) end)
 			cons[#cons + 1] = row.DeleteHolder.Delete.Activated:Connect(function()
-				music:RemoveCustomPlaylistTrack(customPlaylist, i)
+				music:InvokeRemoveCustomPlaylistTrack(customPlaylist, i)
 				if boxWithFocus then boxWithFocus:ReleaseFocus(false) end
 			end)
 			return row, cons
@@ -528,7 +546,11 @@ do -- Music
 			elseif not customPlaylist then
 				music:InvokeCreateCustomPlaylist({Name = newName})
 			else
-				music:InvokeRenameCustomPlaylist(customPlaylist, newName)
+				if customPlaylist.Name ~= newName then
+					music:InvokeRenameCustomPlaylist(customPlaylist, newName)
+				else
+					customName.Text = ""
+				end
 			end
 		end)
 		customName:GetPropertyChangedSignal("Text"):Connect(function()
@@ -540,7 +562,7 @@ do -- Music
 
 		local customNameArrow = playlistEditor.CustomNameArrow
 		local indexToPlaylist
-		local function editPlaylistDropdownHandler(i, text)
+		local function editPlaylistDropdownHandler(i)
 			if i == 1 then -- new
 				local newCustomPlaylist = music:InvokeCreateCustomPlaylist()
 				if not newCustomPlaylist then return end
@@ -590,13 +612,13 @@ do -- Music
 				viewPlaylist.SongsChanged:Connect(refresh),
 			}
 		end
-		music.CustomPlaylistsChanged:Connect(function()
-			if not music:GetPlaylist(viewPlaylist.Id) then -- playlist deleted
+		music.PlaylistRemoved:Connect(function(playlist)
+			if playlist == viewPlaylist then
 				setPlaylistToView(music:GetActivePlaylist())
 			end
 		end)
 		setPlaylistToView(music:GetActivePlaylist())
-		local function viewDropdownHandler(i, text)
+		local function viewDropdownHandler(i)
 			setPlaylistToView(indexToPlaylist[i])
 			sfx.PageTurn:Play()
 		end
@@ -616,17 +638,17 @@ for button, menu in pairs(topBarMenus) do
 	local atRest = 0.5
 	local onHover = 0.72
 	local onClick = 0.33
-	button.BackgroundTransparency = atRest
+	button.ImageTransparency = atRest
 	button.MouseEnter:Connect(function()
-		button.BackgroundTransparency = onHover
+		button.ImageTransparency = onHover
 	end)
 	button.InputBegan:Connect(function(input)
 		if inputTypeIsClick[input.UserInputType] then
-			button.BackgroundTransparency = onClick
+			button.ImageTransparency = onClick
 		end
 	end)
 	button.InputEnded:Connect(function()
-		button.BackgroundTransparency = atRest
+		button.ImageTransparency = atRest
 	end)
 	button.Activated:Connect(function()
 		displayMenu(displayedMenu ~= menu and menu or nil)

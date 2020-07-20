@@ -6,33 +6,6 @@ local String = require(Utilities.String)
 
 local Music = require(ReplicatedStorage.Music)
 
-local function filterSongs(songs)
-	Assert.List(songs)
-	local num = #songs
-	if num == 0 then return songs end
-	local event = Instance.new("BindableEvent")
-	local problemIds = {}
-	for _, songId in ipairs(songs) do
-		coroutine.wrap(function()
-			if Music.AnyProblemWithSongId(songId) then
-				problemIds[songId] = true
-			end
-			num = num - 1
-			if num == 0 then
-				event:Fire()
-				event:Destroy()
-			end
-		end)()
-	end
-	event.Event:Wait()
-	local validSongs = {}
-	for _, songId in ipairs(songs) do
-		if not problemIds[songId] then
-			validSongs[#validSongs + 1] = songId
-		end
-	end
-	return validSongs
-end
 local function validatePlaylistName(player, name)
 	--	returns isValid, couldTryAgain (only if not valid)
 	if name ~= String.Trim(name) then error("name is not trimmed") end
@@ -65,17 +38,21 @@ function Music.InitRemotes(newRemote)
 		if problem then
 			return problem
 		else
-			music:GetCustomPlaylist(id):SetSong(index, songId)
+			local playlist = music:GetCustomPlaylist(id)
+			if #playlist.Songs >= Music.MAX_SONGS_PER_PLAYLIST then
+				return "You're at the limit for songs in a single playlist"
+			end
+			playlist:SetSong(index, songId)
 		end
 	end)
 	newRemote:Event("RemoveCustomPlaylistTrack", function(player, music, id, index)
-		music:GetCustomPlaylist(id):RemoveSong(index)
+		music:RemoveCustomPlaylistTrack(music:GetCustomPlaylist(id), index)
 	end)
 	newRemote:Function("CreateCustomPlaylist", function(player, music, data)
 		--	data can have .Name and/or .Songs
 		--	returns successful, playlist/problem
 		data = data or {}
-		local success, playlistOrProblem = music:CreateNewPlaylist(data.Name and validatePlaylistName(player, data.Name), filterSongs(data.Songs or {}))
+		local success, playlistOrProblem = music:CreateNewPlaylist(data.Name and validatePlaylistName(player, data.Name), Music.FilterSongs(data.Songs or {}))
 		if success then
 			return true, playlistOrProblem:Serialize()
 		else

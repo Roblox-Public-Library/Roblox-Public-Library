@@ -4,7 +4,12 @@ local WebhookURL = ""
 
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local playerInfo = {}
+
+if RunService:IsStudio() then
+    return
+end
 
 local function getTimestamp(epochTime)
     local currentTime = os.date("!*t", epochTime)

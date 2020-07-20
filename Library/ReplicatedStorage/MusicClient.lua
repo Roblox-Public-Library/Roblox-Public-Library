@@ -13,51 +13,57 @@ local music = require(script.Parent.ProfileClient).Music
 
 local Playlist = Music.Playlist
 
-local defaultBaseFunc = function(setName) return music[setName] end
-local setToBaseFunc = {
-	RemoveCustomPlaylistTrack = function(setName)
-		return function(self, playlist, index)
-			playlist:RemoveSong(index)
-		end
-	end
-}
 local setToEventName = {
 	SetEnabled = "EnabledChanged",
 	SetActivePlaylist = "ActivePlaylistChanged",
 }
 local handleArgsDefault = function(...) return ... end
 local setToHandleRemoteArgs = {
-	SetActivePlaylist = function(playlist, index, songId)
-		return playlist.Id, index, songId
+	SetActivePlaylist = function(playlist)
+		return playlist.Id
 	end,
 	RemoveCustomPlaylistTrack = function(playlist, index)
 		return playlist.Id, index
 	end,
-	RemoveCustomPlaylist = function(playlist)
-		return playlist.Id
-	end,
 }
-for _, setName in ipairs({"SetEnabled", "SetActivePlaylist", "RemoveCustomPlaylistTrack", "RemoveCustomPlaylist"}) do
-	local base = (setToBaseFunc[setName] or defaultBaseFunc)(setName)
-	local remote = remotes[setName]
+for _, setName in ipairs({"SetEnabled", "SetActivePlaylist", "RemoveCustomPlaylistTrack"}) do
 	local eventName = setToEventName[setName]
-	local argsHandler = setToHandleRemoteArgs[setName] or handleArgsDefault
 	if eventName then
 		local event = Event()
 		music[eventName] = event
+		local base = music[setName]
 		music[setName] = function(self, ...)
 			if base(self, ...) then return true end -- no change
-			remote:FireServer(argsHandler(...))
 			event:Fire(...)
 		end
-	else
-		music[setName] = function(self, ...)
-			if base(self, ...) then return true end -- no change
-			remote:FireServer(argsHandler(...))
-		end
+	end
+	local remote = remotes[setName]
+	local argsHandler = setToHandleRemoteArgs[setName] or handleArgsDefault
+	local base = music[setName]
+	music["Invoke" .. setName] = function(self, ...)
+		if base(self, ...) then return true end -- no change
+		remote:FireServer(argsHandler(...))
 	end
 end
-music.CustomPlaylistsChanged = Event() -- fires when a custom playlist is created, removed, or renamed
+
+local playlistCreated = Event()
+local playlistRemoved = Event()
+local playlistRenamed = Event()
+music.PlaylistCreated = playlistCreated
+music.PlaylistRemoved = playlistRemoved
+music.PlaylistRenamed = playlistRenamed
+
+local base = music.addNewPlaylist
+function music:addNewPlaylist(...)
+	local playlist = base(self, ...)
+	playlistCreated:Fire(playlist)
+	return playlist
+end
+local base = music.RemoveCustomPlaylist
+function music:RemoveCustomPlaylist(playlist)
+	base(self, playlist)
+	playlistRemoved:Fire(playlist)
+end
 
 function music:InvokeCreateCustomPlaylist(data)
 	--	Returns the new playlist if successful, otherwise notifies the user of the problem
@@ -95,7 +101,7 @@ function music:InvokeRenameCustomPlaylist(playlist, newName)
 		})
 	else
 		playlist:SetName(newName)
-		self.CustomPlaylistsChanged:Fire()
+		playlistRenamed:Fire(playlist)
 	end
 end
 function music:InvokeSetCustomPlaylistTrack(playlist, index, songId)
@@ -110,6 +116,10 @@ function music:InvokeSetCustomPlaylistTrack(playlist, index, songId)
 	else
 		playlist:SetSong(index, songId)
 	end
+end
+function music:InvokeRemoveCustomPlaylist(playlist)
+	remotes.RemoveCustomPlaylist:FireServer(playlist.Id)
+	self:RemoveCustomPlaylist(playlist)
 end
 
 local rnd = Random.new()
@@ -176,7 +186,7 @@ local nextTrack = Instance.new("Sound") -- what will be played once the current 
 curTrack.Parent = localPlayer
 nextTrack.Parent = localPlayer
 local curMusic = {} -- shuffled version of curSongList
-local curMusicIndex = 1
+local curMusicIndex = 0
 local nextTrackStarted = Instance.new("BindableEvent")
 Music.NextTrackStarted = nextTrackStarted.Event -- todo if not when gui is done, delete
 
@@ -187,8 +197,8 @@ end
 local function musicVolumeChanged()
 	curTrack.Volume = getMusicVolume()
 end
-music.EnabledChanged:Connect(musicVolumeChanged)
 music.EnabledChanged:Connect(function(enabled)
+	musicVolumeChanged()
 	if enabled then
 		curTrack:Resume()
 	else
@@ -197,19 +207,19 @@ music.EnabledChanged:Connect(function(enabled)
 end)
 
 function Music:GetCurSongDesc()
-	return getDesc(curMusic[curMusicIndex])
+	return getDesc(curTrackId)
 end
 function Music:GetCurSongId() return curTrackId end
 function Music:GetCurSong() return curTrack end
 
 local function getNextSong(forceReshuffle) -- returns id, SoundId
+	curMusicIndex = curMusicIndex + 1
 	if forceReshuffle or not curMusic[curMusicIndex] then
 		curMusic = shuffleAvoidFirst({unpack(curSongList)}, curTrackId)
 		curMusicIndex = 1
 	end
 	local id = curMusic[curMusicIndex]
 	local soundId = "rbxassetid://" .. id
-	curMusicIndex = curMusicIndex + 1
 	return id, soundId
 end
 local playlistModified
@@ -272,7 +282,9 @@ local function updateSortedPlaylists()
 	table.sort(sortedPlaylists, playlistComparer)
 end
 updateSortedPlaylists()
-music.CustomPlaylistsChanged:Connect(updateSortedPlaylists)
+playlistCreated:Connect(updateSortedPlaylists)
+playlistRenamed:Connect(updateSortedPlaylists)
+playlistRemoved:Connect(updateSortedPlaylists)
 function Music:GetSortedCustomPlaylists()
 	return sortedPlaylists
 end

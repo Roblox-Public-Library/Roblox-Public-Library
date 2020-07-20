@@ -1,9 +1,11 @@
-local group = 2735192 -- put this group as whatever group you want
-local guests = "Visitor" -- put this as whatever you want non-members to be called
+local Players = game:GetService("Players")
+local GROUP_ID = 2735192 -- put this group as whatever group you want
+local GUEST_ROLE = "Visitor" -- put this as whatever you want non-group-members to be called
+
 local function onPlayerAdded(player)
-	local role = player:GetRoleInGroup(group)
+	local role = player:GetRoleInGroup(GROUP_ID)
 	local model = Instance.new("Model")
-	model.Name = ("%s : %s"):format(player.Name, role == "Guest" and guests or role)
+	model.Name = ("%s : %s"):format(player.Name, role == "Guest" and GUEST_ROLE or role)
 	Instance.new("Humanoid").Parent = model
 	local weld = Instance.new("Weld")
 	local function onCharacterAdded(character)
@@ -26,8 +28,9 @@ local function onPlayerAdded(player)
 		onCharacterAdded(player.Character)
 	end
 end
-local Players = game:GetService("Players")
+
 Players.PlayerAdded:Connect(onPlayerAdded)
+
 for _, player in ipairs(Players:GetPlayers()) do
 	onPlayerAdded(player)
 end

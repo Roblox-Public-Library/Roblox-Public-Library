@@ -78,7 +78,19 @@ end
 local editor
 local curTheme
 local defaultFolder
-local function installFinish(wasInstalled)
+local function randomThemeColor(parent)
+	local color = Instance.new("Color3Value")
+	color.Name = "Theme Color"
+	local v
+	repeat
+		v = Color3.new(math.random(), math.random(), math.random())
+	until v.R + v.G + v.B > 0.4
+	color.Value = v
+	color.Parent = parent
+	return color
+end
+
+local function installFinish(wasInstalled) -- called when user installs or when plugin starts up in installed place (possibly with widget closed)
 	curTheme = editor:FindFirstChild("Current Theme")
 	if not curTheme then
 		curTheme = Instance.new("ObjectValue")
@@ -96,9 +108,7 @@ local function installFinish(wasInstalled)
 		if wasInstalled then
 			print("Added Default theme folder")
 		end
-		local color = Instance.new("Color3Value")
-		color.Name = "Theme Color"
-		color.Parent = defaultFolder
+		randomThemeColor(defaultFolder)
 	end
 	if not curTheme.Value then
 		curTheme.Value = defaultFolder
@@ -123,44 +133,6 @@ widget.Widget.InstallButton.MouseButton1Click:Connect(function()
 	considerConnections()
 end)
 
-local cons
-local function setConnections()
-	cons = {
-		widget.Widget.ThemesFrame.NewThemeButton.MouseButton1Click:Connect(function()
-			local newTheme
-			if not curTheme.Value or not curTheme.Value.Parent then -- no cur theme (or was deleted)
-				curTheme.Value = editor:FindFirstChild("Default") or editor:FindFirstChildOfClass("Folder") or nil
-			end
-			if curTheme.Value then
-				newTheme = curTheme.Value:Clone()
-				local _, _, baseName, num = newTheme.Name:find("(.*?) %((%d+)%)")
-				newTheme.Name = ("%s (%d)"):format(baseName or newTheme.Name, (num or 1) + 1)
-				newTheme.Parent = editor
-			else
-				installFinish(true)
-			end
-		end),
-	}
-end
-local function disconnectConnections()
-	for _, con in ipairs(cons) do
-		con:Disconnect()
-	end
-	cons = nil
-end
-function considerConnections()
-	if editor and widget.Enabled then
-		if not cons then
-			setConnections()
-		end
-	else
-		if cons then
-			disconnectConnections()
-		end
-	end
-end
-considerConnections()
-
 local props = {"Material", "Color", "Transparency", "Reflectance"}
 local function matchWorkspaceToTheme(theme)
 	--	theme:Folder
@@ -182,3 +154,91 @@ local function matchWorkspaceToTheme(theme)
 	curTheme.Value = theme
 end
 --matchWorkspaceToTheme(editor.Default)
+
+local cons
+local function setConnections()
+	-- Initialize theme list
+	local themeScroll = widget.ThemesFrame.ThemesScroll
+	local themeTemplate = themeScroll.Theme
+	for i, folder in ipairs(editor:GetChildren()) do
+		if folder:IsA("Folder") then
+			local row = themeTemplate:Clone()
+			row.Parent = themeScroll
+			local function updateName()
+				row.ThemeName.Text = folder.Name
+			end
+			updateName()
+			local color = folder:FindFirstChild("Theme Color")
+			if not color then
+				color = randomThemeColor(folder)
+			end
+			local function updateColor()
+				row.Color.BackgroundColor3 = color.Value
+			end
+			updateColor()
+			local cons; cons = {
+				folder.Changed:Connect(updateName),
+				color.Changed:Connect(updateColor),
+				folder.AncestryChanged:Connect(function(child, parent)
+					row:Destroy()
+					for _, con in ipairs(cons) do
+						con:Disconnect()
+					end
+				end),
+				-- todo disconnect these from disconnectConnections (probably store in table of folder -> connections and remove when needed)
+			}
+		end
+	end
+	cons = {
+		widget.Widget.ThemesFrame.NewThemeButton.MouseButton1Click:Connect(function()
+			local newTheme
+			if not curTheme.Value or not curTheme.Value.Parent then -- no cur theme (or was deleted)
+				curTheme.Value = editor:FindFirstChild("Default") or editor:FindFirstChildOfClass("Folder") or nil
+			end
+			if curTheme.Value then
+				newTheme = curTheme.Value:Clone()
+				local _, _, baseName, num = newTheme.Name:find("(.*?) %((%d+)%)")
+				newTheme.Name = ("%s (%d)"):format(baseName or newTheme.Name, (num or 1) + 1)
+				local color = newTheme:FindFirstChild("Theme Color")
+				if color then
+					color:Destroy()
+				else
+					randomThemeColor(curTheme)
+				end
+				randomThemeColor(newTheme)
+				newTheme.Parent = editor
+			else
+				installFinish(true)
+			end
+		end),
+		widget.Widget.PartsFrame.ApplyButton.MouseButton1Click:Connect(function()
+			--match workspace to currently selected theme
+		end),
+	}
+end
+-- current todo:
+-- select theme to look at
+-- on select it should create one viewport for every part located within the relevant folder name
+-- ui grid layout will organize them from there :)
+-- perhaps store which theme is currently being looked at/modified somewhere?
+--	could be stored within script
+-- 	if stored within a string (object value?) then on pluginstartup it could display whatever you were looking at last time
+
+local function disconnectConnections()
+	for _, con in ipairs(cons) do
+		con:Disconnect()
+	end
+	cons = nil
+end
+function considerConnections()
+	if editor and widget.Enabled then
+		if not cons then
+			setConnections()
+		end
+	else
+		if cons then
+			disconnectConnections()
+		end
+	end
+end
+considerConnections()

@@ -34,6 +34,15 @@ function Profile.Deserialize(profile)
 	end
 	return setmetatable(profile, Profile)
 end
+function Profile.DeserializeDataStore(profile)
+	for k, class in pairs(vars) do
+		profile[k] = (class.DeserializeDataStore or class.Deserialize)(profile[k])
+	end
+	return setmetatable(profile, Profile)
+end
+function Profile:Destroy()
+	self.Music:Destroy()
+end
 -- for _, var in ipairs({"favoriteBooks", "readBooks"}) do
 --     --[[Options...
 --     profile.FavoriteBooks...
