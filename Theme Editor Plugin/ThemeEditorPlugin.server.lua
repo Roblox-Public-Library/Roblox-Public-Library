@@ -46,6 +46,7 @@ Overlapping themes (optional):
 ]]
 
 local ServerStorage = game:GetService("ServerStorage")
+local Selection = game:GetService("Selection")
 
 local widgetInfo = DockWidgetPluginGuiInfo.new(
 	Enum.InitialDockState.Left,
@@ -59,7 +60,8 @@ local widgetInfo = DockWidgetPluginGuiInfo.new(
 local widget = plugin:CreateDockWidgetPluginGui("Main", widgetInfo)
 widget.Name = "Theme Editor"
 widget.Title = "Theme Editor"
-script.Parent.Widget:Clone().Parent = widget
+local widgetFrame = script.Parent.Widget:Clone()
+widgetFrame.Parent = widget
 local considerConnections -- defined below
 
 local toolbar = plugin:CreateToolbar("Theme Editor")
@@ -71,9 +73,9 @@ end)
 
 local function setInstalled(installed)
 	installed = not not installed
-	widget.Widget.InstallButton.Visible = not installed
-	widget.Widget.ThemesFrame.NewThemeButton.Visible = installed
-	widget.Widget.PartsFrame.ApplyButton.Visible = installed
+	widgetFrame.InstallButton.Visible = not installed
+	widgetFrame.ThemesFrame.NewThemeButton.Visible = installed
+	widgetFrame.PartsFrame.ApplyButton.Visible = installed
 end
 local editor
 local curTheme
@@ -97,7 +99,7 @@ local function installFinish(wasInstalled) -- called when user installs or when 
 		curTheme.Name = "Current Theme"
 		curTheme.Parent = editor
 		if wasInstalled then
-			print("Installed Current Theme ObjectValue")
+			print("Installed Current Theme object value")
 		end
 	end
 	defaultFolder = editor:FindFirstChild("Default") or editor:FindFirstChildOfClass("Folder")
@@ -121,7 +123,7 @@ if editor then
 	installFinish(true)
 end
 
-widget.Widget.InstallButton.MouseButton1Click:Connect(function()
+widgetFrame.InstallButton.MouseButton1Click:Connect(function()
 	editor = Instance.new("Folder")
 	editor.Name = "Theme Editor"
 	editor.Parent = ServerStorage
@@ -155,17 +157,33 @@ local function matchWorkspaceToTheme(theme)
 end
 --matchWorkspaceToTheme(editor.Default)
 
+local Studio = settings().Studio
+local StudioColor = Enum.StudioStyleGuideColor
+local StudioModifier = Enum.StudioStyleGuideModifier
+local buttonNormalColor = Studio.Theme:GetColor(StudioColor.RibbonButton, StudioModifier.Default)
+local buttonHoverColor = Studio.Theme:GetColor(StudioColor.RibbonButton, StudioModifier.Hover)
+--todo Studio.ThemeChanged:Connect
+
 local cons
+local selectedTheme
+local themeScroll = widgetFrame.ThemesFrame.ThemesScroll
+local themeTemplate = themeScroll.Theme
+themeTemplate.Parent = nil
+local partsScroll = widgetFrame.PartsFrame.PartsScroll
+local partTemplate = partsScroll.Part
+partTemplate.Parent = nil
 local function setConnections()
 	-- Initialize theme list
-	local themeScroll = widget.ThemesFrame.ThemesScroll
-	local themeTemplate = themeScroll.Theme
+	local currentViewports = {}
+	local folderToRow = {}
 	for i, folder in ipairs(editor:GetChildren()) do
 		if folder:IsA("Folder") then
 			local row = themeTemplate:Clone()
+			folderToRow[folder] = row
 			row.Parent = themeScroll
+			local themeName = row.ThemeName
 			local function updateName()
-				row.ThemeName.Text = folder.Name
+				themeName.Text = folder.Name
 			end
 			updateName()
 			local color = folder:FindFirstChild("Theme Color")
@@ -185,12 +203,60 @@ local function setConnections()
 						con:Disconnect()
 					end
 				end),
+				themeName.MouseButton1Click:Connect(function()
+					selectedTheme = folder
+					themeName.Active = false
+					themeName.AutoButtonColor = false
+					themeName.BackgroundColor3 = buttonHoverColor
+					local i = 0
+					for _, themePart in ipairs(folder:GetChildren()) do
+						if themePart:IsA("BasePart") then
+							i = i + 1
+							local viewport = currentViewports[i]
+							if not viewport then
+								viewport = partTemplate:Clone()
+								viewport.Parent = partsScroll
+								viewport.InputBegan:Connect(function(input)
+									if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+									Selection:Set({themePart})
+								end)
+								currentViewports[i] = viewport
+							end
+							local oldPart = viewport:FindFirstChildOfClass("BasePart")
+							oldPart:Destroy()
+							local newPart = themePart:Clone()
+							newPart.Parent = viewport
+							newPart.Position = Vector3.new(0, 0, -1.75)
+							newPart.Size = Vector3.new(1, 1, 1)
+							newPart.Orientation = Vector3.new(0, 0, 0)
+							viewport.PartName.Text = newPart.Name
+							-- todo setup connections here
+							--brb
+						end
+					end
+					for j = i + 1, #currentViewports do
+						currentViewports[j]:Destroy()
+						currentViewports[j] = nil
+					end
+				end),
 				-- todo disconnect these from disconnectConnections (probably store in table of folder -> connections and remove when needed)
 			}
 		end
 	end
+	local pastTheme
+	local function boldCurTheme()
+		if pastTheme then
+			folderToRow[pastTheme].ThemeName.Font = Enum.Font.SourceSans
+		end
+		if curTheme.Value then
+			folderToRow[curTheme.Value].ThemeName.Font = Enum.Font.SourceSansBold
+		end
+		pastTheme = curTheme.Value
+	end
+	boldCurTheme()
+	curTheme.Changed:Connect(boldCurTheme)
 	cons = {
-		widget.Widget.ThemesFrame.NewThemeButton.MouseButton1Click:Connect(function()
+		widgetFrame.ThemesFrame.NewThemeButton.MouseButton1Click:Connect(function()
 			local newTheme
 			if not curTheme.Value or not curTheme.Value.Parent then -- no cur theme (or was deleted)
 				curTheme.Value = editor:FindFirstChild("Default") or editor:FindFirstChildOfClass("Folder") or nil
@@ -211,14 +277,15 @@ local function setConnections()
 				installFinish(true)
 			end
 		end),
-		widget.Widget.PartsFrame.ApplyButton.MouseButton1Click:Connect(function()
-			--match workspace to currently selected theme
+		widgetFrame.PartsFrame.ApplyButton.MouseButton1Click:Connect(function()
+			-- match workspace to currently selected theme
 		end),
 	}
 end
+
 -- current todo:
 -- select theme to look at
--- on select it should create one viewport for every part located within the relevant folder name
+-- 		on select it should create one viewport for every part located within the relevant folder name
 -- ui grid layout will organize them from there :)
 -- perhaps store which theme is currently being looked at/modified somewhere?
 --	could be stored within script

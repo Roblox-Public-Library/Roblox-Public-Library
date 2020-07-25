@@ -5,7 +5,7 @@ Player needs to be able to do the following to a book (ignoring the gui/input):
 	-Dislike
 	-Mark as read
 	-Mark as unread
-	-Add to a custom list (in the future if not now)
+	-Add to book pouch
 	To support that functionality, we need client side functions that signal remotes that the server side is listening to.
 ]]
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

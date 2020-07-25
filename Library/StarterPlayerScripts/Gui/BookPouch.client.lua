@@ -1,7 +1,10 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local localPlayer = Players.localPlayer
-local bookPouchGui = localPlayer.PlayerGui.BookPouchGui
+local bookPouchGui = ReplicatedStorage.Guis.BookPouchGui
+bookPouchGui.Parent = localPlayer.PlayerGui
+
 local profile = require(ReplicatedStorage.ProfileClient)
 local bookPouch = profile.BookPouch
 

@@ -9,12 +9,26 @@ Book Pouch/Inventory:
 			This will be automatic when integrated into Profile
 		✔ An "x" beside each book to remove it from the inventory @done(20-07-19 12:56)
 		✔ When you click on a book in the pouch, it opens up @done(20-07-19 12:56)
+	Files Needed:
+		> BookPouch in ReplicatedStorage for the class and common behaviour
+		> BookPouchServer to handle server-side remotes (to allow client to add/remove books)
+		> BookPouchClient and/or BookPouchGui to call those remotes and show the list in the interface
 	Integration with Profile:
 		☐ Needs BookPouch class with .new/:Serialize/.Deserialize so it can be stored in the data stores and transmitted to the client
-	Files Needed:
-		☐ BookPouch in ReplicatedStorage for the class and common behaviour
-		☐ BookPouchServer to handle server-side remotes (to allow client to add/remove books)
-		☐ BookPouchClient and/or BookPouchGui to call those remotes and show the list in the interface
+		☐ At the end of Profile.server, call InitRemotes on BookPouchServer
+	Note:
+		We're going to have to rewrite the way books are opened, but in the end there'll be some function where you give it the book id and it opens the book; you could use a dummy function for now (that just prints out the book id)
+	Other Tasks:
+		☐ BookPouch should store the list of book ids. It can get various information from ReplicatedStorage.BooksClient (this file can be extended if further information is needed)
+		☐ BookPouchTests should properly test serialization/deserialization
+		☐ When a book is opened, add it to the user's book pouch instance (from profile.BookPouch)
+		☐ When a book pouch has something added to it or removed from it, it should trigger some sort of Changed event so that the gui code can update the list
+		☐ Optionally, the gui can use ObjectList to maintain a row in the ScrollingFrame for each book in the list
+		☐ The client should notify the server whenever a change is made; the server should verify the request (ex Assert.Integer(id)) and appropriately update the book pouch for that player
+
+Books Need Ids:
+	✔ ServerScriptService.Books must get the id of each book
+	✔ There are IntValues 'Id's stored in each book model
 
 TopBar:
 	✔ Credit https://github.com/1ForeverHD/HDAdmin/tree/master/Projects/Topbar%2B for coords/sizes
@@ -161,3 +175,9 @@ Say we use the most basic table syntax (so it's simple to view/edit). What data 
 ex, Favorites=[1,532,531]
 so if we assume there are 10k books and that each ID is 4 digits long, then we need 5 digits per favourite is ~50,000 characters and the limit is 260,000 characters!
 So we could do that for now
+
+Theme Editor:
+	☐
+	Bugs:
+		☐ Update visual list of themes upon adding or removing
+		☐ Remove existing theme rows when closing plugin/widget

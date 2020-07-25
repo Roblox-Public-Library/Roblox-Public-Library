@@ -17,6 +17,10 @@
 			"Theme Editor Plugin": {
 				"$path": "../Theme Editor Plugin",
 				"$ignoreUnknownInstances": true
+			},
+			"Commands": {
+				"$path": "ServerStorageCommands",
+				"$ignoreUnknownInstances": true
 			}
 		},
 		"StarterPlayer": {

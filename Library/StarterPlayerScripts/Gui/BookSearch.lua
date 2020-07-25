@@ -6,7 +6,8 @@ local TweenService = game:GetService("TweenService")
 local tweenInfo = TweenInfo.new(0.3)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local books = ReplicatedStorage:WaitForChild("GetBooks"):InvokeServer()
+local ObjectList = require(ReplicatedStorage.Utilities.ObjectList)
+local books = require(ReplicatedStorage.BooksClient):GetBooks()
 local gui = ReplicatedStorage.Guis.SearchGui
 local Players = game:GetService("Players")
 local localPlayer = Players.LocalPlayer
@@ -83,18 +84,9 @@ node.Anchored = true
 node.CanCollide = false
 node.Material = Enum.Material.SmoothPlastic
 node.BrickColor = BrickColor.Green()
-local nodes = {}
+local nodes = ObjectList.new(function() return node:Clone() end, 200, function(n) n.Parent = nil end)
 local nodeIndex = 1
 local scanning = false
-local function getNode(i)
-	local v = nodes[i]
-	if not v then
-		v = node:Clone()
-		nodes[i] = v
-	end
-	v.Parent = nodeFolder
-	return v
-end
 local function setNextNodeIndex(index)
 	for i = nodeIndex, index - 1 do
 		nodes[i].Parent = nil
@@ -102,24 +94,32 @@ local function setNextNodeIndex(index)
 	nodeIndex = index
 end
 local highlightedBook
-local boxHandle = Instance.new("BoxHandleAdornment")
-boxHandle.Transparency = 0.5
-boxHandle.AlwaysOnTop = false
 local boxTweenInfo = TweenInfo.new(0.7)
 local boxTween
 local boxStartColor, boxEndColor = Color3.new(1, 1, 1), Color3.fromRGB(170, 120, 255)
+local boxHandles = ObjectList.new(function()
+	local boxHandle = Instance.new("BoxHandleAdornment")
+	boxHandle.Transparency = 0.5
+	boxHandle.AlwaysOnTop = false
+	return boxHandle
+end):SetAdaptFunc(function(boxHandle, model)
+	boxHandle.Color3 = boxStartColor
+	boxHandle.Size = model.Size + Vector3.new(0, 0, 0.25)
+	if boxTween then boxTween:Cancel() boxTween = nil end
+	boxHandle.Adornee = model
+	boxHandle.Parent = model
+end)
 local function highlightBook(book)
 	if highlightedBook == book then return end
-	boxHandle.Color3 = boxStartColor
-	boxHandle.Size = book.Size + Vector3.new(0, 0, 0.25)
-	if boxTween then boxTween:Cancel() end
-	boxHandle.Adornee = book
-	boxHandle.Parent = book
+	boxHandles:AdaptToList(book.Models)
 	coroutine.wrap(function()
 		local nextColor = boxEndColor
-		while true do
-			boxTween = TweenService:Create(boxHandle, boxTweenInfo, {Color3 = nextColor})
-			boxTween:Play()
+		while boxHandles:Count() > 0 do
+			boxHandles:ForEach(function(i, boxHandle)
+				local tween = TweenService:Create(boxHandle, boxTweenInfo, {Color3 = nextColor})
+				if i == 1 then boxTween = tween end
+				tween:Play()
+			end)
 			if boxTween.Completed:Wait() == Enum.PlaybackState.Cancelled then return end
 			nextColor = nextColor == boxEndColor and boxStartColor or boxEndColor
 		end
@@ -128,7 +128,7 @@ local function highlightBook(book)
 end
 local function unhighlightBook()
 	if boxTween then boxTween:Cancel() end
-	boxHandle.Parent = nil
+	boxHandles:EmptyList()
 	highlightedBook = nil
 end
 local function clearPathfind()
@@ -206,12 +206,12 @@ local cfTranslationAttempt, numCFTranslationAttempts do
 		return cf[key[i]] * multiplier[i]
 	end
 end
-pathfindTo = function(book)
-	pathfindTarget = book
-	highlightBook(book)
+pathfindTo = function(bookModel)
+	pathfindTarget = bookModel
+	highlightBook(bookModel)
 	local root = localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart")
 	if not root then return end
-	local targetPos = pathfindTargetFromBook(book)
+	local targetPos = pathfindTargetFromBook(bookModel)
 	local waypoints
 	local function try(pos)
 		path:ComputeAsync(root.Position, pos)
@@ -220,7 +220,7 @@ pathfindTo = function(book)
 	end
 	local success = try(targetPos)
 	if not success then -- try to get a lower down position away from the shelf
-		local cf = book.CFrame
+		local cf = bookModel.CFrame
 		local down = targetPos - Vector3.new(0, 3.9, 0)
 		for i = 1, numCFTranslationAttempts do
 			local translation = cfTranslationAttempt(cf, i)
@@ -229,16 +229,14 @@ pathfindTo = function(book)
 		end
 	end
 	if success then
-		for i, waypoint in ipairs(waypoints) do
-			getNode(i).Position = waypoint.Position + nodeExtraHeight
-		end
+		nodes:AdaptToList(waypoints, function(node, waypoint)
+			node.Position = waypoint.Position + nodeExtraHeight
+			node.Parent = nodeFolder
+		end)
 		nodeIndex = 1
-		for i = #waypoints + 1, #nodes do
-			nodes[i].Parent = nil
-		end
 		startScanning()
 	else
-		print("Failed to find a path to", book:GetFullName())
+		print("Failed to find a path to", bookModel:GetFullName())
 	end
 end
 

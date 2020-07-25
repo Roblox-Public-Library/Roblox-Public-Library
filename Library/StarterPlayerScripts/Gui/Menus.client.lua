@@ -10,6 +10,8 @@ local MessageBox = require(ReplicatedStorage.MessageBox)
 local Utilities = ReplicatedStorage.Utilities
 local Assert = require(Utilities.Assert)
 local String = require(Utilities.String)
+local ObjectList = require(Utilities.ObjectList)
+local ButtonList = require(ReplicatedStorage.Gui.ButtonList)
 local gui = ReplicatedStorage.Guis.Menus
 local topBar = ReplicatedStorage.Guis.TopBar
 
@@ -55,96 +57,6 @@ local function menuFromFrame(obj)
 		Open = function() obj.Visible = true end,
 		Close = function() obj.Visible = false end,
 	}
-end
-
-local ObjectList = {} -- A list of reusable objects that may contain connections.
-ObjectList.__index = ObjectList
-function ObjectList.new(init)
-	--	init:function(i):object, con/List<con> to be disconnected when the object is destroyed
-	return setmetatable({
-		init = init,
-		list = {},
-		cons = {},
-	}, ObjectList)
-end
-function ObjectList:get(i)
-	local list = self.list
-	local value = list[i]
-	if not value then
-		value, self.cons[i] = self.init(i)
-		list[i] = value
-	end
-	return value
-end
-function ObjectList:destroy(i)
-	self.list[i]:Destroy()
-	self.list[i] = nil
-	local cons = self.cons[i]
-	self.cons[i] = nil
-	if cons then
-		if cons.Disconnect then
-			cons:Disconnect()
-		else
-			for _, con in ipairs(cons) do
-				con:Disconnect()
-			end
-		end
-	end
-end
-function ObjectList:destroyRest(startIndex)
-	local list = self.list
-	for i = startIndex, #list do
-		self:destroy(i)
-	end
-end
-function ObjectList:Count() return #self.list end
-function ObjectList:AdaptToList(newList, adaptObject)
-	--	Create or reuse an object for each item in newList using adaptObject(object, item) to adapt them
-	for i, item in ipairs(newList) do
-		adaptObject(self:get(i), item)
-	end
-	self:destroyRest(#newList + 1)
-end
-function ObjectList:ForEach(func, startIndex)
-	local list = self.list
-	for i = startIndex or 1, #list do
-		if func(i, list[i]) then break end
-	end
-end
-
-local ButtonList = setmetatable({}, ObjectList)
-ButtonList.__index = ButtonList
-function ButtonList.new(initButton)
-	--	initButton:function(i):button
-	local isEnabled = {}
-	local event = Instance.new("BindableEvent")
-	local function init(i)
-		local button = initButton(i)
-		return button, button.Activated:Connect(function()
-			event:Fire(i, button, isEnabled[i])
-		end)
-	end
-	local self = setmetatable(ObjectList.new(init), ButtonList)
-	self.isEnabled = isEnabled
-	self.Activated = event.Event --(i, button, enabled)
-	return self
-end
-local base = ButtonList.destroy
-function ButtonList:destroy(i)
-	base(self, i)
-	self.isEnabled[i] = nil
-end
-function ButtonList:SetEnabled(i, value)
-	Assert.Integer(i, 1)
-	value = not not value
-	self:get(i).AutoButtonColor = value
-	self.isEnabled[i] = value
-end
-function ButtonList:AdaptToList(newList, adaptButtonReturnEnabled)
-	for i, item in ipairs(newList) do
-		self:SetEnabled(i, adaptButtonReturnEnabled(self:get(i), item))
-	end
-	self:destroyRest(#newList + 1)
 end
 
 local function Option(name, font, enabled)

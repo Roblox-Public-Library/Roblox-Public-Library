@@ -3,6 +3,7 @@ local Utilities = ReplicatedStorage.Utilities
 local Assert = require(Utilities.Assert)
 local Functions = require(Utilities.Functions)
 local Music = require(ReplicatedStorage.Music)
+--local BookPouch = require(ReplicatedStorage.BookPouch)
 
 local Profile = {}
 Profile.__index = Profile
@@ -41,7 +42,12 @@ function Profile.DeserializeDataStore(profile)
 	return setmetatable(profile, Profile)
 end
 function Profile:Destroy()
-	self.Music:Destroy()
+	for k, class in pairs(vars) do
+		local v = self[k]
+		if v.Destroy then
+			v:Destroy()
+		end
+	end
 end
 -- for _, var in ipairs({"favoriteBooks", "readBooks"}) do
 --     --[[Options...
