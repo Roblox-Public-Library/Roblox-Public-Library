@@ -59,26 +59,32 @@ Players.PlayerAdded:Connect(function(player)
 		end, function() return not player.Parent end)
 	end
 end)
-local savingThreads = 0
+local function pcallLog(func)
+	local success, msg = pcall(func)
+	if not success then
+		warn(debug.traceback(msg))
+	end
+	return success, msg
+end
 Players.PlayerRemoving:Connect(function(player)
 	local profile = profiles[player]
-	if typeof(profile) == "Instance" then -- it's an event; a thread is waiting on the profile loading
-		profile:Fire(nil)
-	else
-		savingThreads = savingThreads + 1
-		pcall(function()
-			profileStore:Set(player.UserId, profile:Serialize())
-		end)
-		savingThreads = savingThreads - 1
-	end
-	profile:Destroy()
+	pcallLog(function()
+		if typeof(profile) == "Instance" then -- it's an event; a thread is waiting on the profile loading
+			profile:Fire(nil)
+		else
+			pcall(function()
+				profileStore:Set(player.UserId, profile:Serialize())
+			end)
+		end
+		profile:Destroy()
+	end)
 	profiles[player] = nil
 end)
 
 game:BindToClose(function()
-	repeat
+	while next(profiles) do
 		wait()
-	until savingThreads == 0
+	end
 end)
 
 local function new(type, name)

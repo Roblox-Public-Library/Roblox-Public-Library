@@ -35,4 +35,14 @@ end
 
 			local watch = coroutine.create(watchPlayer)
 			coroutine.resume(watch, player, tele)
+
+
+
+func = coroutine.wrap(function()
+	error("test")
+	coroutine.yield()
+	coroutine.yield()
+end)
+func()
+func() -- resumes the coroutine each time
 ]]

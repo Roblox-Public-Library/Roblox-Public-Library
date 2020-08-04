@@ -9,6 +9,7 @@ DataStore:
 ]]
 local DataStoreService = game:GetService("DataStoreService")
 local DataStores = {}
+local OrderedDataStore
 
 local isStudio = game:GetService("RunService"):IsStudio()
 
@@ -37,6 +38,9 @@ if isStudio then -- Set up fake data stores for studio testing
 	end
 	add("Get", function(data, key) return true, data[key] end)
 	-- todo GetSorted
+	add("GetSorted", function(isAscending, pageSize, minValue, maxValue)
+
+	end)
 	add("Set", function(data, key, value) data[key] = value; return true, value end)
 	add("SetFunc", function(data, key, getValue)
 		local value = getValue()

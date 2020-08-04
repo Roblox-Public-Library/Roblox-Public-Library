@@ -231,7 +231,6 @@ local function setConnections()
 							newPart.Orientation = Vector3.new(0, 0, 0)
 							viewport.PartName.Text = newPart.Name
 							-- todo setup connections here
-							--brb
 						end
 					end
 					for j = i + 1, #currentViewports do

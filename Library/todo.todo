@@ -35,6 +35,7 @@ TopBar:
 	✔ Transparency of bg image
 	✔ Settings gear (from TopBar+): http://www.roblox.com/asset/?id=2484556379
 	Music:
+
 		✔ Get musical note icon
 		✔ Create dropdown list
 		✔ Make the gui functional
@@ -159,12 +160,12 @@ OnEnter:
 	☐ mark when next autosave can occur
 
 User clicks Music Off:
-	☐ gui asks Music
-	☐ Music gets a ref to the current profile and can check :IsMusicEnabled()
-	☐ Music should then react to new value of MusicEnabled
-	☐ ClientProfile uses remote to notify server of change
-	☐ Server records it and marks profile as changed
-	☐ activate autosave routine/queue as needed
+	✔ gui asks Music
+	✔ Music gets a ref to the current profile and can check :IsMusicEnabled()
+	✔ Music should then react to new value of MusicEnabled
+	✔ ClientProfile uses remote to notify server of change
+	✔ Server records it and marks profile as changed
+	✔ activate autosave routine/queue as needed
 
 User clicks a book:
 	☐ book gui asks ClientProfile for fav/read/etc details
