@@ -79,6 +79,7 @@ local function setInstalled(installed)
 end
 local editor
 local curTheme
+local selectedTheme
 local defaultFolder
 local function randomThemeColor(parent)
 	local color = Instance.new("Color3Value")
@@ -100,6 +101,15 @@ local function installFinish(wasInstalled) -- called when user installs or when 
 		curTheme.Parent = editor
 		if wasInstalled then
 			print("Installed Current Theme object value")
+		end
+	end
+	selectedTheme = editor:FindFirstChild("Selected Theme")
+	if not selectedTheme then
+		selectedTheme = Instance.new("ObjectValue")
+		selectedTheme.Name = "Selected Theme"
+		selectedTheme.Parent = editor
+		if wasInstalled then
+			print("Installed Selected Theme object value")
 		end
 	end
 	defaultFolder = editor:FindFirstChild("Default") or editor:FindFirstChildOfClass("Folder")
@@ -164,14 +174,62 @@ local buttonNormalColor = Studio.Theme:GetColor(StudioColor.RibbonButton, Studio
 local buttonHoverColor = Studio.Theme:GetColor(StudioColor.RibbonButton, StudioModifier.Hover)
 --todo Studio.ThemeChanged:Connect
 
+local function disconnectList(list)
+	for _, con in ipairs(list) do
+		con:Disconnect()
+	end
+end
+
 local cons
-local selectedTheme
 local themeScroll = widgetFrame.ThemesFrame.ThemesScroll
 local themeTemplate = themeScroll.Theme
 themeTemplate.Parent = nil
 local partsScroll = widgetFrame.PartsFrame.PartsScroll
 local partTemplate = partsScroll.Part
 partTemplate.Parent = nil
+
+local PartViewport = {}
+PartViewport.__index = PartViewport
+function PartViewport.new()
+	local self
+	local viewport = partTemplate:Clone()
+	viewport.Parent = partsScroll
+	viewport.InputBegan:Connect(function(input)
+		if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+		Selection:Set({self.themePart})
+	end)
+	self = setmetatable({
+		viewport = viewport,
+	}, PartViewport)
+	return self
+end
+function PartViewport:ChangeThemePart(themePart)
+	local viewport = self.viewport
+	local part = viewport.Part
+	part.Orientation = Vector3.new(0, 35, 0)
+	if self.cons then
+		disconnectList(self.cons)
+	end
+	local cons = {}
+	for i, prop in ipairs(props) do
+		local function updatePartProp()
+			part[prop] = themePart[prop]
+		end
+		updatePartProp()
+		cons[i] = themePart:GetPropertyChangedSignal(prop):Connect(updatePartProp)
+	end
+	viewport.PartName.Text = themePart.Name
+	self.themePart = themePart
+	self.cons = cons
+end
+function PartViewport:Destroy() -- todo make sure if themePart is deleted that PartViewport is destroyed
+	self.viewport:Destroy()
+	if self.cons then
+		disconnectList(self.cons)
+	end
+end
+
+
 local function setConnections()
 	-- Initialize theme list
 	local currentViewports = {}
@@ -199,13 +257,11 @@ local function setConnections()
 				color.Changed:Connect(updateColor),
 				folder.AncestryChanged:Connect(function(child, parent)
 					row:Destroy()
-					for _, con in ipairs(cons) do
-						con:Disconnect()
-					end
+					disconnectList(cons)
 				end),
 				themeName.MouseButton1Click:Connect(function()
-					selectedTheme = folder
-					themeName.Active = false
+					selectedTheme.Value = folder
+					themeName.Active = false -- todo this isn't working?
 					themeName.AutoButtonColor = false
 					themeName.BackgroundColor3 = buttonHoverColor
 					local i = 0
@@ -214,23 +270,10 @@ local function setConnections()
 							i = i + 1
 							local viewport = currentViewports[i]
 							if not viewport then
-								viewport = partTemplate:Clone()
-								viewport.Parent = partsScroll
-								viewport.InputBegan:Connect(function(input)
-									if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
-									Selection:Set({themePart})
-								end)
+								viewport = PartViewport.new()
 								currentViewports[i] = viewport
 							end
-							local oldPart = viewport:FindFirstChildOfClass("BasePart")
-							oldPart:Destroy()
-							local newPart = themePart:Clone()
-							newPart.Parent = viewport
-							newPart.Position = Vector3.new(0, 0, -1.75)
-							newPart.Size = Vector3.new(1, 1, 1)
-							newPart.Orientation = Vector3.new(0, 0, 0)
-							viewport.PartName.Text = newPart.Name
-							-- todo setup connections here
+							viewport:ChangeThemePart(themePart)
 						end
 					end
 					for j = i + 1, #currentViewports do

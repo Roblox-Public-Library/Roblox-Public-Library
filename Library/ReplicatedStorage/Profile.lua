@@ -11,7 +11,7 @@ local vars = {
 	-- field -> Class with .new and .Deserialize
 	-- The following capitalized fields are public but should be treated as read-only
 	Music = Music,
-	BookPouch = BookPouch,
+	-- BookPouch = BookPouch,
 	-- favoriteBooks = SaveableSet,
 	-- readBooks = SaveableSet,
 }

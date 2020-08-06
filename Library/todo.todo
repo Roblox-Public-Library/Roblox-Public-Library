@@ -182,3 +182,4 @@ Theme Editor:
 	Bugs:
 		☐ Update visual list of themes upon adding or removing
 		☐ Remove existing theme rows when closing plugin/widget
+		☐ Need to add Undo points after installation
