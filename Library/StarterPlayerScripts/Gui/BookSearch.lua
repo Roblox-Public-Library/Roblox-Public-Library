@@ -89,7 +89,7 @@ local nodeIndex = 1
 local scanning = false
 local function setNextNodeIndex(index)
 	for i = nodeIndex, index - 1 do
-		nodes[i].Parent = nil
+		nodes:Get(i).Parent = nil
 	end
 	nodeIndex = index
 end
@@ -133,41 +133,44 @@ local function unhighlightBook()
 end
 local function clearPathfind()
 	unhighlightBook()
-	for i = nodeIndex, #nodes do
-		nodes[i].Parent = nil
+	for i = nodeIndex, nodes:Count() do
+		nodes:Get(i).Parent = nil
 	end
-	nodeIndex = #nodes + 1
+	nodeIndex = nodes:Count() + 1
 end
-local pathfindTarget
+local pathfindTarget, pathfindTargetBook
 local function stopScanning()
 	if scanning then
 		scanning:Disconnect()
 		scanning = false
-		pathfindTarget = nil
+		pathfindTarget, pathfindTargetBook = nil, nil
 	end
 end
 local pathfindTo
+local function repathfind()
+	local targetBook = pathfindTargetBook
+	stopScanning()
+	pathfindTo(targetBook)
+end
 local function startScanning()
 	if scanning then return end
 	scanning = RunService.Heartbeat:Connect(function()
 		local root = localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart")
 		if not root then return end
-		local node1, node2 = nodes[nodeIndex], nodes[nodeIndex + 1]
-		if not node1 then
-			stopScanning()
-			return
-		end
-		local m1 = (node1.Position - root.Position).Magnitude
-		if m1 <= reachedDist or (node2 and (node2.Position - root.Position).Magnitude <= m1) then
-			setNextNodeIndex(nodeIndex + 1)
-		elseif m1 >= recalcDist then
-			local target = pathfindTarget
-			stopScanning()
-			pathfindTo(target)
+		local node1, node2 = nodes:Get(nodeIndex), nodes:Get(nodeIndex + 1)
+		if node1 then
+			local m1 = (node1.Position - root.Position).Magnitude
+			if m1 <= reachedDist or (node2 and (node2.Position - root.Position).Magnitude <= m1) then
+				setNextNodeIndex(nodeIndex + 1)
+			elseif m1 >= recalcDist then
+				repathfind()
+			end
+		elseif (pathfindTarget.Position - root.Position).Magnitude >= recalcDist then
+			repathfind()
 		end
 	end)
 end
-local pathfindTargetFromBook do -- raycasting setup
+local pathfindTargetFromBookModel do -- raycasting setup
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterType = Enum.RaycastFilterType.Whitelist
 	local list = {}
@@ -184,9 +187,9 @@ local pathfindTargetFromBook do -- raycasting setup
 		end
 	end
 	raycastParams.FilterDescendantsInstances = list
-	pathfindTargetFromBook = function(book)
-		local result = workspace:Raycast(book.Position, Vector3.new(0, -15, 0), raycastParams)
-		return result and result.Position + Vector3.new(0, 2, 0) or book.Position
+	pathfindTargetFromBookModel = function(bookModel)
+		local result = workspace:Raycast(bookModel.Position, Vector3.new(0, -15, 0), raycastParams)
+		return result and result.Position + Vector3.new(0, 2, 0) or bookModel.Position
 	end
 end
 local path = PathfindingService:CreatePath()
@@ -206,12 +209,31 @@ local cfTranslationAttempt, numCFTranslationAttempts do
 		return cf[key[i]] * multiplier[i]
 	end
 end
-pathfindTo = function(bookModel)
-	pathfindTarget = bookModel
-	highlightBook(bookModel)
+local function getBookModelForPathfinding(book, root)
+	-- Choose model nearest to player character position
+	local models = book.Models
+	local best = models[1]
+	if #models > 1 then
+		local bestDist = (best.Position - root.Position).Magnitude
+		for i = 2, #models do
+			local model = models[i]
+			local dist = (model.Position - root.Position).Magnitude
+			if dist < bestDist then
+				bestDist = dist
+				best = models[i]
+			end
+		end
+	end
+	return best
+end
+pathfindTo = function(book)
+	pathfindTargetBook = book
+	highlightBook(book)
 	local root = localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart")
 	if not root then return end
-	local targetPos = pathfindTargetFromBook(bookModel)
+	local bookModel = getBookModelForPathfinding(book, root)
+	pathfindTarget = bookModel
+	local targetPos = pathfindTargetFromBookModel(bookModel)
 	local waypoints
 	local function try(pos)
 		path:ComputeAsync(root.Position, pos)
@@ -249,7 +271,7 @@ for i, entry in ipairs(entries) do
 		end
 		local book = results[i]
 		if not book then return end
-		pathfindTo(book.Model)
+		pathfindTo(book)
 		shrink(i)
 	end)
 end
@@ -335,9 +357,6 @@ localPlayer.CharacterAdded:Connect(function()
 	if gui.Enabled then
 		module:Close()
 	end
-	-- if pathfindTarget then
-	-- 	pathfindTo(pathfindTarget)
-	-- end
 end)
 
 return module

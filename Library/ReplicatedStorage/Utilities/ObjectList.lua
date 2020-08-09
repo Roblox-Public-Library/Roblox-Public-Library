@@ -24,6 +24,9 @@ function ObjectList:get(i)
 	end
 	return value
 end
+function ObjectList:Get(i)
+	return self.list[i]
+end
 function ObjectList:destroy(i)
 	self.list[i]:Destroy()
 	self.list[i] = nil
@@ -47,6 +50,7 @@ end
 function ObjectList:Count() return #self.list end
 function ObjectList:SetAdaptFunc(adaptObject)
 	self.adaptObject = Assert.Function(adaptObject)
+	return self
 end
 function ObjectList:AdaptToList(newList, adaptObjectOverride)
 	--	Create or reuse an object for each item in newList using adaptObject(object, item) to adapt them
