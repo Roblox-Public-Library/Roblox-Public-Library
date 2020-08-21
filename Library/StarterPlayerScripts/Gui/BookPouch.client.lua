@@ -1,7 +1,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local localPlayer = Players.localPlayer
+local localPlayer = Players.LocalPlayer
 local bookPouchGui = ReplicatedStorage.Guis.BookPouchGui
 bookPouchGui.Parent = localPlayer.PlayerGui
 

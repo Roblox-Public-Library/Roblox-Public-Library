@@ -156,9 +156,10 @@ local dropdown = {} do
 	end
 end
 
+local topBarLeft = topBar.Left
 do -- About menu
 	local menu = gui.About
-	topBarMenus[topBar.Right.About] = menuFromFrame(menu)
+	topBarMenus[topBarLeft.About] = menuFromFrame(menu)
 	local function getTabs(obj)
 		return {
 			Controls = obj.Controls,
@@ -219,7 +220,7 @@ end
 
 do -- Music
 	local menu = gui.Music
-	topBarMenus[topBar.Right.Music] = menuFromFrame(menu)
+	topBarMenus[topBarLeft.Music] = menuFromFrame(menu)
 	menu.Close.Activated:Connect(closeMenu)
 
 	local content = menu.Content
@@ -544,7 +545,7 @@ do -- Music
 	end
 end
 
-topBarMenus[topBar.Right.Search] = BookSearch
+topBarMenus[topBarLeft.Search] = BookSearch
 
 for button, menu in pairs(topBarMenus) do
 	local atRest = 0.5
@@ -576,3 +577,12 @@ events.BookClosed:Connect(function()
 	BookSearch:Unhide()
 	gui.Enabled = true
 end)
+
+do -- Keep top bar at the correct position
+	local enabledPos = UDim2.new(0, 104, 0, 4)
+	local disabledPos = UDim2.new(0, 60, 0, 4)
+	-- Unfortunately the event to let us know when the Chat has been disabled/enabled is only available to CoreScripts; see https://developer.roblox.com/api-reference/event/StarterGui/CoreGuiChangedSignal
+	RunService.Heartbeat:Connect(function()
+		topBarLeft.Position = StarterGui:GetCoreGuiEnabled(Enum.CoreGuiType.Chat) and enabledPos or disabledPos
+	end)
+end
