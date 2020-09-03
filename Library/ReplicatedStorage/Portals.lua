@@ -54,7 +54,6 @@ return {
 		end
 		local placeName = getPlaceName(id)
 		if placeName ~= "" then
-			local f = parent.TextBrick.Front.Frame
 			parent.TextBrick.Front.Frame.TextLabel.Text = placeName
 		end
 		tele.Touched:Connect(function(hit)

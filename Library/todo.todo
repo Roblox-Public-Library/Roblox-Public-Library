@@ -1,5 +1,147 @@
  (If you install the Todo+ extension you can toggle a task being done with Alt+d and create a new task with Ctrl+Enter)
 --------------------------
+Update Book Scripts:
+	✔ ListToEnglish -> Module (in Utilities)
+	✔ finish fixing BookEventScript to use ListToEnglish for authorLine
+	✔ book search needs to know that it's a list of names (comma separated in the StringValue)
+	✔ incorporate Pink's fix for Title @done(20-08-27 14:20)
+	✔ add faq to new menu system @done(20-08-27 14:36)
+	✔ Books now accepts :Register for all books
+	Update scripts:
+		✔ reimplement how the update script will modify all BookEventScripts
+			> plan is in AuthorIDLookupCommand
+			✔ get rid of section ending headers (like --Images--)
+			✔ are the comments I added suitable?
+		✔ BookSearch that uses Books module and book.Author now needs to use book.Authors (a dictionary)
+		✔ BooksClient needs updated documentation on what :GetBooks is @started(20-08-28 10:58) @done(20-08-28 11:07) @lasted(9m15s)
+		✔ SelectScript must use BooksClient @done(20-08-28 12:09)
+		✔ change to AuthorIds (not IDs)
+	Genre handling:
+		✔ Detect genre in author commands
+		Books:Register must:
+			✔ normalize genre (lower case, get rid of all spaces and dashes, ex "Sci - Fi" to "scifi")
+			✔ convert normalized form to "pleasant" form (ex "scifi" to "Sci-Fi")
+		✔ get other genres/aliases (modify revampbooks temporarily to list them) @started(20-08-28 13:23) @done(20-08-28 16:57) @lasted(3h34m48s)
+		✔ support genres = {} in BookEventScript
+		✔ Locate shelves that are mostly one genre automatically? (determine genre by proximity to others)
+		✔ use hall to determine proper genre (Roblox History vs [World] History)
+			☐ test this
+	Genre Cleanup:
+		✔ These books aren't on a shelf, apparently (this can be okay if it's on a special display, but some of them are stuck inside shelves): @done(20-08-30 12:10)
+			✔ The last 2 are particularly bad - it implies they don't exist elsewhere (but should!) @done(20-08-30 11:46)
+	Genres Update:
+		✔ Update genres script
+		✔ Update tmpAliases to accomodate for old names
+		✔ Remove identified genres from part names
+		✔ Tell cod about updating google doc (including "Library Post", "Action", and renaming) @done(20-09-01 11:03)
+	Edge Cases:
+		✘ make backup of live place @cancelled(20-08-28 10:56)
+		✔ leave notice to *not* publish the Library until we're done remaining changes
+		✔ go through edge cases (the customAuthorLines and other cases) @started(20-08-28 11:15) @done(20-08-28 11:30) @lasted(15m22s)
+	Gui Improvement:
+		✔ show FAQ gui on first join @started(20-08-30 12:11) @done(20-08-31 14:15) @lasted(1d2h4m22s)
+		✔ save that they've seen it before (as part of profile)
+		✔ test in studio
+		✔ test online to confirm data stores working
+	cod's new guis:
+		✔ reorganize
+		✔ connect scripting
+		FAQ:
+			✔ Create entry for each question (dif font for Q than A) @done(20-09-01 11:53)
+			✔ Auto separate questions from answers or reformat in About @done(20-09-01 11:53)
+		About:
+			✔ Preload all floor maps when user opens About
+			✔ 	also preload Control images
+			✔ Switch between floors on button press (change FloorMap.Image)
+			✔ ensure FAQ scrolling is working correctly (call the handler func)
+			✔ FAQ needs work
+			✔ Credits - scrolling frame
+			✔ Controls - use scale
+		Music:
+			✔ finish merging
+			✔ implement next/prev track
+			✔ implement pause/play
+			✔ delete pause button after storing its details
+			✔ bold currently playing track
+	Misc:
+		✔ rename book scripts to "BookScript" @done(20-09-01 09:09)
+		✔ remove all major comment blocks and empty lines @done(20-09-01 14:16)
+	Before updating live place:
+		Prepare package (shared template) for books:
+			✔ Write template
+			remove cover/etc from books in:
+				☐ command
+				☐ maintenance
+				☐ package template
+			✔ add them back in in Books.lua
+			✔ Make package @done(20-09-02 18:58)
+		Efficiency Improvements:
+			Book Color:
+				✔ remove book color from template
+				☐ in template, encourage people to change colour of book part directly
+				☐ remove book color from server scripts
+				✔ client looks at colour of the book it clicked on to get the 'bookColor'
+			☐ Remove titleTextcolor/titleStrokeColor from replication (have client read from them, too)
+			☐ Move titleTextColor/titleStrokeColor to direct child of books for easy access
+		Maintenance Plugin:
+			✔ fetch book title/data/etc
+				> needed for report and something else I think
+			Id system:
+				✔ Assign Ids
+				☐ verify 2 dif books don't share the same id!
+				☐ Store each id-book pair in ServerStorage and use this to help detect new books
+					> This is for if someone manually adds an Id or runs the book maintenance plugin in a different place and then transfers the book
+					> This can be stored as a lua table if desired
+			✔ Delete unnecessary items
+			✔ add these back in books.lua
+			✔ Update cover label gui with title (for the sake of those editing)
+				> If this will be done reliably, this code can be moved out of Books:Register
+			☐ Ensure the book's genre includes the shelf it is on
+			☐ Inspect genres
+			✔ remove unnecessary welds
+			✔ Replace all fancy quotation marks with simple equivalents (in both script source and part name) @done(20-09-02 19:06)
+			Feature for the future:
+				☐ A button to add in the covers so you can see what the books look like without pressing play
+					> It would add everything with Archivable = false so they won't save
+					> A 2nd button to remove them
+		Other:
+			☐ Package that includes supporting scripts so you can read a book (for workshops)
+				☐ In this package, Books.lua should not warn if no id, since no books should have an id
+					> Perhaps it can analyze whether there is the book data storage folder in ServerStorage
+☐ I want the book script to send 'script.Parent' to :Register, not 'script'
+	Final stages:
+		☐ Look for todos
+		☐ Look for debug messages
+		☐ Re-enable Roblox LSP for an added check
+	Update Live Place:
+		✔ Re-fetch all author IDs
+		✔ Re-filter all authors/ids and regenerate userIdToName
+		☐ consider doing filtering *again*, right before ready to do rest of update
+		✔ use rojo to update scripts (this will include the new menu system)
+		☐ manually inspect source of one book before/after transformation to make sure it's working correctly before applying it everywhere
+		☐ transfer guis and DefaultMusic folder (ReplicatedStorage)
+		☐ run the author command to update all Book scripts
+		☐ test
+		☐ publish
+		☐ update workshops (use a package for a shared template so updating either not required or easier in future)
+
+	Book Search:
+		✔ Some books use '’' character. Replace these with a '
+			> done in revamp script
+
+Temporary:
+	Old icons:
+		music: http://www.roblox.com/asset/?id=2317684406
+		search: http://www.roblox.com/asset/?id=1490704267
+	Sprite sheet:
+		rbxassetid://3926305904
+		Has (x), pencil, copyright, arrows, triple bars, and other useful icons
+
+New Book Gui:
+	☐ reorganize/redesign from cod's to work on any resolution
+	☐ design
+	☐ implement
+
 Book Pouch/Inventory:
 	Interface:
 		✔ Perhaps "Books" or "Inventory" text should be on far left side (rotated 90 degrees), at least when the pouch is closed

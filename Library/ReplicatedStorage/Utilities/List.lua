@@ -35,12 +35,19 @@ function List.Shuffle(list, rnd)
 		list[i], list[index] = list[index], list[i]
 	end
 end
-function List.ToDict(list)
-	local dict = {}
-	for i = 1, #list do
-		dict[list[i]] = true
+function List.ToSet(list)
+	local set = {}
+	for _, v in ipairs(list) do
+		set[v] = true
 	end
-	return dict
+	return set
+end
+function List.ToEnglish(list)
+    --  {"a", "b", "c"} -> "a, b, and c"
+    local n = #list
+    return n == 1 and list[1]
+        or n == 2 and ("%s and %s"):format(list[1], list[2])
+        or ("%s, and %s"):format(table.concat(list, ", ", 1, n - 1), list[n])
 end
 
 local BinarySearch_compareFunc = function(v1, v2) return v1 < v2 and -1 or v1 > v2 and 1 or 0 end

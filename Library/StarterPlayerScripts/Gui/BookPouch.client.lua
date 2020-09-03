@@ -19,30 +19,28 @@ The arrow button should toggle visibility.
     If the player has closed it, adding new books to the pouch should not re-open it.
 ]]
 
-local rowTemplate = bookPouchGui.Books.Row
+local rowTemplate = bookPouchGui.BooksBG.Books.Row
 rowTemplate.Parent = nil
 
 -- Automatically add opened books to the pouch
-ReplicatedStorage.BookOpen:OnClientEvent(function(book)
+ReplicatedStorage.BookOpen.OnClientEvent:Connect(function(book)
     bookPouchGui.Enabled = true
-    local bookName = book.Name
-    local authorName = book.Author
     local newRow = rowTemplate:Clone()
     newRow.Parent = bookPouchGui.ScrollingFrame
-    newRow.Book.Text = bookName.." by "..authorName
+    newRow.Book.Text = book.Name.." by "..book.Author
 end)
 
-for a in bookPouchGui.ScrollingFrame:GetChildren() do
-    a.Activated:Connect(function(book)
-        book = workspace.Books:FindFirstChild(book.Name)
-        book.BookClick:FireServer(localPlayer)
-    end)
-end
+-- for a in bookPouchGui.ScrollingFrame:GetChildren() do
+--     a.Activated:Connect(function(book)
+--         book = workspace.Books:FindFirstChild(book.Name)
+--         book.BookClick:FireServer(localPlayer)
+--     end)
+-- end
 
-for b in bookPouchGui:GetDescendants() do
-    if b.Name == "Delete" then
-        b.Activated:Connect(function()
-            b.Parent:Destroy()
-        end)
-    end
-end
+-- for b in bookPouchGui:GetDescendants() do
+--     if b.Name == "Delete" then
+--         b.Activated:Connect(function()
+--             b.Parent:Destroy()
+--         end)
+--     end
+-- end

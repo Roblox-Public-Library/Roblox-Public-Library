@@ -1,0 +1,11 @@
+{
+	"name": "root-project",
+	"tree": {
+		"$className": "DataModel",
+		"ServerStorage": {
+			"$className": "ServerStorage",
+			"$path": "ServerStorageCommands",
+			"$ignoreUnknownInstances": true
+		}
+	}
+}

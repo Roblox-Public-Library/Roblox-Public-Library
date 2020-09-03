@@ -2,43 +2,67 @@ local MessageBox = {}
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local screenGui = ReplicatedStorage.Guis.MessageBoxGui
+screenGui.Enabled = false
 screenGui.Parent = game:GetService("Players").LocalPlayer.PlayerGui
 local messageFrame = screenGui.MessageFrame
-local yesBtn = messageFrame.ButtonL
-local noBtn = messageFrame.ButtonR
-local fullScreenButton = screenGui.FullScreenButton
-local msgShowing = false
+messageFrame.Visible = true
+local buttons = messageFrame.Buttons
+local yesBtn, noBtn = buttons.First, buttons.Second
+local contentLabel = messageFrame.ScrollingFrame.TextLabel
+local catchClick = screenGui.CatchClick
+local messageShowing = false
 local event = Instance.new("BindableEvent")
 
 function MessageBox.Show(prompt, confirmText, cancelText)
-	--	Will show the user 'prompt' and yield until they confirm/cancel or until MessageBox.Show is called again (this counts as cancelling)
-	--	Will return true if they confirmed (false otherwise)
-	if msgShowing then
+	--	Show the message box (cancelling any previously open messages), waiting until a response is received.
+	--	Will display two options to the player (by default "Yes" and "No")
+	--	Will return true only if the player presses "Yes"
+	--	The player can also click outside the message box to cancel it
+	if messageShowing then
 		event:Fire(false)
 	end
-	messageFrame.TextLabel.Text = prompt
+	contentLabel.Text = prompt
 	yesBtn.Text = confirmText or "Yes"
 	noBtn.Text = cancelText or "No"
-	msgShowing = true
+	noBtn.Visible = true
+	messageShowing = true
 	screenGui.Enabled = true
 	local response = event.Event:Wait()
 	screenGui.Enabled = false
-	msgShowing = false
+	messageShowing = false
 	return response
 end
+
+function MessageBox.Notify(prompt, closeText)
+	--	Same as MessageBox.Show, except only one option is displayed to the user.
+	--	They can still cancel it by clicking outside the message box.
+	if messageShowing then
+		event:Fire(false)
+	end
+	contentLabel.Text = prompt
+	yesBtn.Text = closeText or "Okay!"
+	noBtn.Visible = false
+	messageShowing = true
+	screenGui.Enabled = true
+	local response = event.Event:Wait()
+	screenGui.Enabled = false
+	messageShowing = false
+	return response
+end
+
 local function cancel()
 	event:Fire(false)
 end
-MessageBox.Close = cancel
+MessageBox.Close = cancel -- Close any currently open message box, cancelling it
 
 yesBtn.Activated:Connect(function()
 	event:Fire(true)
 end)
 noBtn.Activated:Connect(cancel)
-fullScreenButton.Activated:Connect(cancel)
+catchClick.Activated:Connect(cancel)
 
 -- Make text bold when mouse hovers over
-for _, button in ipairs(messageFrame:GetChildren()) do
+for _, button in ipairs(buttons:GetChildren()) do
 	if button:IsA("TextButton") then
         button.MouseEnter:Connect(function()
 			button.Font = "SourceSansBold"

@@ -8,12 +8,14 @@ local tweenInfo = TweenInfo.new(0.3)
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ObjectList = require(ReplicatedStorage.Utilities.ObjectList)
 local books = require(ReplicatedStorage.BooksClient):GetBooks()
-local gui = ReplicatedStorage.Guis.SearchGui
+local gui = ReplicatedStorage.Guis.BookSearch
+gui.Enabled = false
 local Players = game:GetService("Players")
 local localPlayer = Players.LocalPlayer
 gui.Parent = localPlayer.PlayerGui
+local searchFrame = gui.Search
 
-local resultsFrame = gui.Results
+local resultsFrame = searchFrame.Results
 local results -- list of book
 local entry = resultsFrame.Entry
 entry.Parent = nil
@@ -27,7 +29,7 @@ local entrySizeY = entry.Size.Y.Offset
 local origSize = resultsFrame.Size
 local shrinkSize = UDim2.new(resultsFrame.Size.X, UDim.new(0, entrySizeY))
 local origPos = resultsFrame.Position
-local shrinkPos = UDim2.new(resultsFrame.Position.X, gui.Frame.Position.Y)
+local shrinkPos = UDim2.new(resultsFrame.Position.X, resultsFrame.Position.Y)
 local tween
 local function newTween(props, instant)
 	if tween then tween:Cancel() end
@@ -42,7 +44,7 @@ local function newTween(props, instant)
 end
 local function shrink(toIndex)
 	shrunk = true
-	gui.Frame.Visible = false
+	resultsFrame.Visible = false
 	local targetY = (toIndex - 1) * (entrySizeY + 1) - 1 -- +1 for padding, -1 because first entry doesn't have padding
 	newTween({
 		Position = shrinkPos,
@@ -57,7 +59,7 @@ local function shrink(toIndex)
 end
 local function expand(instant)
 	shrunk = false
-	gui.Frame.Visible = true
+	resultsFrame.Visible = true
 	newTween({
 		Position = origPos,
 		Size = origSize,
@@ -275,21 +277,46 @@ for i, entry in ipairs(entries) do
 		shrink(i)
 	end)
 end
-local function search(field, value)
+
+local function titleSearch(value)
 	local results = {}
 	value = value:lower()
 	for _, book in ipairs(books) do
-		if book[field]:lower():find(value) then
+		if book.Title:find(value, 1, true) then
 			results[#results + 1] = book
 		end
 	end
 	return results
 end
+local function authorSearch(value)
+	local results = {}
+	local userId = tonumber(value)
+	if not userId then -- see if can convert to userId. We can only do this if 'value' is the name of a player in the server
+		local player = Players:FindFirstChild(value)
+		if player then
+			userId = player.UserId
+		end
+	end
+	if userId then -- search in AuthorIds
+		for _, book in ipairs(books) do
+			if book.AuthorIds[userId] then
+				results[#results + 1] = book
+			end
+		end
+	else
+		for _, book in ipairs(books) do
+			if books.AuthorNames[value] or book.AuthorLine:find(value, 1, true) then
+				results[#results + 1] = book
+			end
+		end
+	end
+	return results
+end
 
-local box = gui.Frame.TextBox
-local searchMode = "Title"
-local title = gui.Frame.SortBy.Title
-local author = gui.Frame.SortBy.Author
+local box = searchFrame.TextBox
+local search = titleSearch
+local title = searchFrame.SortBy.Title
+local author = searchFrame.SortBy.Author
 local function highlight(obj)
 	obj.TextStrokeTransparency = 0
 	obj.TextTransparency = 0
@@ -300,12 +327,12 @@ local function unhighlight(obj)
 end
 local function performSearch()
 	if box.Text == "" then return end
-	results = search(searchMode, box.Text)
+	results = search(box.Text)
 	local num = math.min(#results, 200)
 	for i = 1, num do
 		local entry = entries[i]
 		local book = results[i]
-		entry.Text = ("%s by %s%s"):format(book.Title, book.Author, book.Genre and (" (%s)"):format(book.Genre) or "")
+		entry.Text = ("%s by %s%s"):format(book.Title, book.AuthorLine, book.Genre and (" (%s)"):format(book.Genre) or "")
 		entry.Parent = resultsFrame
 	end
 	resultsFrame.CanvasSize = UDim2.new(0, 0, 0, entry.Size.Y.Offset * num)
@@ -314,13 +341,13 @@ local function performSearch()
 	end
 end
 title.Activated:Connect(function()
-	searchMode = "Title"
+	search = titleSearch
 	highlight(title)
 	unhighlight(author)
 	performSearch()
 end)
 author.Activated:Connect(function()
-	searchMode = "Author"
+	search = authorSearch
 	highlight(author)
 	unhighlight(title)
 	performSearch()

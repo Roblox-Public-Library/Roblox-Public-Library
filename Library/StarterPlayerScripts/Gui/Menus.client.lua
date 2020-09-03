@@ -34,6 +34,13 @@ local inputTypeIsClick = {
 
 local handleVerticalScrollingFrame = GuiUtilities.HandleVerticalScrollingFrame
 
+local catchClickGui = ReplicatedStorage.Guis.MenusCatchClick
+local catchClick = catchClickGui.CatchClick
+catchClickGui.Enabled = false
+catchClick.Visible = true
+catchClick.Active = false
+catchClickGui.Parent = playerGui
+
 local displayedMenu
 local function displayMenu(menu)
 	if displayedMenu == menu then return end
@@ -47,9 +54,17 @@ local function displayMenu(menu)
 	if displayedMenu then
 		sfx.BookOpen:Play()
 		displayedMenu:Open()
+		catchClickGui.Enabled = true
+	else
+		catchClickGui.Enabled = false
 	end
 end
 local function closeMenu() displayMenu() end -- meant for use in connections
+catchClick.InputBegan:Connect(function(input)
+	if inputTypeIsClick[input.UserInputType] then
+		closeMenu()
+	end
+end)
 
 local topBarMenus = {}
 local function menuFromFrame(obj)
@@ -88,10 +103,6 @@ local dropdown = {} do
 		end
 		dropdown:Close()
 	end)
-	local catchClick = gui.CatchClick
-	catchClick.Activated:Connect(function()
-		dropdown:Close()
-	end)
 	local function setOptions(options)
 		Assert.List(options) --List<{.Text .Font=SourceSans .Enabled=true} or text:string>
 		list:AdaptToList(options, function(button, option)
@@ -116,6 +127,7 @@ local dropdown = {} do
 		end
 	end
 	local UserInputService = game:GetService("UserInputService")
+	local dropdownCatchClick = gui.DropdownCatchClick
 	function dropdown:Open(options, handler, beneath, extraXSize)
 		setOptions(options) -- options:List<text:string or {.Text .Font=SourceSans .Enabled=true}>
 		Assert.Function(handler) --(index selected)
@@ -147,30 +159,54 @@ local dropdown = {} do
 			end),
 			self.OptionSelected:Connect(handler),
 		}
-		catchClick.Visible = true
+		dropdownCatchClick.Visible = true
+	end
+	function dropdown:IsOpen()
+		return dropdownFrame.Visible
 	end
 	function dropdown:Close()
 		clearCons()
 		dropdownFrame.Visible = false
-		catchClick.Visible = false
+		dropdownCatchClick.Visible = false
 	end
+	dropdownCatchClick.Activated:Connect(function()
+		dropdown:Close()
+	end)
 end
 
 local topBarLeft = topBar.Left
 do -- About menu
+	local TextService = game:GetService("TextService")
+	local function getTextHeight(label, width)
+		return TextService:GetTextSize(label.Text, label.TextSize, label.Font, Vector2.new(width, 32767)).Y
+	end
+	local About = require(ReplicatedStorage.About)
 	local menu = gui.About
-	topBarMenus[topBarLeft.About] = menuFromFrame(menu)
+
 	local function getTabs(obj)
 		return {
 			Controls = obj.Controls,
 			FAQ = obj.FAQ,
 			Credits = obj.Credits,
+			Map = obj.Map,
 		}
 	end
-	local tabs = getTabs(menu.Tabs)
-	local tabHeaders = getTabs(menu.TabHeaders)
+	local tabHeaders = getTabs(menu.Buttons)
+	local tabs = getTabs(menu.Content)
+
+	local menuInstance = menuFromFrame(menu)
+	local base = menuInstance.Open
+	function menuInstance.Open()
+		base()
+		local ContentProvider = game:GetService("ContentProvider")
+		ContentProvider:PreloadAsync({tabs.Controls})
+		ContentProvider:PreloadAsync(About.FloorMaps)
+		menuInstance.Open = base -- only need to preload the first time
+	end
+	topBarMenus[topBarLeft.About] = menuInstance
+
 	local selectedTab, selectedTabHeader
-	local selectedBG = Color3.fromRGB(71, 71, 71)
+	local selectedBG = Color3.fromRGB(0, 0, 0)
 	local unselectedBG = tabHeaders.FAQ.BackgroundColor3
 	local function selectTab(name)
 		if selectedTab and selectedTab.Name == name then return end
@@ -191,11 +227,57 @@ do -- About menu
 	for name, tab in pairs(tabHeaders) do
 		tab.Activated:Connect(function() selectTab(name) end)
 	end
-	selectTab("Controls")
+	selectTab("FAQ")
 
-	local About = require(ReplicatedStorage.About)
-	tabs.FAQ.Text = About.FAQ
-	tabs.Controls.Text = About.Controls
+	local questionLabels, answerLabels = {}, {}
+	local faqFrame = tabs.FAQ
+	for i, v in ipairs(About.FAQ) do
+		local question, answer = v.Question, v.Answer
+		local q = Instance.new("TextLabel")
+		local a = Instance.new("TextLabel")
+
+		q.Name = "Q"..i
+		q.BackgroundTransparency = 1
+		q.Font = Enum.Font.SourceSansItalic
+		q.Text = "Q"..i..") "..question
+		q.TextSize = 32
+		q.TextWrapped = true
+		q.TextXAlignment = Enum.TextXAlignment.Left
+
+		a.Name = "A"..i
+		a.BackgroundTransparency = 1
+		a.Font = Enum.Font.SourceSansLight
+		a.Text = "A"..i..") "..answer
+		a.TextSize = 24
+		a.TextWrapped = true
+		a.TextXAlignment = Enum.TextXAlignment.Left
+
+		q.Parent = faqFrame
+		a.Parent = faqFrame
+		questionLabels[i] = q
+		answerLabels[i] = a
+	end
+	local function calcOffsets()
+		local offset = 0
+		local padding = faqFrame.UIPadding
+		local width = faqFrame.AbsoluteWindowSize.X - padding.PaddingLeft.Offset - padding.PaddingRight.Offset
+		for i, v in ipairs(About.FAQ) do
+			local q, a = questionLabels[i], answerLabels[i]
+			local height = getTextHeight(q, width)
+			q.Size = UDim2.new(1, 0, 0, height)
+			q.Position = UDim2.new(0, 0, 0, offset)
+			offset += height
+
+			height = getTextHeight(a, width)
+			a.Size = UDim2.new(1, 0, 0, height)
+			a.Position = UDim2.new(0, 0, 0, offset)
+			offset += height + 25
+		end
+		faqFrame.CanvasSize = UDim2.new(0, 0, 0, offset - 25 + padding.PaddingBottom.Offset + padding.PaddingTop.Offset)
+	end
+	calcOffsets()
+	faqFrame:GetPropertyChangedSignal("AbsoluteWindowSize"):Connect(calcOffsets)
+
 	local creditFrame = tabs.Credits
 	local template = creditFrame.Row
 	for i, t in ipairs(About.Credits) do
@@ -210,7 +292,22 @@ do -- About menu
 	end
 	handleVerticalScrollingFrame(creditFrame)
 
-	menu.Close.Activated:Connect(closeMenu)
+	local floorMap = tabs.Map.FloorMapHolder.FloorMap
+	local mapHeader = tabs.Map.Header
+	local mapLabel = mapHeader.Floor
+	local curFloor = 1
+	local function setFloor(i)
+		curFloor = i
+		mapLabel.Text = "Floor " .. i
+		floorMap.Image = About.FloorMaps[i]
+	end
+	mapHeader.Back.Activated:Connect(function()
+		local new = curFloor - 1
+		setFloor(new == 0 and #About.FloorMaps or new)
+	end)
+	mapHeader.Next.Activated:Connect(function()
+		setFloor((curFloor % #About.FloorMaps) + 1)
+	end)
 end
 
 local function toTime(sec)
@@ -218,31 +315,27 @@ local function toTime(sec)
 	return ("%d:%.2d"):format(sec / 60, sec % 60) -- %d does math.floor on the integer
 end
 
+-- todo make musicclient know curTrackOriginalIndex (keep track during shuffling)
+--	then have CurTrackIndexChanged (and also listen to PlaylistChanged)
+--	and bold the currently playing track
 do -- Music
 	local menu = gui.Music
 	topBarMenus[topBarLeft.Music] = menuFromFrame(menu)
-	menu.Close.Activated:Connect(closeMenu)
 
-	local content = menu.Content
-
-	local currentlyPlayingProgress = content.CurrentlyPlayingProgress
-	local currentlyPlayingLabel = content.CurrentlyPlaying
+	local currentlyPlayingProgress = menu.CurrentlyPlayingProgress
+	local currentlyPlayingLabel = menu.CurrentlyPlaying
 	local currentlyPlayingBar = currentlyPlayingProgress.Bar
 	local function updateProgress()
-		local sound = music:GetCurSong()
-		if sound and sound.IsPlaying then
-			currentlyPlayingLabel.Text = ("%s (#%d) %s/%s"):format(
-				music:GetCurSongDesc() or "?", -- "?" would only happen if they saved a song that is no longer allowed. TODO filter these out on load, then remove the "?" here.
-				music:GetCurSongId(),
-				toTime(sound.TimePosition),
-				toTime(sound.TimeLength))
-			currentlyPlayingProgress.BackgroundTransparency = 0
-			currentlyPlayingBar.BackgroundTransparency = 0
-			currentlyPlayingBar.Size = UDim2.new(sound.TimePosition / sound.TimeLength, 0, 1, 0)
-		else
-			currentlyPlayingLabel.Text = ""
-			currentlyPlayingProgress.BackgroundTransparency = 1
-			currentlyPlayingBar.BackgroundTransparency = 1
+		if music:GetEnabled() then
+			local sound = music:GetCurSong()
+			if sound then
+				currentlyPlayingLabel.Text = ("%s (#%d) %s/%s"):format(
+					music:GetCurSongDesc() or "?", -- "?" would only happen if they saved a song that is no longer allowed. TODO filter these out on load, then remove the "?" here.
+					music:GetCurSongId(),
+					toTime(sound.TimePosition),
+					toTime(sound.TimeLength))
+					currentlyPlayingBar.Size = UDim2.new(sound.TimePosition / sound.TimeLength, 0, 1, 0)
+			end
 		end
 	end
 	-- Continously call updateProgress while menu is open
@@ -253,6 +346,42 @@ do -- Music
 			con = RunService.Heartbeat:Connect(updateProgress)
 		else
 			con:Disconnect()
+		end
+	end)
+
+	local actions = menu.Actions
+	local playRectOffset = Vector2.new(764, 244)
+	local pauseRectOffset = Vector2.new(804, 124)
+	local togglePause = actions.TogglePause
+	local function updateTogglePause()
+		togglePause.ImageRectOffset = music:IsPaused() and playRectOffset or pauseRectOffset
+	end
+	togglePause.Activated:Connect(function()
+		music:TogglePause()
+		updateTogglePause()
+	end)
+	updateTogglePause()
+	actions.Prev.Activated:Connect(function()
+		music:PrevSong()
+		updateTogglePause()
+	end)
+	actions.Next.Activated:Connect(function()
+		music:NextSong()
+		updateTogglePause()
+	end)
+	local actionButtons = {togglePause, actions.Prev, actions.Next}
+	local headerBGColor = menu.Header.BackgroundColor3
+	local progressPlayingBG = Color3.new()
+	music.EnabledChanged:Connect(function(enabled)
+		if enabled then
+			currentlyPlayingProgress.BackgroundColor3 = progressPlayingBG
+			currentlyPlayingBar.BackgroundTransparency = 0
+			for _, b in ipairs(actionButtons) do b.Visible = true end
+		else
+			currentlyPlayingLabel.Text = ""
+			currentlyPlayingProgress.BackgroundColor3 = headerBGColor
+			currentlyPlayingBar.BackgroundTransparency = 1
+			for _, b in ipairs(actionButtons) do b.Visible = false end
 		end
 	end)
 
@@ -280,7 +409,7 @@ do -- Music
 	end
 
 	do -- Playlist Selector
-		local playlistButton = content.Header.Playlist -- Used to open the dropdown
+		local playlistButton = menu.Header.Playlist -- Used to open the dropdown
 		local playlistLabel = playlistButton.PlaylistLabel -- Used to show which playlist is active
 		local indexToPlaylist
 		playlistLabel.Text = music:GetEnabled()
@@ -292,6 +421,7 @@ do -- Music
 				playlistLabel.Text = "Off"
 			else
 				music:InvokeSetEnabled(true)
+				actions.Visible = true
 				local playlist = indexToPlaylist[i]
 				music:InvokeSetActivePlaylist(playlist)
 				playlistLabel.Text = playlist.Name
@@ -314,11 +444,49 @@ do -- Music
 		end)
 	end
 
+	local function genBoldLabel(getPlaylist, indexToLabel)
+		--	returns boldLabel(label), updateBold(), cons -- you should call boldLabel(nil) before changing list of labels and updateBold after
+		local prevBoldLabel
+		local function boldLabel(label)
+			if prevBoldLabel then
+				prevBoldLabel.Font = Enum.Font.SourceSans
+			end
+			prevBoldLabel = label
+			if label then
+				label.Font = Enum.Font.SourceSansBold
+			end
+		end
+		local function updateBold()
+			local playlist = music:GetEnabled() and getPlaylist()
+			if not playlist then
+				boldLabel(nil)
+				return
+			end
+			if playlist == music:GetActivePlaylist() then
+				boldLabel(indexToLabel(music:GetCurSongIndex()))
+			else
+				-- find first one that shares the same id
+				local targetId = music:GetCurSongId()
+				for i, id in ipairs(playlist.Songs) do
+					if id == targetId then
+						boldLabel(indexToLabel(i))
+						return
+					end
+				end
+				boldLabel(nil)
+			end
+		end
+		return boldLabel, updateBold, {
+			music.CurSongIndexChanged:Connect(updateBold),
+			music.EnabledChanged:Connect(updateBold),
+		}
+	end
+
 	-- Playlist Editor
 	local appendSong
-	local playlistEditor = content.PlaylistEditor
+	local playlistEditor = menu.PlaylistEditor
 	do
-		local customTracks = playlistEditor.CustomTracks
+		local customTracks = playlistEditor.CustomTracksHolder.CustomTracks
 		handleVerticalScrollingFrame(customTracks)
 		local newRow = customTracks.Row
 		newRow.LayoutOrder = 1e6
@@ -328,7 +496,7 @@ do -- Music
 		do -- Cannot delete the new song row
 			local button = newRow.DeleteHolder.Delete
 			button.AutoButtonColor = false
-			button.Text = ""
+			button.Image = ""
 			button.Active = false
 			button.BackgroundTransparency = 1
 		end
@@ -370,9 +538,12 @@ do -- Music
 			obj.Title.Text = music:GetDescForId(id)
 		end
 		local customObjs
+		local boldLabel, updateBold = genBoldLabel(function() return customPlaylist end, function(i) return customObjs:Get(i).Title end)
 		updatePlaylist = function()
+			boldLabel(nil)
 			customObjs:AdaptToList(customPlaylist and customPlaylist.Songs or {}, adaptToPlaylist)
 			newRow.ID.Text = ""
+			updateBold()
 		end
 		updatePlaylistName = function()
 			customName.PlaceholderText = customPlaylist and customPlaylist.Name or "Create/Edit"
@@ -497,7 +668,7 @@ do -- Music
 		local viewPlaylist
 		local viewPlaylistButton = playlistEditor.ViewPlaylist
 		local viewPlaylistLabel = viewPlaylistButton.Label
-		local viewTracks = playlistEditor.ViewTracks
+		local viewTracks = playlistEditor.ViewTracksHolder.ViewTracks
 		handleVerticalScrollingFrame(viewTracks)
 		local viewTemplate = viewTracks.Row
 		viewTemplate.Parent = nil
@@ -510,12 +681,15 @@ do -- Music
 			end)
 		end)
 		local cons
+		local boldLabel, updateBold = genBoldLabel(function() return viewPlaylist end, function(i) return viewObjs:Get(i).Title end)
 		local function setPlaylistToView(playlist)
 			viewPlaylist = playlist
 			viewPlaylistLabel.Text = playlist.Name
+			boldLabel(nil)
 			viewObjs:AdaptToList(playlist.Songs, function(obj, songId)
 				obj.Title.Text = music:GetDescForId(songId)
 			end)
+			updateBold()
 			if cons then
 				for _, con in ipairs(cons) do con:Disconnect() end
 			end
@@ -544,7 +718,6 @@ do -- Music
 		end)
 	end
 end
-
 topBarMenus[topBarLeft.Search] = BookSearch
 
 for button, menu in pairs(topBarMenus) do

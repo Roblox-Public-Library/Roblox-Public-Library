@@ -3,12 +3,14 @@ local Utilities = ReplicatedStorage.Utilities
 local Assert = require(Utilities.Assert)
 local Functions = require(Utilities.Functions)
 local Music = require(ReplicatedStorage.Music)
+local Tutorial = require(ReplicatedStorage.Tutorial)
 --local BookPouch = require(ReplicatedStorage.BookPouch)
 
 local Profile = {}
 Profile.__index = Profile
 local vars = {
-	-- field -> Class with .new and .Deserialize
+	Tutorial = Tutorial,
+	-- field -> Class with .new and .Deserialize (returned value should have :Serialize); may also have .DeserializeDataStore
 	-- The following capitalized fields are public but should be treated as read-only
 	Music = Music,
 	-- BookPouch = BookPouch,
@@ -31,7 +33,12 @@ function Profile:Serialize()
 end
 function Profile.Deserialize(profile)
 	for k, class in pairs(vars) do
-		profile[k] = class.Deserialize(profile[k])
+		local v = profile[k]
+		if v ~= nil then
+			profile[k] = class.Deserialize(profile[k])
+		else
+			profile[k] = class.new()
+		end
 	end
 	return setmetatable(profile, Profile)
 end

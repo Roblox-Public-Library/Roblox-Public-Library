@@ -12,6 +12,11 @@
 			"$path": "ServerScriptService",
 			"$ignoreUnknownInstances": true
 		},
+		"ServerStorage": {
+			"$className": "ServerStorage",
+			"$path": "ServerStorageCommands",
+			"$ignoreUnknownInstances": true
+		},
 		"StarterPlayer": {
 			"$className": "StarterPlayer",
 			"StarterPlayerScripts": {

@@ -45,6 +45,8 @@ for _, setName in ipairs({"SetEnabled", "SetActivePlaylist", "RemoveCustomPlayli
 		remote:FireServer(argsHandler(...))
 	end
 end
+local curSongIndexChanged = Instance.new("BindableEvent")
+music.CurSongIndexChanged = curSongIndexChanged.Event
 
 local playlistCreated = Event()
 local playlistRemoved = Event()
@@ -123,14 +125,14 @@ function music:InvokeRemoveCustomPlaylist(playlist)
 end
 
 local rnd = Random.new()
-local function shuffleAvoidFirst(list, whatToAvoidInFirstSpot)
-	--	shuffle the list but avoid putting as the first element 'whatToAvoidInFirstSpot'
+local function shuffleAvoidFirst(list, avoidAsFirstItem)
+	--	shuffle the list but avoid putting as the first element whatever avoidAsFirstItem(item) returns true for
 	local n = #list
 	if n == 1 then return list end
 	local index
-	for i = 1, 10 do -- Try up to 10x to avoid the 'whatToAvoidInFirstSpot' (could filter list to not include whatToAvoidInFirstSpot, but it's of small benefit)
+	for i = 1, 10 do -- Try up to 10x to avoid whatever it is that should be avoided (could filter list to not include whatToAvoidInFirstSpot, but it's of small benefit)
 		index = rnd:NextInteger(1, n)
-		if list[index] ~= whatToAvoidInFirstSpot then break end
+		if not avoidAsFirstItem(list[index]) then break end
 	end
 	list[1], list[index] = list[index], list[1]
 	for i = 2, n - 1 do
@@ -179,16 +181,15 @@ end)
 
 local localPlayer = game:GetService("Players").LocalPlayer
 local curSongList -- list of song IDs to play
+local curTrackIndex, nextTrackIndex -- index of song in current playlist
 local curTrackId, nextTrackId -- numeric form
 local curTrack = Instance.new("Sound")
 local nextTrack = Instance.new("Sound") -- what will be played once the current track is finished
 -- Idea is that nextTrack loads while curTrack plays
 curTrack.Parent = localPlayer
 nextTrack.Parent = localPlayer
-local curMusic = {} -- shuffled version of curSongList
-local curMusicIndex = 0
-local nextTrackStarted = Instance.new("BindableEvent")
-Music.NextTrackStarted = nextTrackStarted.Event -- todo if not when gui is done, delete
+local curMusic = {} -- shuffled list of *indices* to curSongList
+local curMusicIndex = 0 -- essentially the next index into curMusic
 
 local defaultVolume = 0.3
 local function getMusicVolume()
@@ -209,35 +210,78 @@ end)
 function Music:GetCurSongDesc()
 	return getDesc(curTrackId)
 end
-function Music:GetCurSongId() return curTrackId end
-function Music:GetCurSong() return curTrack end
+function Music:GetCurSongIndex() return curTrackIndex end -- index in current playlist
+function Music:GetCurSongId() return curTrackId end -- integer form
+function Music:GetCurSong() return curTrack end -- returns the Sound instance
 
-local function getNextSong(forceReshuffle) -- returns id, SoundId
+local function idToSoundId(id)
+	return "rbxassetid://" .. id
+end
+local function getNextSong(forceReshuffle) -- returns index, id, SoundId
 	curMusicIndex = curMusicIndex + 1
 	if forceReshuffle or not curMusic[curMusicIndex] then
-		curMusic = shuffleAvoidFirst({unpack(curSongList)}, curTrackId)
+		curMusic = {}
+		for i = 1, #curSongList do curMusic[i] = i end
+		curMusic = shuffleAvoidFirst(curMusic, function(index)
+			return curSongList[index] == curTrackId
+		end)
 		curMusicIndex = 1
 	end
-	local id = curMusic[curMusicIndex]
-	local soundId = "rbxassetid://" .. id
-	return id, soundId
+	local index = curMusic[curMusicIndex]
+	local id = curSongList[index]
+	return index, id, idToSoundId(id)
 end
-local playlistModified
-local function playNextSong(startingNewPlaylist)
+local function changeSong(modifyFunc)
 	curTrack:Stop()
-	if playlistModified or startingNewPlaylist then
-		playlistModified = false
-		nextTrackId, nextTrack.SoundId = getNextSong(true)
-	end
-	curTrack, nextTrack = nextTrack, curTrack
-	curTrackId = nextTrackId
+	modifyFunc()
 	curTrack.Volume = getMusicVolume()
 	curTrack:Play()
-	nextTrackId, nextTrack.SoundId = getNextSong()
-	nextTrackStarted:Fire()
+	curSongIndexChanged:Fire(curTrackIndex)
+end
+local function playNextSong(startingNewPlaylist)
+	changeSong(function()
+		if startingNewPlaylist then
+			nextTrackIndex, nextTrackId, nextTrack.SoundId = getNextSong(true)
+		end
+		curTrack, nextTrack = nextTrack, curTrack
+		curTrackId, curTrackIndex = nextTrackId, nextTrackIndex
+		nextTrackIndex, nextTrackId, nextTrack.SoundId = getNextSong()
+	end)
+end
+local function playPrevSong()
+	local n = #curMusic
+	if n == 1 then return end
+	changeSong(function()
+		-- curMusicIndex is more like nextMusicIndex
+		-- So we -2 to get the index that cur should be
+		-- Then we +1 later to so that playNextSong will work correctly
+		curMusicIndex -= 2
+		if curMusicIndex <= 0 then curMusicIndex += #curMusic end
+		nextTrack, nextTrackId, nextTrackIndex = curTrack, curTrackId, curTrackIndex
+		curTrackIndex = curMusic[curMusicIndex]
+		curTrackId = curSongList[curTrackIndex]
+		curTrack.SoundId = idToSoundId(curTrackId)
+		curMusicIndex = curMusicIndex % n + 1
+	end)
 end
 curTrack.Ended:Connect(playNextSong)
 nextTrack.Ended:Connect(playNextSong)
+function Music:PrevSong()
+	playPrevSong()
+end
+function Music:NextSong()
+	playNextSong()
+end
+function Music:TogglePause()
+	if curTrack.Playing then
+		curTrack:Pause()
+	else
+		curTrack:Resume()
+	end
+end
+function Music:IsPaused()
+	return not curTrack.Playing
+end
 local function setSongList(songList)
 	if #songList == 0 then error("Song list cannot be empty") end
 	curSongList = songList
@@ -253,8 +297,9 @@ activePlaylistChanged(music:GetActivePlaylist())
 music.ActivePlaylistChanged:Connect(activePlaylistChanged)
 
 local crazyMusic = ReplicatedStorage.DefaultMusic:GetChildren()
-function Music:GoCrazy()
+function Music:GoCrazy(initialSilenceDuration)
 	curTrack:Pause()
+	wait(initialSilenceDuration)
 	for _, s in ipairs(crazyMusic) do
 		s.Volume = getMusicVolume()
 		s:Play()

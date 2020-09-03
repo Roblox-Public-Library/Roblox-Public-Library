@@ -18,6 +18,7 @@ local DataStores = require(ServerScriptService.DataStores)
 local profileStore = DataStores:GetDataStore("Profiles")
 local oldPlaylistStore = DataStores:GetDataStore("Playlists")
 local Music = require(ServerScriptService.MusicServer)
+local Tutorial = require(ServerScriptService.Tutorial)
 local NewRemote = require(ServerScriptService.NewRemote)
 
 local Players = game:GetService("Players")
@@ -103,11 +104,32 @@ local function getProfile(player) -- note: can return nil if the player leaves b
 	end
 	return profile
 end
+local function pt(t,n,seen)
+	if not n then
+		n = 0
+		seen = seen or {[t]=true}
+		print(t)
+	end
+	local tab = string.rep("\t", n)
+	for k, v in pairs(t) do
+		print(tab .. tostring(k), v)
+		if type(v) == "table" and not seen[v] then
+			seen[v] = true
+			pt(v, n+1, seen)
+		end
+	end
+end
 new("RemoteFunction", "GetProfile").OnServerInvoke = function(player)
-	return getProfile(player):Serialize()
+	local data = getProfile(player):Serialize()
+	print(player, "Profile")
+	pt(data)
+	return data
 end
-local function getMusic(player)
-	local profile = getProfile(player)
-	return profile and profile.Music
+local function get(key)
+	return function(player)
+		local profile = getProfile(player)
+		return profile and profile[key]
+	end
 end
-Music.InitRemotes(NewRemote.newFolder(remotes, "Music", getMusic))
+Music.InitRemotes(NewRemote.newFolder(remotes, "Music", get("Music")))
+Tutorial.InitRemotes(NewRemote.new(remotes, get("Tutorial")))

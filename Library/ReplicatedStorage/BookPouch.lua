@@ -2,7 +2,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Class = require(ReplicatedStorage.Utilities.Class)
 local Assert = require(ReplicatedStorage.Utilities.Assert)
 
-local BookPouch = Class.new("BookPouch")
+local BookPouch = Class.New("BookPouch")
 
 function BookPouch.new(bookId) -- TODO arguments are allowed but must be optional
     return setmetatable({

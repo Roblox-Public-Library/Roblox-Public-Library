@@ -2,7 +2,19 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Books = {}
 local books = ReplicatedStorage:WaitForChild("GetBooks"):InvokeServer()
 function Books:GetBooks()
-	--	returns list of {.Id .Title .Author .Models}
+	--[[Returns a list of books:
+	{
+		Id = number (The book's unique ID),
+		Title = string (The book's name),
+		AuthorLine = string (An author line. Example: "author1, author2, and author3"),
+		Authors = dictionary (A dict of author usernames),
+		AuthorIds = dictionary (A dict of author ID's),
+		PublishDate = string (The date on which the book was published),
+		Librarian = string (The librarian's username),
+		Genres = List of string
+		Models = list of BookModel (The models of the book),
+	}
+	]]
 	return books
 end
 local modelToBook = {}
