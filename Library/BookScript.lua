@@ -1,4 +1,10 @@
--- Note: Modify the book color by changing the book's part color.
+--[[
+	Modifying the book's colors:
+
+	BookColor: Modify the book color by changing the book's part color.
+	TitleColor Modify the title'cs color on the cover and book by changing the TitleCoor property .
+	TitleOutlineColor: Modify the title outline color on the cover by changing the TitleOutlineColor property.
+]]--
 
 local title = "" -- String; Simple enough, the book's title. Example: "BookTemplate"
 local authorIds = {} -- List; The user ID/s of the author/s. Use false for anonymous users or if the author elects for a custom author name. Example: {false, 1}
@@ -38,20 +44,12 @@ local paragraphs =
 	[[/image12]]..image2,
 	[[etc]]}
 
+	Note: you may copy/paste the "[[]]," below as many times as you need to.
 ]=]--
 
-local paragraphs =
-	{[[]],
+local paragraphs = {
 	[[]],
-	[[]],
-	[[]],
-	[[]],
-	[[]],
-	[[]],
-	[[]],
-	[[]],
-	[[]],
-	[[]]}
+}
 
 -- Never modify this line:
-require(game:GetService("ServerScriptService").Books):Register(script, genres, cover, title, customAuthorLine, authorNames, authorIds, authorsNote, publishDate, paragraphs, librarian)
+require(game:GetService("ServerScriptService").Books):Register(script.Parent, genres, cover, title, customAuthorLine, authorNames, authorIds, authorsNote, publishDate, paragraphs, librarian)

@@ -1,8 +1,10 @@
+local MAKE_CHANGES = false -- false for debugging
+
 -- Run this in the command bar to modify all book scripts to store the id of all authors instead of just their usernames
 
 --[[Plan
 local authorName = "someone, BakedPot8to"
-local authorID = "anything"
+local autho:rID = "anything"l
 ->
 local authors = {123, "BakedPot8to"} -- assuming 2 authors. The 2nd author not wanting their real name to be known.
 
@@ -51,7 +53,6 @@ local function dealWithAuthors(s, source, start, genres)
     local _, stop, authorIdField = source:find('local authorID = "([^"]*)"') --, authorStop) [1 book has them out of order]
     authorIdField = authorIdField:gsub(" and", ","):gsub("/", "") -- one book each
 	local authors = authorField:split(", ")
-	-- where is the untitled file cant find it
     local authorIds = authorIdField:split(", ") -- will normally just be one; some won't even be numbers
     for i, author in ipairs(authors) do
         local id = userNameToId[author]
@@ -162,7 +163,7 @@ local function handleEnding(s, source, start)
 	if eStart then
 		s[#s + 1] = source:sub(start, eStart - 1)
 	end
-    s[#s + 1] = 'require(game:GetService("ServerScriptService").Books):Register(script, genres, cover, title, customAuthorLine, authorNames, authorIds, authorsNote, publishDate, paragraphs, librarian)'
+	s[#s + 1] = 'require(game:GetService("ServerScriptService").Books):Register(script.Parent, genres, cover, title, customAuthorLine, authorNames, authorIds, authorsNote, publishDate, paragraphs, librarian)'
 end
 local unknownGenres = {} -- pre-normalized genre -> true
 local ServerScriptService = game:GetService("ServerScriptService")
@@ -205,7 +206,6 @@ local tmpAliases = {
 	economics = "Economics & Money",
 	money = "Economics & Money",
 	scienceficiton = "Science Fiction",
-	robloxlua = "Lua",
 	learning = "Roblox Learning",
 	litfict = "English Literature",
 	grammar = "Reference",
@@ -388,15 +388,28 @@ local function stripGenresFromPartName(part, nameWithoutGenres, tagsNotIdentifie
 		newName = nameWithoutGenres
 	end
 	--print(part.Name, "->", newName)
-	--part.Name = newName -- todo enable at end
+	if MAKE_CHANGES then
+		part.Name = newName
+	end
 end
 local function getRidOfSpecials(s)
 	return s:gsub("[‘’]", "'"):gsub("[“”]", '"')
 end
+local function removeBookColor(bookScript)
+	bookScript.Parent.BrickColor = bookScript.BookColor.Value
+	bookScript.BookColor:Destroy()
+end
+local function updateTitleColors(bookScript)
+	bookScript.TitleColor.Parent = bookScript.Parent
+	bookScript.TitleOutlineColor.Parent = bookScript.Parent
+end
+
 local bookNameToGenre = {}
 local function handleBookScript(obj, genresOverride)
 	local source = getRidOfSpecials(obj.Source)
-	-- obj.Name = getRidOfSpecials(obj.Name) -- todo enable at end
+	if MAKE_CHANGES then
+		obj.Name = getRidOfSpecials(obj.Name)
+	end
 	local new = {}
 	local start = 1
 	local bookName = getBookName(obj)
@@ -416,12 +429,11 @@ local function handleBookScript(obj, genresOverride)
 	start = removeDoubleHeader(new, source, start, "---===Images===---")
 	start = removeDoubleHeader(new, source, start, "---===Story===---")
 	start = handleEnding(new, source, start)
-	-- print(table.concat(new))
-	-- print()
-	-- print(obj:GetFullName())
-	-- return true
-	--obj.Source = table.concat(new)
-	return table.concat(new) -- debug
+	if MAKE_CHANGES then
+		obj.Source = table.concat(new)
+	else -- debug
+		return table.concat(new)
+	end
 end
 local function getOrCreate(parent, name, type)
 	local obj = parent:FindFirstChild(name)
@@ -432,46 +444,55 @@ local function getOrCreate(parent, name, type)
 	end
 	return obj
 end
-local output = getOrCreate(game.ServerStorage, "Book Revamp Test Output", "Script") -- output is debug
 
+local output = MAKE_CHANGES or getOrCreate(game.ServerStorage, "Book Revamp Test Output", "Script") -- debug output
+print("OUTPUT:", output)
+local postBookGenres = {"Library Post"}
 for _, args in ipairs({{workspace.Books}, {workspace.BookOfTheMonth}, {workspace.NewBooks}, {workspace["Post Books"], postBookGenres}}) do
 	local container, genresOverride = args[1], args[2]
 	for _, obj in ipairs(container:GetDescendants()) do
 		if obj:IsA("Script") and obj.Name == "BookEventScript(This is what you edit. Edit nothing else.)" then
-			output.Source = RemoveAllComments(handleBookScript(obj, genresOverride), true) -- debug
-			break
-			--if handleBookScript(obj, genresOverride) then break end
+			if MAKE_CHANGES then
+				removeBookColor(obj)
+				updateTitleColors(obj)
+				handleBookScript(obj, genresOverride)
+			else -- debug
+				output.Source = RemoveAllComments(handleBookScript(obj, genresOverride), true)
+				break
+			end
 		end
 	end
 end
-local norms = {}
-for genre, t in pairs(unknownGenres) do
-	local norm = Genres.Normalize(genre)
-	norms[norm] = (norms[norm] or 0) + t
-end
-local list = {}
-for genre, t in pairs(norms) do
-	list[#list + 1] = {genre, t}
-end
-table.sort(list, function(a, b) return a[2] > b[2] end)
-for _, obj in ipairs(list) do
-	print(obj[1], ("\t(%d times)"):format(obj[2]))
-end
-print("\n*******************\n")
-for genre, t in pairs(unknownGenres) do
-	local norm = Genres.Normalize(genre)
-	print(genre, "\t", norm, ("\t(%d times)"):format(t))
+if not MAKE_CHANGES then
+	local norms = {}
+	for genre, t in pairs(unknownGenres) do
+		local norm = Genres.Normalize(genre)
+		norms[norm] = (norms[norm] or 0) + t
+	end
+	local list = {}
+	for genre, t in pairs(norms) do
+		list[#list + 1] = {genre, t}
+	end
+	table.sort(list, function(a, b) return a[2] > b[2] end)
+	for _, obj in ipairs(list) do
+		print(obj[1], ("\t(%d times)"):format(obj[2]))
+	end
+	print("\n*******************\n")
+	for genre, t in pairs(unknownGenres) do
+		local norm = Genres.Normalize(genre)
+		print(genre, "\t", norm, ("\t(%d times)"):format(t))
+	end
 end
 if numAuthorsNoId > 0 then
 	warn("numAuthorsNoId", numAuthorsNoId)
 end
 
-do return end -- todo enable below at end
-for _, obj in ipairs(workspace:GetDescendants()) do
-	if obj:IsA("Script") and obj:GetFullName() == "BookEventScript(This is what you edit. Edit nothing else.)" then
-		obj.Name = "BookScript"
-		obj.Parent.Cover.Texture = ""
-		obj.Source = RemoveAllComments(obj.Source, true)
+if MAKE_CHANGES then
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("Script") and (obj.Name == "BookEventScript(This is what you edit. Edit nothing else.)" or obj.Name == "BookScript") then -- 'or' part is debug!
+			obj.Name = "BookScript"
+			obj.Source = RemoveAllComments(obj.Source, true)
+		end
 	end
 end
 

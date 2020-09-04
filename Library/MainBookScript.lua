@@ -1,6 +1,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Books = require(ReplicatedStorage.BooksClient)
-local music = require(ReplicatedStorage.MusicClient)
+local musicClientScript = ReplicatedStorage:FindFirstChild("MusicClient")
+local music = musicClientScript and require(musicClientScript) or {GoCrazy = function() end} -- Allows this script to be used in workshops without the music system
 local localPlayer = game:GetService("Players").LocalPlayer
 local events = require(localPlayer:WaitForChild("PlayerScripts"):WaitForChild("Gui"):WaitForChild("BookGui")) -- temporary patch to new menu system
 local specialScreen = script.Parent.Parent:WaitForChild("SpecialScreen")
@@ -498,7 +499,10 @@ local function handleStrokeColor(textColor, strokeColor)
 		or strokeColor
 end
 
-ReplicatedStorage.BookOpen.OnInvoke = function(model, authorsNote, bookWords)
+local open = Instance.new("BindableFunction")
+open.Name = "OpenBook"
+open.Parent = ReplicatedStorage
+open.OnInvoke = function(model, authorsNote, bookWords)
 	local book = Books:FromObj(model)
 	local titleTextColor = model.TitleColor.Value
 	local titleStrokeColor = handleStrokeColor(titleTextColor, model.TitleOutlineColor.Value)

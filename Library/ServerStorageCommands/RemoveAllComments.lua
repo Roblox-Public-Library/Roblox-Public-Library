@@ -101,7 +101,7 @@ local function removeAllComments(source, removeBlankLines)
 			break
 		end
 	end
-	endOfSource(lengthPlusOne)
+	endOfSource()
 	return removeBlankLines and
 		String.Trim(table.concat(s)):gsub("\n\n+", "\n\n")
 		or table.concat(s)

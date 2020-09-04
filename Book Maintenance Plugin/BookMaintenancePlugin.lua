@@ -12,52 +12,184 @@ Responsibilities:
 local ServerStorage = game:GetService("ServerStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local BookChildren = require(ServerScriptService.BookChildren)
+local Genres = require(ServerScriptService.Genres)
+local Utilities = game:GetService("ReplicatedStorage").Utilities
+local String = require(Utilities.String)
+local List = require(Utilities.List)
 
--- In this script, a "book" is its BasePart
---	It is expected to have a script child (any name; the script must have a BookColor child) and also a ClickDetector child
---	(These are searched for in isBook)
+-- In this script, a "model" is the BasePart of a book. A "book" refers to a table with fields including Title, Author, Models, and Source.
 
-local sourceToData do
-	local function genGetData(var)
-		local find = "local " .. key .. '%s*=?%s*"([^"\n])"'
+local sourceToData, dataKeyList do
+	local function genGetData(key)
+		local find = "local%s+" .. key .. '%s*=?%s*"([^"\n])"'
 		return function(source)
 			local _, _, data = source:find(find)
 			return data ~= "" and data or nil
 		end
 	end
 	local getAuthorLine = genGetData("customAuthorLine")
-	local function genGetListData(var)
-		local find = "local " .. key .. '%s*=?%s*"([^"\n])"'
-		return function(source)
+	local function genGetListData(key)
+		-- todo: wrong format (need var = {"a", "b", "c", false})
+		--local find = "local " .. key .. '%s*=?%s*"([^"\n])"'
+		local find = "local%s+" .. key .. '%s*=?%s*%{([^}]*)%}'
+		return function(source, model)
 			local _, _, data = source:find(find)
 			if not data or data == "" then return nil end
-			-- data will be in format '"a", "b", "c"', but we want "a, b, and c"
+			-- data will be in format '"a", "b", "c"' but we want it in table format
 			local new = {}
-			for _, v in ipairs(data:gsub('"', ""):split(",")) do
+			for _, v in ipairs(data:split(",")) do
 				v = String.Trim(v)
-				if v ~= "" then
-					new[#new + 1] = v
+				if v == "" then continue end
+				-- try and interpret its type
+				if v:sub(1, 1) == '"' or v:sub(1, 1) == "'" then
+					new[#new + 1] = v:sub(2, -2)
+				elseif v:sub(1, 2) == "[[" then
+					new[#new + 1] = v:sub(3, -3)
+				elseif v == "true" then
+					new[#new + 1] = true
+				elseif v == "false" then
+					new[#new + 1] = false
+				else
+					local n = tonumber(v)
+					if n then
+						new[#new + 1] = n
+					else
+						warn(("Unexpected value '%s' in %s in %s"):format(v, key, model:GetFullName()))
+					end
 				end
 			end
-			return #new > 0 and List.ToEnglish(new) or nil
+			return new
 		end
 	end
-	local getAuthorNames = genGetListData("authorNames")
 	local dataProps = {
 		Title = genGetData("title"),
-		Authors = function(source) return getAuthorLine(source) or getAuthorNames(source) end,
-		PublishDate = genGetData("PublishDate"),
-		Librarian = genGetData("Librarian"),
-		Genres = genGetListData("Genres"),
+		CustomAuthorLine = getAuthorLine,
+		AuthorNames = genGetListData("authorNames"),
+		AuthorIds = genGetListData("authorIds"),
+		PublishDate = genGetData("publishDate"),
+		Librarian = genGetData("librarian"),
+		Genres = genGetListData("genres"),
 	}
 	sourceToData = function(source, models)
-		local data = {Models = models}
+		local data = {
+			Models = models,
+			Source = source,
+		}
+		local model = models[1]
 		for k, v in pairs(dataProps) do
-			data[k] = v(source)
+			data[k] = v(source, model)
 		end
+		data.Authors = data.CustomAuthorLine or List.ToEnglish(data.AuthorNames)
 		return data
 	end
+	dataKeyList = {"Title", "Authors", "PublishDate"} -- different books with these fields identical are not allowed
 end
+
+-- local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local function getUsername(userId)
+	local success, username = pcall(Players:GetNameFromUserIdAsync(userId))
+	if success then
+		return username
+	else
+		local isBanned = username:find("HTTP 400") -- thatll work too loool
+		-- I still want to know: what do we want to do if we find out they're banned?
+		-- I guess we could invalidate their id (turn them into anonymous)
+		-- smart
+		-- hmm
+		-- oh yea thats what i said before make it false
+		-- if they're banned, then we can do something useful (though idk what?)
+		-- we might as well use the proxy to check for banned users too
+		--occurs for id 4 (banned user):
+		--			Players:GetNameFromUserId() failed because HTTP 400 (BadRequest)
+		-- if the service is down, we need to "cool down" and try again later
+		return pcall(Players:GetNameFromUserIdAsync(userId))
+	end
+--	return HttpService:GetAsync("https://get-username.glitch.me/" .. userId)
+end
+--[[
+get username
+if 400, banned, so add a "banned" tag as a child. Maintenance must notice this and set author id to false in source and remove from data base
+if any other error, warn (we need to deal with it at that time) and don't try again for that user for 1 minute
+	if the warning has already occurred, don't repeat it
+	if it has occurred 60x in this session, stop for 15 minutes and reset the count
+if username different, add a "new" username StringValue as a child. Maintenance must notice this and update the author names for all scripts that have that author id.
+except for unknown errors, advance the time to check this username/id pair by 1 week (7*24*3600)
+]]
+-- trying something:
+-- local banned = {}
+-- for i = 1234567, 1234567 + 100 do
+-- 	local a, b = pcall(function() Players:GetNameFromUserIdAsync(i) end)
+-- 	if not a then
+-- 		if b ~= "Players:GetNameFromUserId() failed because HTTP 400 (BadRequest)" then
+-- 			print(i, b)
+-- 		end
+-- 		banned[#banned + 1] = tostring(i)
+-- 	end
+-- end
+-- print(#banned, "banned", table.concat(banned, ", "))
+--12 banned 4, 5, 7, 9, 10, 11, 12, 13, 14, 15, 19, 20
+
+-- I tried a bunch more #s and none of them came back with a different error message
+--	I still wonder if a temporarily banned/suspended person would yield a different one - I have seen Roblox's website do 2 dif things for that, so idk if the function acts any differently
+
+--[[We need a plan for how we can avoid asking Roblox for 3k author ids at once
+Ideas:
+-In ServerStorage, have a database of when we last checked a username/id connection and only check it periodically
+-If we get a '429' in an error msg, we know we need to not make any more requests for a while (even if none have been made)
+	-If we get a different error message, warn in Output
+-What do we do if we get a different error message? Probably also do nothing for like 5 minutes?
+-Yea and inform the book mover (person who moved the books and pressed the book maintanence button)
+
+Idea:
+-We could start up this routine that gradually checks for ids/usernames when the plugin loads without any user input at all
+	(but only if there is book storage data)
+oh ya
+Does that seem okay to do?
+	you need someone in studio tho (I think)
+	o lol
+	Yes, but I don't think someone has to *stay* in studio - I mean, we should make it so that it spreads things out while you're in there
+	not so slow that you'd have to stay in there 24/7 for things to get updated xD
+
+Another idea:
+-Maybe this routine should mark things as "needs to be changed" but doesn't try to make the changes?
+	(Not sure if that's a good idea?)
+	oh
+	The maintenance script would update it when it's explicitly run by the user
+	I think it might be a good idea to not change book sources automatically, especially because I don't want a script source changed if it doesn't have an id
+		or if it's configured poorly and needs manual fixing before the maintenance script is happy
+		the routine wouldn't know without running the whole analysis whether a script is valid or not
+		ok
+cool, that makes the routine simpler
+it's job is to not-too-fast ask Roblox for ids that haven't been checked in... a week?
+yes
+and to update the "database" with what it finds
+
+the maintenance script must record all author ids and their usernames (ignoring anonymous ones) so the routine knows what to look for
+Book Data Storage
+	.ErrorCooldown:time when the routine may resume due to an error
+	.Authors
+		IntValue authorId whose name is the username
+			IntValue NextCheck time (based on os.time()). We just add the proper # of seconds when a check has been made.
+			ObjectValue that points to the player whose plugin is looking it up (ObjectValue is not archivable and normally doesn't exist)
+			> A plugin should set the parent of its ObjectValue to the thing it wants to look up, then wait a moment and make sure it's the only ObjectValue in that child
+			> It shouldn't have to wait at all if you're the only client connected (based on Players)
+
+			We should check - what happens if you ask for a banned user?
+			uhm just delete the id and put false
+
+I meant what happens to the proxy/app you setup -- but that's a good point too
+         #2 == "John Doe" with 502k followers
+lol - id #3 == "Jane Doe"
+ah, #4 is 404, so let's see...
+
+the routine must leave the list of "these have changed" somewhere for the maintenance script to find
+	could just be a child of the entries above
+
+also, if 2+ people have the plugin and are in the place at the same time, they must be careful not to do the same work! yes
+
+
+]]
 
 local generateReportToScript do
 	local reportTable = {
@@ -66,13 +198,14 @@ local generateReportToScript do
 		{"Author(s)", 30, "Authors"},
 		{"Published On", 14, "PublishDate"},
 		{"Librarian", 20},
-		{"Copies", 10, function(book) return #book.Models end}
+		{"Copies", 10, function(book) return #book.Models end},
 		{"Genres", 200},
 	}
 	for _, report in ipairs(reportTable) do
 		local key = report[3] or report[1]
 		if type(key) == "string" then
-		report[3] = function(book) return book[key] end
+			report[3] = function(book) return book[key] end
+		end
 	end
 	local function leftAlign(s, width)
 		--	s: string
@@ -97,11 +230,11 @@ local generateReportToScript do
 	end
 	local function generateReportString(books)
 		local s = {"--[===[\n"}
-		addHeaderLine(s, books)
+		addHeaderLine(s)
 		for _, book in ipairs(books) do
 			bookToReportLine(s, books)
 		end
-		s[#s + 1] = "\n]===]")
+		s[#s + 1] = "\n]===]"
 		return table.concat(s)
 	end
 	generateReportToScript = function(report, books)
@@ -128,9 +261,9 @@ local function getOrCreate(parent, name, type)
 end
 
 local function isBook(obj)
-	if obj:IsA("BasePart") and obj:FindFirstChild("ClickDetector") then
+	if obj:IsA("BasePart") and obj:FindFirstChild("BookNameFront") then
 		local script = obj:FindFirstChildOfClass("Script")
-		return script and script:FindFirstChild("BookColor")
+		return script
 	end
 	return false
 end
@@ -171,19 +304,67 @@ local function findAllBooks()
 	return books
 end
 
-local function readIdsFolder(report, idsFolder)
-	--	returns idToModels, idToFolder
-	local idToModels = {}
-	local idToFolder = {}
+local storeReturnSame do
+	local fields = {}
+	-- fields["someAuthor"] = {["someTitle"] = {etc}} -- in order of dataKeyList
+	local function getOrCreate(t, k)
+		local v = t[k]
+		if not v then
+			v = {}
+			t[k] = v
+		end
+		return v
+	end
+	local function valueToString(v)
+		return type(v) == "table" and table.concat(v, "\127") or tostring(v)
+	end
+	local numDataKeyList = #dataKeyList
+	storeReturnSame = function(book)
+		--	Store book in 'fields', unless another book is found that has the same fields (in which case it is returned)
+		local t = fields
+		for i = 1, numDataKeyList - 1 do
+			t = getOrCreate(book[dataKeyList[i]])
+		end
+		local key = dataKeyList[numDataKeyList]
+		local other = t[key]
+		if other then
+			return other
+		else
+			t[key] = book
+		end
+	end
+end
+
+local storage
+local function getStorage()
+	if not storage then
+		storage = getOrCreate(ServerStorage, "Book Data Storage", "Folder")
+	end
+	return storage
+end
+local idsFolder
+local function getIdsFolder()
+	if not idsFolder then
+		idsFolder = getOrCreate(getStorage(), "Ids", "Folder")
+	end
+	return idsFolder
+end
+local idToModels, idToFolder -- can read from these after calling readIdsFolder
+local function readIdsFolder(report)
+	--	stores results in idToModels, idToFolder (and also returns them)
+	if idToModels then return end -- already cached (this is broken by updateIdsFolder)
+	getIdsFolder()
+	idToModels = {}
+	idToFolder = {}
 	local invalid = 0
 	for _, obj in ipairs(idsFolder:GetChildren()) do
 		if obj.ClassName ~= "ObjectValue" then
-			warn(("Invalid value in %s: %s (a %s instead of an ObjectValue"))
+			warn(("Invalid value in %s: %s (a %s instead of an ObjectValue"):format(idsFolder:GetFullName(), obj.Name, obj.ClassName))
 			invalid += 1
 		else
 			local id = tonumber(obj.Name)
 			if not id then
-				warn("Incorrectly named entry:", idsFolder:GetFullName())
+				warn("Incorrectly named entry:", obj:GetFullName())
 				invalid += 1
 			else
 				local models = {}
@@ -193,7 +374,7 @@ local function readIdsFolder(report, idsFolder)
 					end
 				end
 				considerAdd(obj.Value)
-				local _, c in ipairs(obj:GetChildren()) do
+				for _, c in ipairs(obj:GetChildren()) do
 					considerAdd(c.Value)
 				end
 				idToModels[id] = models
@@ -202,11 +383,17 @@ local function readIdsFolder(report, idsFolder)
 		end
 	end
 	if invalid > 0 then
-		report[#report + 1] = ("Detected %d invalid id entries - see warnings above for objects to remove/deal with"):format(invalid)
+		local msg = ("Detected %d invalid id entries - see warnings above for objects to remove/deal with"):format(invalid)
+		if report then
+			report[#report + 1] = msg
+		else
+			warn(msg)
+		end
 	end
 end
-local function updateIdsFolder(report, idsFolder, idToFolder, books)
+local function updateIdsFolder(report, books, invalidIds)
 	for _, book in ipairs(books) do
+		if invalidIds[book.Ids] then continue end
 		local sId = tostring(book.Id)
 		local folder = idToFolder[sId]
 		if folder then
@@ -231,7 +418,7 @@ local function updateIdsFolder(report, idsFolder, idToFolder, books)
 			children[i - 1].Value = models[i]
 		end
 		-- Remove excess children
-		for i = #models - 1, #children do
+		for i = #models, #children do -- ex if there are 2 models, we want to delete child #2+ (should be left with 1 child)
 			children[i].Parent = nil
 		end
 	end
@@ -242,147 +429,154 @@ local function updateIdsFolder(report, idsFolder, idToFolder, books)
 		n += 1
 	end
 	report[#report + 1] = ("Removed %d unused id entries"):format(n)
+	idToModels = nil
+	idToFolder = nil
 end
---[[Thoughts
-
-To handle someone changing one source:
-	There should be a button to say "Update Copies" - based on selected
-	(It should run maintenance if there is no id for the selected book.)
-
-	If someone doesn't press the button, the plugin will see two different sources with the same id
-		If the fields are almost all the same, it might be the same book
-		But there's never a way to tell for sure
-
-	Unless we store the source (or a hash of it, which would be more processing)
-
-The question is if someone changes the source of one book but not its copies, what to do?
-um so like for BOTM and post (the copies)
-Right, and I think on some displays the same book might be in workspace.Books 2x or more
-Ok but they won't have the same part name only the title (most of the time)
-
-The process is this:
-	-They transfer the book and optionally make copies
-	-This plugin runs and assigns the book an ID. It detects copies based on scripts having the same source
-	-If someone changes the source of only 1 of those copies,
-	we're left with 2+ books that have the same ID but we're not sure if it's a new book or someone failed to update them
-oh then  you should just compare by title since we don't change it much
-
-	what if the title is what they changed/updated?
-	uh
-
-1. Books have an id as a child
-	If discrepency, we don't know if the odd book out is new (moved from other place) or incorrectly updated
-	> but ObjectValues will refer to the book!* <-- TODO act on this
-		> this is the case regardless of if books have an id
-2. Books don't have an id as child
-	If discrepency,
-
-* the plan is to have
-ServerStorage.Book Data Storage.Ids
-	[id#]:ObjectValue = 1st copy
-		[""]:ObjectValue = 2nd copy <-- repeat this as many times as needed
-
-
-Books will read from storage whenever a book registers (to determine its id)
-Books:
-	Server scripts can figure out the id of a reference and store it in 'books' (repl'd to client)
-
-Do the ids even need to be there? No!
-SelectScript could ask via book ref
-
-
-
-]]
+local function verifyExistingBooksHaveSameId(idToModels, invalidIds, invalidSources)
+	--	invalidIds[id] = true is performed for any id that has this problem
+	--	invalidSources[source] = true is also performed for all sources affected
+	for id, models in pairs(idToModels) do
+		if #models > 1 then
+			local first = models[1]:FindFirstChildOfClass("Script").Source
+			for i = 2, #models do
+				local other = models[i]:FindFirstChildOfClass("Script").Source
+				if first ~= other then
+					warn(("%s's source is different than %s's! Select the newer book and click \"Update Copies\" to fix, then run maintenance again."):format(
+						models[1]:GetFullName(),
+						models[i]:GetFullName()))
+					invalidSources[first] = true
+					invalidSources[other] = true
+					invalidIds[id] = true
+				end
+			end
+		end
+	end
+end
 
 local function assignIds(report, books)
-	local new = {} -- list of new books (each entry is the list of models)
-	local storage = getOrCreate(ServerStorage, "Book Data Storage", "Folder")
-	local idsFolder = getOrCreate(storage, "Ids", "Folder")
 	--[[Ids folder
 	Contents: ObjectValue with .Name = id for the first model with 0+ ObjectValue children (nameless) for each extra model
-	Purpose: protect against possibility that a book was already given an id (manually or by this plugin in a different place)
-	Each book that does not have an id in this folder can have its id removed if there's anything wrong with it
+	Purposes:
+		Keeps track of the ids for each book in a place that can't easily be modified by people moving/editing books
+		If we kept ids in books, then using this plugin on a book in a different place would mess things up if someone then transfers that book to this place
 	]]
-	local idToModels, idToFolder = readIdsFolder(report, idsFolder)
-	local maxId = getOrCreate(storage, "MaxId", "IntValue")
-	local maxIdExisted = maxId.Value ~= 0
+	readIdsFolder(report)
+	local maxId = getOrCreate(getStorage(), "MaxId", "IntValue")
+
+	local invalidIds, invalidSources = {}, {} -- id/source->true if there is an id problem and books relating to this id/source should not be given ids
+	verifyExistingBooksHaveSameId(idToModels, invalidIds, invalidSources)
 	--[[
-	can we just update the ids based on the internal?
-		*or* we could even generate the ids at runtime rather than at edit time
+	for each book in books ('new' == no id record in ids):
+		if 2+ old & they have inconsistent ids
+			how would this happen if they have the identical source?
+			maybe if it was configured incorrectly earlier
+			problem: they'll now have different ids and this may have been put in the data store
+				theoretically we *could* have some sort of id updater
 
-
-	for each set of models
-		if the list has inconsistent ids:
-			if it's a new book according to idToModels, delete the id
-			else if it used to have a different id, revert
-		if the list is consistent but some lack, clone to the ones that lack
-		if the list has none, add to new
+		if 1+ old & 1+ new, give the new ones the same id (ie don't remove them from 'books', since all assumed to share the same id)
+		if all old, do nothing
+		if all new:
+			if it shares the same fields as a different book (use dataKeyList)
+				warn
+				if the other book is fully new, add it to the "invalid" table
+				add this book to "invalid" table
+				(do not register ids for anything in the "invalid" table)
 	]]
+	local modelToId = {}
+	for id, models in pairs(idToModels) do
+		for _, model in ipairs(models) do
+			modelToId[model] = id
+		end
+	end
+	local new = {} -- List<book>
+	local invalidIfNew = {} --[book] = true; used to ignore new books if they don't share the source but do share the fields
 	for _, book in ipairs(books) do
 		local models = book.Models
-		-- Check to see if there are any inconsistencies and verify id values
-		local id
-		local inconsistent, invalid = false, false
+		local allNew = true
+		local allOld = true
+		-- Check to see if there are any inconsistencies
+		local existingId
+		local invalid -- becomes true if this book uses an invalid source or id
 		for _, model in ipairs(models) do
-			local curId = model:FindFirstChild("Id")
-			if curId then
-				if curId.Value <= 0 or curId.Value % 1 ~= 0 then
-					warn("Ids must be positive integers, not", curId.Value, model:GetFullName())
+			local id = modelToId[model]
+			if not existingId then
+				existingId = id
+			elseif existingId ~= id then -- same source has multiple ids
+				warn("CRITICAL: Same book source has multiple ids! If the books haven't been published to the live game, carefully delete the invalid ids from ServerStorage.Book Data Storage.Ids")
+				warn("\tOtherwise, notify the scripting team immediately to implement an id upgrader to handle this situation! Affected books:")
+				local entries = {}
+				for i, model in ipairs(models) do
+					local id = modelToId[model]
+					entries[i] = ("\t(%s) %s"):format(id and "Id " .. id or "No id", model:GetFullName())
+				end
+				warn(table.concat(entries, "\n"))
+				invalid = true
+				break
+			end
+			if id then
+				allOld = false
+				if invalidIds[id] then -- already warned about
 					invalid = true
 					break
-				elseif curId.Value > maxId.Value and maxId.Value > 0 then
-					warn("Id likely edited manually (it is larger than expected):", curId.Value, model:GetFullName())
-					invalid = true -- a way-too-large ID would mean that all IDs have to be at least that large from now on, so we skip this
-					break
 				end
-				if id then
-					if id.Value ~= curId.Value then
-						inconsistent = true
-						break
-					end
-				else
-					id = curId
-				end
+			else
+				allNew = false
 			end
 		end
 		if invalid then
-			continue
-		elseif inconsistent then
-			local t = {}
-			for i, model in ipairs(models) do
-				local id = model:FindFirstChild("Id")
-				t[i] = ("%s (%s)"):format(model:GetFullName(), id and id.Value or "nil")
-			end
-			warn("Book duplicates have inconsistent ids:", table.concat(t, ", "))
-			continue
-		end
-		if id then -- Fill in any missing ids
-			book.Id = id
+			invalidSources[book.Source] = true
 			for _, model in ipairs(models) do
-				if not model:FindFirstChild("Id") then
-					id:Clone().Parent = model
+				local id = modelToId[model]
+				if id then
+					invalidIds[id] = true
 				end
 			end
-		else -- Add to new list
-			new[#new + 1] = book
+		elseif not allNew then -- either they're all old or there are new copies but no inconsistencies; accept the id either way
+			book.Id = existingId
+		else --allNew. if it doesn't share fields with another book, add to 'new' list so it can get a new id if its source doesn't end up on the invalid list
+			local other = storeReturnSame(book)
+			if other then -- Same fields
+				if not (invalidIfNew[other] and invalidIfNew[book]) then
+					invalidIfNew[other] = true
+					invalidIfNew[book] = true
+					warn(other.Models[1]:GetFullName(), "has a different source but the same fields as", book.Models[1]:GetFullName() .. ". Either change the fields or make the sources the same.")
+					if #other.Models > 1 then
+						local entries = {}
+						for i, model in ipairs(other.Models) do
+							entries[i] = ("\t> %s"):format(model:GetFullName())
+						end
+						warn("\tCopies of first:")
+						warn(table.concat(entries, "\n"))
+					end
+					if #book.Models > 1 then
+						local entries = {}
+						for i, model in ipairs(book.Models) do
+							entries[i] = ("\t> %s"):format(model:GetFullName())
+						end
+						warn("\tCopies of second:")
+						warn(table.concat(entries, "\n"))
+					end
+				end -- else otherwise warned already (not likely to happen, but could if 3 different variants all share same fields)
+			else
+				new[#new + 1] = book
+			end
 		end
 	end
 	local nextId = maxId.Value + 1
+	local skipped = 0
 	for _, book in ipairs(new) do
-		local id = Instance.new("IntValue")
-		id.Name = "Id"
-		id.Value = nextId
-		book.Id = nextId
-		nextId = nextId + 1
-		local models = book.Models
-		id.Parent = models[1]
-		for i = 2, #models do
-			id:Clone().Parent = models[i]
+		if invalidIfNew[book] or invalidSources[book.Source] then
+			skipped += 1
+			continue
 		end
+		book.Id = nextId
+		nextId += 1
 	end
-	report[#report + 1] = ("%d new book IDs assigned"):format(nextId - 1 - maxId.Value)
+	report[#report + 1] = ("%d new book ids assigned%s"):format(
+		nextId - 1 - maxId.Value,
+		skipped > 0 and ("(%d skipped)"):format(skipped) or "")
 	maxId.Value = nextId - 1
-	updateIdsFolder(report, idsFolder, idToFolder, books)
+	updateIdsFolder(report, books, invalidIds)
 end
 
 local function deleteUnneededChildren(books)
@@ -392,7 +586,7 @@ local function deleteUnneededChildren(books)
 		end
 	end
 end
-local function updateCovers(books)
+local function updateCoverGuis(books)
 	for _, book in ipairs(books) do
 		local title = book.Title
 		for _, model in ipairs(book.Models) do
@@ -404,14 +598,151 @@ local function getRidOfSpecialCharacters(s)
 	return s:gsub("[‘’]", "'"):gsub("[“”]", '"')
 end
 local function getRidOfAllSpecialCharacters(books)
-	for _, book in ipairs(books) do
-		local newSource
+	for i, book in ipairs(books) do
+		local newSource = getRidOfSpecialCharacters(book.Source)
+		if newSource == book.Source then
+			newSource = false
+		else
+			books[i] = sourceToData(newSource, book.Models) -- recalculate fields (the transformation may have modified them)
+		end
 		for _, model in ipairs(books.Models) do
-			local s = model:FindFirstChildOfClass("Script")
-			newSource = newSource or getRidOfSpecialCharacters(s.Source)
-			s.Source = newSource
+			if newSource then
+				model:FindFirstChildOfClass("Script").Source = newSource
+			end
 			book.Name = getRidOfSpecialCharacters(book.Name)
 		end
+	end
+end
+
+local getGenreInputFromShelf do
+	local neonList = {}
+	for _, d in ipairs(workspace:GetDescendants()) do
+		-- Note: some shelves called "Shelfette"
+		if d.Name == "Neon" and d:FindFirstChild("GenreText") then
+			neonList[#neonList + 1] = d
+		end
+	end
+	local up = Vector3.new(0, 2.2, 0) -- theoretically 1.2 should suffice
+	local down = Vector3.new(0, -2, 0) -- theoretically -1 should suffice
+	local dirs = {up, down}
+	local raycastParams = RaycastParams.new()
+	raycastParams.FilterType = Enum.RaycastFilterType.Whitelist
+	raycastParams.FilterDescendantsInstances = neonList
+	local function getShelfFromBook(bookModel)
+		for _, dir in ipairs(dirs) do
+			local raycastResult = workspace:Raycast(bookModel.Position, dir, raycastParams)
+			if raycastResult and raycastResult.Instance then
+				return raycastResult.Instance
+			end
+		end
+	end
+	function getGenreInputFromShelf(book)
+		local shelf = getShelfFromBook(book)
+		if not shelf then return nil end
+		local relCF = shelf.CFrame:ToObjectSpace(book.CFrame)
+		local desiredFace = relCF.Z > 0 and Enum.NormalId.Back or Enum.NormalId.Front
+		for _, genreText in ipairs(shelf:GetChildren()) do
+			if genreText.Face == desiredFace then
+				return genreText.TextLabel.Text, shelf
+			end
+		end
+		print(shelf:GetFullName(), book:GetFullName(), relCF, desiredFace)
+		warn("Error: Didn't find genreText with desired face")
+		return nil
+	end
+end
+local function updateBookSource(book, source)
+	book.Source = source
+	for _, model in ipairs(book.Models) do
+		model:FindFirstChildOfClass("Script").Source = source
+	end
+end
+local function listToTableContents(list)
+	--	ex the list {false, "hi"} -> the string 'false, "hi"' (suitable for storing in a script)
+	local new = {}
+	for i, item in ipairs(list) do
+		new[i] = type(item) == "string" and ('"%s"'):format(item) or tostring(item)
+	end
+	return table.concat(new, ", ")
+end
+local function verifyGenres(report, books)
+	local noShelfBooks = {}
+	local shelfGenreWarnings = {}
+	local genreFixes = 0
+	for _, book in ipairs(books) do
+		if not book.Id then continue end -- validation issue
+		local modified = false
+		local invalid = {}
+		local genres = book.Genres
+		for i, input in ipairs(genres) do
+			local genre = Genres.InputToGenre(input)
+			if genre and genre ~= input then
+				modified = true
+				genreFixes += 1
+				genres[i] = genre
+			elseif not genre then
+				invalid[#invalid + 1] = input
+			end -- else genre == input so no change to make
+		end
+		if #invalid > 0 then
+			warn(("%s's genres contain invalid entries: %s"):format(book.Models[1]:GetFullName(), table.concat(invalid, ", ")))
+		end
+		-- Find genre from shelf (if any)
+		local genreInput
+		for _, model in ipairs(book.Models) do
+			local input = getGenreInputFromShelf(book.Models)
+			if input then
+				if genreInput and genreInput ~= input then
+					-- NOTE: Could warn about different copies being on different shelves
+					-- However, theoretically this might be desired (ex due to the same book being in different genres)
+				else
+					genreInput = input
+					break -- Note: if we want to warn about different copies on different shelves, delete this line
+				end
+			end
+		end
+		if not genreInput then
+			noShelfBooks[#noShelfBooks + 1] = book
+		else
+			local genre = Genres.InputToGenre(genreInput)
+			if not genre and not shelfGenreWarnings[genreInput] then
+				warn("Shelf was labelled with unknown genre", genreInput)
+				shelfGenreWarnings[genreInput] = true
+			end
+			if genre and not table.find(genres, genre) then
+				warn(("%s is on shelf %s (genre %s) but is lacking that genre!"):format(
+					book.Models[1]:GetFullName(),
+					genreInput,
+					genre))
+			end
+		end
+		if modified then -- Update script with modified genres
+			local source = book.Source
+			local _, lastCharToKeep = source:find("local%s+genres%s*=%s*%{")
+			if not lastCharToKeep then -- implies scripting bug
+				warn("Attempt to update genres source failed for", book.Models[1]:GetFullName())
+				continue
+			end
+			local _, lastCharToThrow = source:find("}", lastCharToKeep, true)
+			if not lastCharToThrow then -- implies scripting bug
+				warn("Attempt to update genres source failed for", book.Models[1]:GetFullName())
+				continue
+			end
+			updateBookSource(book, ("%s%s%s"):format(
+				source:sub(1, lastCharToKeep),
+				listToTableContents(genres),
+				source:sub(lastCharToThrow + 1)))
+		end
+	end
+	if genreFixes > 0 then
+		report[#report + 1] = ("%d genre tags fixed"):format(genreFixes)
+	end
+	if #noShelfBooks > 0 then
+		local compiled = {}
+		for i, book in ipairs(noShelfBooks) do
+			compiled[i] = book.Models[1]:GetFullName()
+		end
+		report[#report + 1] = ("The %d following books have no copies on any shelf:\n\t%s"):format(#noShelfBooks, table.concat(compiled, "\n\t"))
 	end
 end
 
@@ -432,7 +763,49 @@ local function removeUnnecessaryWelds(report)
 end
 
 local toolbar = plugin:CreateToolbar("Book Maintenance")
-local bookMaintenanceButton = toolbar:CreateButton("Book Maintenance", "Run book maintenance", "")
+local bookMaintenanceButtonSelection = toolbar:CreateButton("Update\nCopies", "Update other copies of the selected book to reflect new script changes", "")
+local Selection = game:GetService("Selection")
+bookMaintenanceButtonSelection.Click:Connect(function()
+	local selected = Selection:Get()
+	if #selected ~= 1 then
+		warn("Please select only the book script or model of the updated book before clicking this button.")
+		return
+	end
+	selected = selected[1]
+	local bookModel = isBook(selected) and selected
+		or isBook(selected.Parent) and selected.Parent
+	if not bookModel then
+		warn("Please select the book script or model of the updated book before clicking this button.")
+		return
+	end
+	readIdsFolder()
+	for id, models in pairs(idToModels) do
+		local source, foundIndex
+		for i, model in ipairs(models) do
+			if model == bookModel then
+				source = model:FindFirstChildOfClass("Script").Source
+				foundIndex = i
+				break
+			end
+		end
+		if source then
+			for i, model in ipairs(models) do
+				if foundIndex ~= i then
+					model:FindFirstChildOfClass("Script").Source = source
+				end
+			end
+			if #models == 1 then
+				print("(That's the only copy of that book)")
+			else
+				print("Updated", #models - 1, "copies")
+			end
+			return
+		end
+	end
+	-- Due to above return, we only get here if no id found for selected book
+	warn("The selected book does not have an id. Run the maintenance plugin to assign new ids.")
+end)
+local bookMaintenanceButton = toolbar:CreateButton("Run", "Run book maintenance", "")
 -- local scanningCons
 -- local analysisRunning
 bookMaintenanceButton.Click:Connect(function()
@@ -449,10 +822,11 @@ bookMaintenanceButton.Click:Connect(function()
 	local books = findAllBooks()
 	local report = {}
 	-- todo books below is supposed to be bookData with .Models .Title etc
-	assignIds(report, books) -- note: books don't have .Id until after this
-	deleteUnneededChildren(books)
-	updateCovers(books)
+	assignIds(report, books) -- note: books don't have .Id until after this, and invalid books never get an id
 	getRidOfAllSpecialCharacters(books)
+	verifyGenres(report, books)
+	deleteUnneededChildren(books)
+	updateCoverGuis(books)
 	removeUnnecessaryWelds(report)
 	generateReportToScript(report, books)
 	print(table.concat(report, "\n"))

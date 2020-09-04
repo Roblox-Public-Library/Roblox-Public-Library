@@ -70,49 +70,62 @@ Update Book Scripts:
 		Prepare package (shared template) for books:
 			✔ Write template
 			remove cover/etc from books in:
-				☐ command
-				☐ maintenance
-				☐ package template
+				✘ command
+					> won't need to - we can run maintenance after
+				✔ maintenance
+				✔ package template
 			✔ add them back in in Books.lua
 			✔ Make package @done(20-09-02 18:58)
 		Efficiency Improvements:
 			Book Color:
 				✔ remove book color from template
-				☐ in template, encourage people to change colour of book part directly
-				☐ remove book color from server scripts
+				✔ in template, encourage people to change colour of book part directly @done(20-09-03 11:13)
+				✔ update RevampCommand to set book.Color based on BookColor value, then remove the value @done(20-09-03 11:19)
+				✔ remove book color from server scripts
 				✔ client looks at colour of the book it clicked on to get the 'bookColor'
-			☐ Remove titleTextcolor/titleStrokeColor from replication (have client read from them, too)
-			☐ Move titleTextColor/titleStrokeColor to direct child of books for easy access
+				✔ Remove titleTextcolor/titleStrokeColor from replication (have client read from them, too)
+			Move titleTextColor/titleStrokeColor to direct child of books for easy access:
+				✔ in template instructions @done(20-09-03 11:26)
+				✔ in RevampCommand @done(20-09-03 11:23)
+				✔ update template package
+				✔ in MainBookScript
+
 		Maintenance Plugin:
 			✔ fetch book title/data/etc
 				> needed for report and something else I think
 			Id system:
 				✔ Assign Ids
-				☐ verify 2 dif books don't share the same id!
-				☐ Store each id-book pair in ServerStorage and use this to help detect new books
+				✔ verify 2 dif books don't share the same id!
+				✔ Store each id-book pair in ServerStorage and use this to help detect new books
 					> This is for if someone manually adds an Id or runs the book maintenance plugin in a different place and then transfers the book
 					> This can be stored as a lua table if desired
 			✔ Delete unnecessary items
 			✔ add these back in books.lua
 			✔ Update cover label gui with title (for the sake of those editing)
 				> If this will be done reliably, this code can be moved out of Books:Register
-			☐ Ensure the book's genre includes the shelf it is on
-			☐ Inspect genres
+			✔ Ensure the book's genre includes the shelf it is on
+			✔ Inspect genres
 			✔ remove unnecessary welds
 			✔ Replace all fancy quotation marks with simple equivalents (in both script source and part name) @done(20-09-02 19:06)
-			Feature for the future:
-				☐ A button to add in the covers so you can see what the books look like without pressing play
-					> It would add everything with Archivable = false so they won't save
-					> A 2nd button to remove them
+			☐ inspect author ids/names as much as we can from the plugin
+			Button to handle changing the source:
+				✔ Add button to toolbar @done(20-09-03 11:39)
+				✔ Find book from selection @done(20-09-03 11:39)
+				✔ If no id, warn instead (since we can't know what id to update) @done(20-09-03 11:40)
+				✔ Update copies based on selected book @done(20-09-03 11:39)
 		Other:
-			☐ Package that includes supporting scripts so you can read a book (for workshops)
-				☐ In this package, Books.lua should not warn if no id, since no books should have an id
-					> Perhaps it can analyze whether there is the book data storage folder in ServerStorage
-☐ I want the book script to send 'script.Parent' to :Register, not 'script'
+			✔ Transfer modified book reader gui to scripting dev @done(20-09-03 11:57)
+			✔ Package that includes supporting scripts so you can read a book (for workshops)
+				✔ In this package, Books.lua should not warn if no id, since no books should have an id
+			✔ I want the book script to send 'script.Parent' to :Register, not 'script'
+	Test/Debug:
+		✔ Workshop Package  @done(20-09-03 13:31
+		✔ RevampBooksCommand (test on scripting dev; have backup of book folders handy)
+		☐ BookMaintenancePlugin (test on scripting dev after revamp works)
 	Final stages:
-		☐ Look for todos
-		☐ Look for debug messages
-		☐ Re-enable Roblox LSP for an added check
+		☐ Look for todos and debug messages
+		✔ Re-enable Roblox LSP for an added check
+		☐ Delete Assign Book Ids.lua (it's now part of maintenance plugin)
 	Update Live Place:
 		✔ Re-fetch all author IDs
 		✔ Re-filter all authors/ids and regenerate userIdToName
@@ -120,7 +133,8 @@ Update Book Scripts:
 		✔ use rojo to update scripts (this will include the new menu system)
 		☐ manually inspect source of one book before/after transformation to make sure it's working correctly before applying it everywhere
 		☐ transfer guis and DefaultMusic folder (ReplicatedStorage)
-		☐ run the author command to update all Book scripts
+		☐ run the RevampBooksCommand to update all Book scripts
+		☐ run maintenance plugin
 		☐ test
 		☐ publish
 		☐ update workshops (use a package for a shared template so updating either not required or easier in future)
@@ -128,14 +142,10 @@ Update Book Scripts:
 	Book Search:
 		✔ Some books use '’' character. Replace these with a '
 			> done in revamp script
-
-Temporary:
-	Old icons:
-		music: http://www.roblox.com/asset/?id=2317684406
-		search: http://www.roblox.com/asset/?id=1490704267
-	Sprite sheet:
-		rbxassetid://3926305904
-		Has (x), pencil, copyright, arrows, triple bars, and other useful icons
+Maintenance Plugin - Feature for the future:
+	☐ A button to add in the covers so you can see what the books look like without pressing play
+		> It would add everything with Archivable = false so they won't save
+		> A 2nd button to remove them
 
 New Book Gui:
 	☐ reorganize/redesign from cod's to work on any resolution
@@ -323,4 +333,4 @@ Theme Editor:
 	Bugs:
 		☐ Update visual list of themes upon adding or removing
 		☐ Remove existing theme rows when closing plugin/widget
-		☐ Need to add Undo points after installation
+		☐ Need to add Undo points after installationM

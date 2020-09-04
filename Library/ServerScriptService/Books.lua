@@ -39,11 +39,17 @@ if storage then
 	end
 end
 
-local bookToResponse = {}
-ReplicatedStorage.GetData.OnServerInvoke = function(player, book)
+local getData = Instance.new("RemoteFunction")
+getData.Name = "GetBookData"
+getData.Parent = ReplicatedStorage
+getData.OnServerInvoke = function(player, book)
 	local response = bookToContent[book] or error(tostring(book) .. " has no data")
 	return response[1], response[2] -- authorsNote, words
 end
+local getBooks = Instance.new("RemoteFunction")
+getBooks.Name = "GetBooks"
+getBooks.Parent = ReplicatedStorage
+getBooks.OnServerInvoke = function(player) return books end
 function Books:Register(book, genres, cover, title, customAuthorLine, authorNames, authorIds, authorsNote, publishDate, words, librarian)
 	BookChildren.AddTo(book)
 
@@ -52,7 +58,7 @@ function Books:Register(book, genres, cover, title, customAuthorLine, authorName
 	if not cover or cover == "" then cover = defaultCover end
 	local orig = genres
 	genres = {}
-	for i, raw in ipairs(orig) do
+	for _, raw in ipairs(orig) do
 		local genre = Genres.InputToGenre(raw)
 		if genre then
 			genres[#genres + 1] = genre
@@ -62,7 +68,7 @@ function Books:Register(book, genres, cover, title, customAuthorLine, authorName
 	end
 
 	book.Cover.Texture = cover
-	if not bookMaintenanceInPlace then
+	if not storage then -- if storage exists, maintenance plugin takes care of this
 		BookChildren.UpdateGuis(book, title)
 	end
 
@@ -90,11 +96,6 @@ function Books:Register(book, genres, cover, title, customAuthorLine, authorName
 		bookToContent[book] = {authorsNote, words} -- we don't need this line yet because we're still using BookClick/BookOpen above
 	end
 end
-
-local getBooks = Instance.new("RemoteFunction")
-getBooks.Name = "GetBooks"
-getBooks.Parent = game:GetService("ReplicatedStorage")
-getBooks.OnServerInvoke = function(player) return books end
 
 function Books:GetCount() return #books end
 function Books:GetBooks() return books end

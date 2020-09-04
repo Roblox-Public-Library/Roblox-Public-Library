@@ -3,8 +3,8 @@ local data = {
 	-- Name defaults to Type
 	-- Old = true means it's an old child that should no longer be included at all (only Name needs to be kept with these entries)
 	{Type = "ClickDetector"},
-	{Type = "Decal", Name = "Cover", Props = {Color3 = Color3.new(1, 1, 1), Texture = "http://www.roblox.com/asset/?id=131591224", Transparency = 0.5, Face = Enum.SurfaceId.Top}},
-	{Type = "Decal", Name = "Pages", Props = {Color3 = Color3.new(1, 1, 1), Texture = "http://www.roblox.com/asset/?id=131591224", Transparency = 0, Face = Enum.SurfaceId.Front}},
+	{Type = "Decal", Name = "Cover", Props = {Color3 = Color3.new(1, 1, 1), Texture = "http://www.roblox.com/asset/?id=131591224", Transparency = 0.5, Face = Enum.NormalId.Top}},
+	{Type = "Decal", Name = "Pages", Props = {Color3 = Color3.new(1, 1, 1), Texture = "http://www.roblox.com/asset/?id=131591224", Transparency = 0, Face = Enum.NormalId.Front}},
 	{Old = true, Name = "BookClick"}
 }
 local dataToAdd = {}
