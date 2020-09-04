@@ -107,7 +107,7 @@ Update Book Scripts:
 			✔ Inspect genres
 			✔ remove unnecessary welds
 			✔ Replace all fancy quotation marks with simple equivalents (in both script source and part name) @done(20-09-02 19:06)
-			☐ inspect author ids/names as much as we can from the plugin
+			✔ inspect author ids/names as much as we can from the plugin
 			Button to handle changing the source:
 				✔ Add button to toolbar @done(20-09-03 11:39)
 				✔ Find book from selection @done(20-09-03 11:39)
@@ -118,6 +118,11 @@ Update Book Scripts:
 			✔ Package that includes supporting scripts so you can read a book (for workshops)
 				✔ In this package, Books.lua should not warn if no id, since no books should have an id
 			✔ I want the book script to send 'script.Parent' to :Register, not 'script'
+	Maintenance Plugin Bugs:
+		☐ Author database not filled out after used/changed
+		☐ Author(s) field is sometimes getting book content
+		☐ In Book List Report, Genres is "table: 0x092fbdbab27a610f"
+		☐ No output from author scan
 	Test/Debug:
 		✔ Workshop Package  @done(20-09-03 13:31
 		✔ RevampBooksCommand (test on scripting dev; have backup of book folders handy)
