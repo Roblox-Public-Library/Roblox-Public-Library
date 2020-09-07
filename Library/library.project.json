@@ -14,7 +14,7 @@
 		},
 		"ServerStorage": {
 			"$className": "ServerStorage",
-			"$path": "ServerStorageCommands",
+			"$path": "ServerStorage",
 			"$ignoreUnknownInstances": true
 		},
 		"StarterPlayer": {

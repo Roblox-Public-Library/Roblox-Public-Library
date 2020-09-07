@@ -11,8 +11,10 @@ Responsibilities:
 -Compile list of books with title, author, and all other available data into an output script
 -Remove unnecessary welds
 ]]
+-- todo all script dependencies must be added to plugin (or at least don't error if they aren't available and explain to user what to do)
 local Players = game:GetService("Players")
 local ServerStorage = game:GetService("ServerStorage")
+local RemoveAllComments = require(ServerStorage.RemoveAllComments)
 local ServerScriptService = game:GetService("ServerScriptService")
 local BookChildren = require(ServerScriptService.BookChildren)
 local Genres = require(ServerScriptService.Genres)
@@ -20,23 +22,34 @@ local Utilities = game:GetService("ReplicatedStorage").Utilities
 local String = require(Utilities.String)
 local List = require(Utilities.List)
 
+local RunService = game:GetService("RunService")
+local heartbeat = RunService.Heartbeat
+local isEditMode = RunService:IsEdit()
+
 -- In this script, a "model" is the BasePart of a book. A "book" refers to a table with fields including Title, Author, Models, and Source.
 
 local sourceToBook, dataKeyList, updateBookSource, allFieldsAffected do
 	local function genGetData(key)
 		local first = "local%s+" .. key
+		local second = "[ \t]-\n?[ \t]-="
 		local finds = {
-			'%s*=?%s*"([^"\n]*)"',
-			'%s*=?%s*%[=*%[([^\n]*)%]=*%]',
-			"%s*=?%s*'([^'\n]*)'",
+			'[ \t]-\n?[ \t]-"([^"\n]*)"',
+			'[ \t]-\n?[ \t]-%s-%[(=-)%[([^\n]-)%]%1%]',
+			"[ \t]-\n?[ \t]-'([^'\n]*)'",
 		}
+		local useSecondData = {false, true, false}
 		return function(source)
 			local _, start = source:find(first)
-			if not first then return nil end
+			if not start then return nil end
+			_, start = source:find(second, start + 1)
+			if not start then return nil end
 			start += 1
-			for _, find in ipairs(finds) do
-				local _, _, data = source:find(find, start)
-				if data and data ~= "" then return data end
+			for i, find in ipairs(finds) do
+				local data, data2 = source:match(find, start)
+				if data then
+					data = useSecondData[i] and data2 or data
+					return data ~= "" and data or nil
+				end
 			end
 			return nil
 		end
@@ -46,7 +59,7 @@ local sourceToBook, dataKeyList, updateBookSource, allFieldsAffected do
 		local find = "local%s+" .. key .. '%s*=?%s*%{([^}]*)%}'
 		return function(source, model)
 			local _, _, data = source:find(find)
-			if not data or data == "" then return nil end
+			if not data or data == "" then return {} end
 			-- data will be in format '"a", "b", "c"' but we want it in table format
 			local new = {}
 			for _, v in ipairs(data:split(",")) do
@@ -94,6 +107,7 @@ local sourceToBook, dataKeyList, updateBookSource, allFieldsAffected do
 		for k, v in pairs(dataProps) do
 			book[k] = v(source, model)
 		end
+		if book.AuthorNames[1] == nil then print(models[1]:GetFullName(), "has a nil 1st AuthorName") end
 		book.Authors = book.CustomAuthorLine or List.ToEnglish(book.AuthorNames)
 		for _, field in ipairs(mandatoryFields) do
 			if not book[field] then
@@ -163,7 +177,8 @@ local function getOrCreate(parent, name, type)
 	end
 	return obj
 end
-local function getOrCreateValue(parent, name, type, default)
+local function getOrCreateWithDefault(parent, name, type, default)
+	--	This is only valid for Values (ex IntValue)
 	local obj = parent:FindFirstChild(name)
 	if not obj then
 		obj = Instance.new(type)
@@ -200,19 +215,18 @@ local function valueToType(var)
 	local varType = type(var)
 	local t = typesToType[varType]
 	if t then return t end
-	if type(t) ~= "number" then error("Unsupported type: " .. varType) end
-	return t % 1 == 0 and "IntValue" or "NumberValue"
+	if type(var) ~= "number" then error("Unsupported type: " .. varType) end
+	return var % 1 == 0 and "IntValue" or "NumberValue"
 end
 local function getSetting(name, default, typeOverride)
 	--	Returns a function that retrieves the value (automatically switching to a concrete setting object if the maintenance is run for the first time)
 	--	supports strings, booleans, integers, and numbers. ex, typeOverride could be "NumberValue" if default is 0.
 	return function()
 		if not storageExists() then return default end
-		return getOrCreateValue(getSettings(), name, typeOverride or valueToType(default), default).Value
+		return getOrCreateWithDefault(getSettings(), name, typeOverride or valueToType(default), default).Value
 	end
 end
 
-local isEditMode = game:GetService("RunService"):IsEdit()
 local GenLock do
 	function GenLock(name)
 		--	Returns the 'tryLock' function
@@ -225,7 +239,7 @@ local GenLock do
 			lock.Value = Players.LocalPlayer
 			lock.Archivable = false -- if everyone leaves the team create, this is removed
 		end
-		function tryLock(obj, func, onYield) -- attempt to get an exclusive lock on an object (if needed) and run func(obj) if successful
+		local function tryLock(obj, func, onYield) -- attempt to get an exclusive lock on an object (if needed) and run func(obj) if successful
 			--	If this function yields, it will call onYield (if provided) after
 			if not lock then -- no need
 				func(obj)
@@ -235,7 +249,7 @@ local GenLock do
 			while true do
 				other = obj:FindFirstChild(name)
 				if other then
-					if not other.Value or not other.Value.Parent then
+					if not other.Value or not other.Value.Parent or (other.Value == lock.Value and other ~= lock) then
 						other:Destroy()
 					else
 						return false
@@ -289,10 +303,6 @@ local onMaintenanceFinished, getAuthorDatabase do
 		end
 		return authorDatabase
 	end
-	local function entryLatestName(entry)
-		local obj = entry:FindFirstChild("NewName")
-		return obj and obj.Value or entry.Value
-	end
 	local authorCheckRunning = false
 	local usernameRetrievalWarnings = {}
 	local warnings = 0
@@ -307,15 +317,7 @@ local onMaintenanceFinished, getAuthorDatabase do
 			local function updateLastYieldTime()
 				lastYieldTime = os.clock()
 			end
-			local debug = 0
-			local last = os.clock()
-			local function considerPrint()
-				if os.clock() - last >= 1 then
-					print(debug / (os.clock() - last), "iter/sec")
-					last = os.clock()
-					debug = 0
-				end
-			end
+			-- Based on my performance calculations, even though this algorithm throttles itself to only consume 25% of the time per frame, it should be able to check the NextTime on 2400+ authors/sec
 			local numBannedDiscovered, numUpdated = 0, 0 -- since last print
 			while authorDatabase and authorDatabase.Parent do
 				local smallestFutureCheck = math.huge
@@ -330,6 +332,7 @@ local onMaintenanceFinished, getAuthorDatabase do
 						continue
 					end
 					if not entry.Parent then continue end -- deleted by something else
+					total += 1
 					if entry:FindFirstChild("Banned") then
 						numAlreadyBanned += 1
 						continue
@@ -339,7 +342,7 @@ local onMaintenanceFinished, getAuthorDatabase do
 						tryAuthorLock(entry, function()
 							numScanned += 1
 							lastYieldTime = os.clock()
-							local success, username = pcall(function() Players:GetNameFromUserIdAsync(userId) end)
+							local success, username = pcall(function() return Players:GetNameFromUserIdAsync(userId) end)
 							if not success then
 								if username:find("HTTP 400") then
 									local obj = Instance.new("BoolValue")
@@ -360,11 +363,8 @@ local onMaintenanceFinished, getAuthorDatabase do
 									end
 								end
 							else
-								if entryLatestName(entry) ~= username then
-									local obj = Instance.new("StringValue")
-									obj.Name = "NewName"
-									obj.Value = username
-									obj.Parent = entry
+								if entry.Value ~= username then
+									entry.Name = username
 									numUpdated += 1
 								end
 								entry.NextCheck.Value = os.time() + getCheckAuthorsEvery()
@@ -373,10 +373,8 @@ local onMaintenanceFinished, getAuthorDatabase do
 					elseif nextCheck < smallestFutureCheck then
 						smallestFutureCheck = nextCheck
 					end
-					debug += 1
-					considerPrint()
-					if os.clock() - lastYieldTime >= 0.01 then
-						wait()
+					if os.clock() - lastYieldTime >= 1/60/4 then -- take up max 25% of a frame (assuming 60fps)
+						heartbeat:Wait()
 						lastYieldTime = os.clock()
 					end
 				end
@@ -409,7 +407,7 @@ local onMaintenanceFinished, getAuthorDatabase do
 				end
 			end
 			authorCheckRunning = false
-		end)
+		end)()
 	end
 	local function considerScanAuthors()
 		if not isEditMode or authorCheckRunning or not storageExists() or not getAuthorCheckingEnabled() then return end
@@ -431,37 +429,54 @@ local function updateAuthorInformation(report, books)
 		If an entry has a Banned child, remove the entry and record the change (authorId must be set to 'false')
 		If an entry has a NewName child, remove that child and record the change (authorName must be set to the new value)
 		Modify all relevant scripts regardless of id/configuration problems
+		Update author database
 	]]
-	local authorIdChange = {} --[id] = false for ban or string for new name
-	for _, entry in ipairs(getAuthorDatabase():GetChildren()) do
+	local authorIdBanned = {} --[id] = true if banned
+	local authorIdToName = {}
+	 --[OLD] for non-anonymous authors. These names are only to be used as "defaults" in case the database doesn't already have an entry for this author.
+	local authorDatabase = getAuthorDatabase()
+	for _, entry in ipairs(authorDatabase:GetChildren()) do
 		local id = tonumber(entry.Name)
 		if not id then
 			entry.Parent = nil
 		elseif entry:FindFirstChild("Banned") then
-			authorIdChange[id] = false
+			authorIdBanned[id] = true
 			entry.Parent = nil
 		else
-			local new = entry:FindFirstChild("NewName")
-			if new then
-				authorIdChange[id] = new.Value
-				new.Parent = nil
-			end
+			authorIdToName[id] = entry.Value
 		end
 	end
 	for _, book in ipairs(books) do
 		local madeChange = false
-		for i, authorId in ipairs(book.AuthorIds) do
-			local change = authorIdChange[authorIdChange]
-			if change == false then -- banned
+		for i, authorId in pairs(book.AuthorIds) do -- using pairs in case there are holes in the list
+			if not authorId then continue end -- ex if it's false
+			if authorIdBanned[authorId] then
 				book.AuthorIds[i] = false
 				madeChange = true
-			elseif change then -- new name
-				book.AuthorNames[i] = change
-				madeChange = true
+			else
+				local curName, correctName = book.AuthorNames[i], authorIdToName[authorId]
+				if correctName and curName ~= correctName then
+					book.AuthorNames[i] = correctName
+					madeChange = true
+				elseif not correctName then -- new entry in the database
+					if curName then
+						authorIdToName[authorId] = curName
+
+						local newEntry = Instance.new("StringValue")
+						newEntry.Name = tostring(authorId)
+						newEntry.Value = curName
+						local nextCheck = Instance.new("IntValue")
+						nextCheck.Name = "NextCheck"
+						-- Default value of 0 is fine
+						nextCheck.Parent = newEntry
+						newEntry.Parent = authorDatabase
+					else
+						warn(book.Models[1]:GetFullName(), "has authorId", authorId, "but no corresponding author name")
+					end
+				end
 			end
-			-- todo do we change custom author line if we can find the old name as a substring? (but what if accidental substring, or msg based on old name? -- so probably not)
 		end
-		if madeChange then
+		if madeChange then -- Update source
 			local model = book.Models[1]
 			local success, source = modifySourceVarList(book.Source, "authorIds", book.AuthorIds, model)
 			if success then
@@ -482,7 +497,7 @@ local generateReportToScript do
 		{"Published On", 13, "PublishDate"},
 		{"Librarian", 16},
 		{"Copies", 7, function(book) return #book.Models end},
-		{"Genres", 200},
+		{"Genres", 200, function(book) return table.concat(book.Genres, ", ") end},
 	}
 	for _, report in ipairs(reportTable) do
 		local key = report[3] or report[1]
@@ -614,6 +629,35 @@ local storeReturnSame do
 	end
 end
 
+local getRidOfSpecialCharactersAndCommentsFor do
+	local ReplaceInStrings = require(ServerStorage.ReplaceInStrings)
+	local specials = {
+		['‘'] = "'",
+		['’'] = "'",
+		['“'] = '"',
+		['”'] = '"',
+	}
+	local function replaceSpecials(s, stringOpening)
+		for k, v in pairs(specials) do
+			local replace = v == stringOpening and "\\" .. v or v
+			s = s:gsub(k, replace)
+		end
+		return s
+	end
+	local function getRidOfSpecialCharacters(s)
+		return ReplaceInStrings(s, replaceSpecials)
+	end
+	function getRidOfSpecialCharactersAndCommentsFor(book)
+		for _, model in ipairs(book.Models) do
+			model.Name = getRidOfSpecialCharacters(model.Name)
+		end
+		local newSource = RemoveAllComments(getRidOfSpecialCharacters(book.Source), true)
+		if newSource ~= book.Source then
+			updateBookSource(book, newSource, allFieldsAffected)
+		end
+	end
+end
+
 local idsFolder
 local function getIdsFolder()
 	if not idsFolder then
@@ -726,7 +770,7 @@ local function verifyExistingBooksHaveSameId(idToModels, invalidIds, invalidSour
 	end
 end
 
-local function assignIds(report, books)
+local function assignIds(report, books, pauseIfNeeded)
 	--[[Ids folder
 	Contents: ObjectValue with .Name = id for the first model with 0+ ObjectValue children (nameless) for each extra model
 	Purposes:
@@ -785,7 +829,6 @@ local function assignIds(report, books)
 				break
 			end
 			if id and invalidIds[id] then -- already warned about
-				print(book.Title, "invalidIds", id)
 				invalid = true
 				break
 			end
@@ -801,7 +844,10 @@ local function assignIds(report, books)
 		elseif existingId then -- either they're all old or there are new copies but no inconsistencies; accept the id either way
 			book.Id = existingId
 		else --allNew. if it doesn't share fields with another book, add to 'new' list so it can get a new id if its source doesn't end up on the invalid list
-			print("allNew", book.Title)
+			-- First step for new books: get rid of all special characters. We do that before storeReturnSame since we may be modifying the fields.
+			--	We don't do this for all books because the operation takes ~0.01 sec per book.
+			getRidOfSpecialCharactersAndCommentsFor(book)
+			pauseIfNeeded()
 			local other = storeReturnSame(book)
 			if other then -- Same fields
 				if not (invalidIfNew[other] and invalidIfNew[book]) then
@@ -827,7 +873,6 @@ local function assignIds(report, books)
 				end -- else otherwise warned already (not likely to happen, but could if 3 different variants all share same fields)
 			else
 				new[#new + 1] = book
-				print(book.Title, "added to new")
 			end
 		end
 	end
@@ -859,21 +904,6 @@ local function updateCoverGuis(books)
 		local title = book.Title
 		for _, model in ipairs(book.Models) do
 			BookChildren.UpdateGuis(model, title)
-		end
-	end
-end
-
-local function getRidOfSpecialCharacters(s)
-	return s:gsub("[‘’]", "'"):gsub("[“”]", '"')
-end
-local function getRidOfAllSpecialCharacters(books)
-	for i, book in ipairs(books) do
-		for _, model in ipairs(book.Models) do
-			model.Name = getRidOfSpecialCharacters(model.Name)
-		end
-		local newSource = getRidOfSpecialCharacters(book.Source)
-		if newSource ~= book.Source then
-			updateBookSource(book, newSource, allFieldsAffected)
 		end
 	end
 end
@@ -1021,6 +1051,16 @@ local function removeUnnecessaryWelds(report)
 	end
 end
 
+local function genPauseIfNeeded(maxProcessingTime)
+	local last = os.clock()
+	return function()
+		if os.clock() - last >= maxProcessingTime then
+			heartbeat:Wait()
+			last = os.clock()
+		end
+	end
+end
+
 -- local scanningCons
 -- local analysisRunning
 local tryMaintenanceLock = GenLock()
@@ -1036,16 +1076,16 @@ local function run()
 	-- 	analysisRunning = true
 
 	tryMaintenanceLock(getStorage(), function()
+		local pauseIfNeeded = genPauseIfNeeded(1)
 		local books = findAllBooks()
 		local report = {}
-		-- todo books below is supposed to be bookData with .Models .Title etc
-		assignIds(report, books) -- note: books don't have .Id until after this, and invalid books never get an id
-		getRidOfAllSpecialCharacters(books)
-		updateAuthorInformation(report, books)
-		verifyGenres(report, books)
-		deleteUnneededChildren(books)
-		updateCoverGuis(books)
-		removeUnnecessaryWelds(report)
+		assignIds(report, books, pauseIfNeeded)
+		-- note: books don't have .Id until after assignIds, and invalid books never get an id
+		updateAuthorInformation(report, books); pauseIfNeeded()
+		verifyGenres(report, books); pauseIfNeeded()
+		deleteUnneededChildren(books); pauseIfNeeded()
+		updateCoverGuis(books); pauseIfNeeded()
+		removeUnnecessaryWelds(report); pauseIfNeeded()
 		generateReportToScript(report, books)
 		print(table.concat(report, "\n"))
 		onMaintenanceFinished()

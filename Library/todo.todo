@@ -119,35 +119,73 @@ Update Book Scripts:
 				✔ In this package, Books.lua should not warn if no id, since no books should have an id
 			✔ I want the book script to send 'script.Parent' to :Register, not 'script'
 	Maintenance Plugin Bugs:
-		☐ Author database not filled out after used/changed
-		☐ Author(s) field is sometimes getting book content
-		☐ In Book List Report, Genres is "table: 0x092fbdbab27a610f"
-		☐ No output from author scan
+		✔ Author database not filled out after used/changed
+		✔ Author(s) field is sometimes getting book content
+		✔ In Book List Report, Genres is "table: 0x092fbdbab27a610f"
+		✔ No output from author scan
+	Book Search:
+		✔ Some books use '’' character. Replace these with a '
 	Test/Debug:
 		✔ Workshop Package  @done(20-09-03 13:31
 		✔ RevampBooksCommand (test on scripting dev; have backup of book folders handy)
-		☐ BookMaintenancePlugin (test on scripting dev after revamp works)
+		✔ BookMaintenancePlugin (test on offline copy after revamp works)
+	Bugs:
+		✔ Replacing fancy quotation marks can prematurely end a string
+		✔ RevampCommands assumes a certain order that isn't always there, resulting in data loss
+		✔ Maintenance should only get rid of special characters for new books
+			> It takes .01 sec to perform it for 1 book
+		✔ Maintenance should not allow itself to process for more than 1 sec
+		☐ customAuthorLine is somehow leaking into authorIds on previously dealt with special cases
+		☐ RevampCommands adds genres to individual copies, but not the whole list of them, thereby making BOTM copies inconsistent!
 	Final stages:
-		☐ Look for todos and debug messages
-		✔ Re-enable Roblox LSP for an added check
-		☐ Delete Assign Book Ids.lua (it's now part of maintenance plugin)
+		☐ Pick BookScript documentation variant and update package (all are different)
+			Get an outside reviewer's feedback on which is easiest to understand
+		☐ Look for todo, debug, and print messages that shouldn't be there
+		☐ Re-enable Roblox LSP for an added check
+		✔ Delete Assign Book Ids.lua (it's now part of maintenance plugin)
+		☐ Prepare announcement for staff
+		☐ Prepare announcement for general server (including new books)
+		☐ Add people to credits
 	Update Live Place:
-		✔ Re-fetch all author IDs
-		✔ Re-filter all authors/ids and regenerate userIdToName
-		☐ consider doing filtering *again*, right before ready to do rest of update
+		✔ Scan for all authorIds and usernames
+		☐ Ask Roblox for id or username corresponding to each one
+		☐ Find list of all author ids that have not be on since 2015 and remove them from both collections
 		✔ use rojo to update scripts (this will include the new menu system)
-		☐ manually inspect source of one book before/after transformation to make sure it's working correctly before applying it everywhere
 		☐ transfer guis and DefaultMusic folder (ReplicatedStorage)
-		☐ run the RevampBooksCommand to update all Book scripts
+		☐ Replace "paragraphs" with "content"
+		Deal with some more special cases:
+			☐ The Somewhat Okay Guide to Rogue Lineage (fails to convert authorIds)
+				> this might just be a bug
+			☐ Gavin (librarian & publishDate switched - librarian not listed)
+			✘ The Roblox Zone: Grave Danger (publish date, manually switch day/month to month/day -- rest of librarian's dates are probably month/day/year)
+				> not needed
+			☐ "No note provided" is in some authorsNotes - remove?
+			These scripts assigned to words instead of paragraphs:
+				☐ The Living Tree
+				☐ Neighboor
+				☐ The bunker after the war
+		Perform test on offline copy:
+			☐ run RevampBooksCommand on offline copy and inspect books
+			☐ run maintenance plugin and inspect again
+			☐ test menus & books are working
+			Make sure nothing breaks:
+				☐ Modify book source & Update copies
+				☐ Add new book source
+				☐ Clone existing book
+				☐ Clone existing book and modify story content
+		☐ run RevampBooksCommand
 		☐ run maintenance plugin
-		☐ test
+		☐ look in script analysis and fix issues
+		Post-transformation special cases:
+			☐ clean up "The World Of Scat"'s authorsNote, authorNames, etc
+				local authorNames = {"EpicNerd5678", "LostSouth", "Jwarrior999", "AE_FIRE"}
+				local authorIDs = {115006960, 171216631, 143589351, 511027312}
+				local customAuthorLine = "EpicNerd5678, LostSouth, Jwarrior999, and AE_FIRE (listed as LostArt)"
+		☐ final quick test menus & books are working
 		☐ publish
 		☐ update workshops (use a package for a shared template so updating either not required or easier in future)
 
-	Book Search:
-		✔ Some books use '’' character. Replace these with a '
-			> done in revamp script
-Maintenance Plugin - Feature for the future:
+		Maintenance Plugin - Feature for the future:
 	☐ A button to add in the covers so you can see what the books look like without pressing play
 		> It would add everything with Archivable = false so they won't save
 		> A 2nd button to remove them

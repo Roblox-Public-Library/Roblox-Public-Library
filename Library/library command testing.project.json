@@ -2,9 +2,14 @@
 	"name": "root-project",
 	"tree": {
 		"$className": "DataModel",
+		"ReplicatedStorage": {
+			"$className": "ReplicatedStorage",
+			"$path": "ReplicatedStorage",
+			"$ignoreUnknownInstances": true
+		},
 		"ServerStorage": {
 			"$className": "ServerStorage",
-			"$path": "ServerStorageCommands",
+			"$path": "ServerStorage",
 			"$ignoreUnknownInstances": true
 		}
 	}

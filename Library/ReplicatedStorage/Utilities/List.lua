@@ -44,8 +44,9 @@ function List.ToSet(list)
 end
 function List.ToEnglish(list)
     --  {"a", "b", "c"} -> "a, b, and c"
-    local n = #list
-    return n == 1 and list[1]
+	local n = #list
+	return n == 0 and ""
+    	or n == 1 and list[1]
         or n == 2 and ("%s and %s"):format(list[1], list[2])
         or ("%s, and %s"):format(table.concat(list, ", ", 1, n - 1), list[n])
 end
