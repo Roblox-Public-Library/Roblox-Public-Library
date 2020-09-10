@@ -14,13 +14,20 @@ Responsibilities:
 -- todo all script dependencies must be added to plugin (or at least don't error if they aren't available and explain to user what to do)
 local Players = game:GetService("Players")
 local ServerStorage = game:GetService("ServerStorage")
-local RemoveAllComments = require(ServerStorage.RemoveAllComments)
+local function get(parent, child)
+	local obj = parent:FindFirstChild(child)
+	if not obj then
+		error("Book Maintenance Plugin is missing " .. parent:GetFullName() .. "." .. child .. " - this plugin is meant to be used with other library code.")
+	end
+	return obj
+end
+local RemoveAllComments = require(get(ServerStorage, "RemoveAllComments"))
 local ServerScriptService = game:GetService("ServerScriptService")
-local BookChildren = require(ServerScriptService.BookChildren)
-local Genres = require(ServerScriptService.Genres)
-local Utilities = game:GetService("ReplicatedStorage").Utilities
-local String = require(Utilities.String)
-local List = require(Utilities.List)
+local BookChildren = require(get(ServerScriptService, "BookChildren"))
+local Genres = require(get(ServerScriptService, "Genres"))
+local Utilities = get(game:GetService("ReplicatedStorage"), "Utilities")
+local String = require(get(Utilities, "String"))
+local List = require(get(Utilities, "List"))
 
 local RunService = game:GetService("RunService")
 local heartbeat = RunService.Heartbeat
@@ -228,7 +235,7 @@ local function getSetting(name, default, typeOverride)
 end
 
 local GenLock do
-	function GenLock(name)
+	function GenLock(name, waitTimeToGuarantee)
 		--	Returns the 'tryLock' function
 		--	Note: name defaults to Lock, but don't let 2 different locks share the same name if they might lock the same object
 		name = name or "Lock"
@@ -266,7 +273,7 @@ local GenLock do
 						success = false
 					end
 				end)
-				wait()
+				wait(waitTimeToGuarantee or 0)
 				con:Disconnect()
 				if onYield then pcall(onYield) end
 			end
@@ -291,7 +298,7 @@ local GenLock do
 		return tryLock
 	end
 end
-local tryAuthorLock = GenLock()
+local tryAuthorLock = GenLock(nil, 0.25)
 
 local onMaintenanceFinished, getAuthorDatabase do
 	local getCheckAuthorsEvery = getSetting("Check authors every # seconds", 7 * 24 * 3600)
@@ -394,8 +401,8 @@ local onMaintenanceFinished, getAuthorDatabase do
 							print(("[Author Updater] %d/%d authors scanned: %d bans & %d name changes discovered%s%s"):format(
 								numScanned, total,
 								numBannedDiscovered, numUpdated,
-								numErrors > 0 and (" (%d unknown errors)"):format(numErrors) or ""),
-								pendingString)
+								numErrors > 0 and (" (%d unknown errors)"):format(numErrors) or "",
+								pendingString))
 						end
 						printedReportBefore = true
 						lastNumPendingChanges = numPending
@@ -529,25 +536,78 @@ local generateReportToScript do
 	end
 	local function bookToReportLine(s, book)
 		--	s: report string so far (table)
+		-- Objective: modify this function to return # of characters added to 's' -- note: s is a table that has pre-existing content
+		-- OR we could keep that in generateReportString by keeping track of #s and counting it ourselves
 		for i, report in ipairs(reportTable) do
 			s[#s + 1] = smartLeftAlign(tostring(report[3](book)), report[2], i)
 		end
 		s[#s + 1] = "\n"
 	end
-	local function generateReportString(books)
-		local s = {"--[===[\n"}
+	local commentOpen = "--[===[\n"
+	local commentClose = "\n]===]"
+	local startLength
+	local commentAndHeaderOpen
+	do
+		local s = {commentOpen}
 		addHeaderLine(s)
+		commentAndHeaderOpen = table.concat(s)
+		startLength = #commentAndHeaderOpen + #commentClose
+	end
+	local MAX_SCRIPT_LENGTH = 199999
+	local function generateReport(books, getNextReportScript)
+		local s = table.create(100)
+		s[1] = commentAndHeaderOpen
+		local length = startLength
 		for _, book in ipairs(books) do
+			local lastIndex = #s
 			bookToReportLine(s, book)
+			local curLast = #s
+			local addedLength = 0
+			for i = lastIndex + 1, curLast do
+				addedLength += #s[i]
+			end
+			if length + addedLength > MAX_SCRIPT_LENGTH then
+				-- Start a new script
+				local newS = table.create(100)
+				newS[1] = commentAndHeaderOpen
+				-- Move excess elements over (note: table.move doesn't remove from the original table)
+				table.move(s, lastIndex + 1, curLast, #newS + 1, newS)
+				-- Finish off the previous one and export it
+				s[lastIndex + 1] = commentClose
+				getNextReportScript().Source = table.concat(s, "", 1, lastIndex + 1)
+				-- Finish setting up the new one
+				s = newS
+				length = startLength + addedLength
+			else
+				length += addedLength
+			end
 		end
-		s[#s + 1] = "\n]===]"
-		return table.concat(s)
+		s[#s + 1] = commentClose
+		getNextReportScript().Source = table.concat(s)
 	end
 	generateReportToScript = function(report, books)
 		--	compiles a report of all books in the system into an output script
 		--	report is the report on the plugin's actions so far
-		getOrCreate(ServerStorage, "Book List Report", "Script").Source = generateReportString(books)
-		report[#report + 1] = ("%d unique books compiled into ServerStorage.Book List Report"):format(#books)
+		local reportNum = 0
+		local function getNextReportScript()
+			reportNum += 1
+			local obj = getOrCreate(ServerStorage, "Book List Report Pg" .. reportNum, "Script")
+			obj.Disabled = true
+			return obj
+		end
+		-- table.sort(books, function(a, b)
+		-- 	-- todo we could sort here
+		-- 	return
+		-- end)
+		generateReport(books, getNextReportScript)
+		local num = reportNum
+		while true do
+			num += 1
+			local obj = ServerStorage:FindFirstChild("Book List Report Pg" .. num)
+			if not obj then break end
+			obj:Destroy()
+		end
+		report[#report + 1] = ("%d unique books compiled into %d ServerStorage.Book List Report page%s"):format(#books, reportNum, reportNum == 1 and "" or "s")
 	end
 end
 
@@ -629,7 +689,7 @@ local storeReturnSame do
 	end
 end
 
-local getRidOfSpecialCharactersAndCommentsFor do
+local getRidOfSpecialCharactersAndCommentsAndWaitForChildFor do
 	local ReplaceInStrings = require(ServerStorage.ReplaceInStrings)
 	local specials = {
 		['‘'] = "'",
@@ -647,11 +707,12 @@ local getRidOfSpecialCharactersAndCommentsFor do
 	local function getRidOfSpecialCharacters(s)
 		return ReplaceInStrings(s, replaceSpecials)
 	end
-	function getRidOfSpecialCharactersAndCommentsFor(book)
+	function getRidOfSpecialCharactersAndCommentsAndWaitForChildFor(book)
 		for _, model in ipairs(book.Models) do
 			model.Name = getRidOfSpecialCharacters(model.Name)
 		end
 		local newSource = RemoveAllComments(getRidOfSpecialCharacters(book.Source), true)
+			:gsub(':WaitForChild%("Books"%)', ".Books")
 		if newSource ~= book.Source then
 			updateBookSource(book, newSource, allFieldsAffected)
 		end
@@ -846,7 +907,7 @@ local function assignIds(report, books, pauseIfNeeded)
 		else --allNew. if it doesn't share fields with another book, add to 'new' list so it can get a new id if its source doesn't end up on the invalid list
 			-- First step for new books: get rid of all special characters. We do that before storeReturnSame since we may be modifying the fields.
 			--	We don't do this for all books because the operation takes ~0.01 sec per book.
-			getRidOfSpecialCharactersAndCommentsFor(book)
+			getRidOfSpecialCharactersAndCommentsAndWaitForChildFor(book)
 			pauseIfNeeded()
 			local other = storeReturnSame(book)
 			if other then -- Same fields
@@ -1075,7 +1136,7 @@ local function run()
 	-- else
 	-- 	analysisRunning = true
 
-	tryMaintenanceLock(getStorage(), function()
+	local gotLock = tryMaintenanceLock(getStorage(), function()
 		local pauseIfNeeded = genPauseIfNeeded(1)
 		local books = findAllBooks()
 		local report = {}
@@ -1090,7 +1151,9 @@ local function run()
 		print(table.concat(report, "\n"))
 		onMaintenanceFinished()
 	end)
-
+	if not gotLock then
+		print("Someone else is already running Book Maintenance.")
+	end
 
 	-- 	analysisRunning = false
 	-- 	scanningCons = {
@@ -1140,9 +1203,9 @@ updateCopiesButton.Click:Connect(function()
 				end
 			end
 			if #models == 1 then
-				print("(That's the only copy of that book)")
+				print("(That's the only copy of that book.)")
 			else
-				print("Updated", #models - 1, "copies")
+				print("Updated", #models - 1, "other", #models == 2 and "copy." or "copies.")
 			end
 			updateCopiesButton:SetActive(false)
 			return

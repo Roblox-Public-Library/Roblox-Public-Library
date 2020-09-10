@@ -12,8 +12,13 @@ local defaultCover = "http://www.roblox.com/asset/?id=428733812"
 local ServerStorage = game:GetService("ServerStorage")
 local storage = ServerStorage:FindFirstChild("Book Data Storage")
 local modelToId = {}
-local function warnOutdated()
-	warn("Outdated book ids. Book Maintenance required.")
+local warnOutdated
+if storage then
+	warnOutdated = function()
+		warn("Outdated book ids. Book Maintenance required.")
+		warnOutdated = function() end
+	end
+else
 	warnOutdated = function() end
 end
 if storage then
@@ -85,18 +90,17 @@ function Books:Register(book, genres, cover, title, customAuthorLine, authorName
 			Id = id,
 			Title = title,
 			AuthorLine = authorLine,
-			Authors = List.ToDict(authorNames),
-			AuthorIds = List.ToDict(authorIds), -- todo use this for players who are in-game in case they changed their name recently
+			Authors = authorNames,
+			AuthorIds = authorIds, -- todo use this for players who are in-game in case they changed their name recently
 			PublishDate = publishDate,
 			Librarian = librarian,
 			Models = {book},
 			Genres = genres,
 		}
 		books[#books + 1] = bookData
-		bookToContent[book] = {authorsNote, words} -- we don't need this line yet because we're still using BookClick/BookOpen above
+		bookToContent[book] = {authorsNote, words}
 	end
 end
-
 function Books:GetCount() return #books end
 function Books:GetBooks() return books end
 

@@ -8,29 +8,35 @@ local localPlayer = Players.LocalPlayer
 local mouse = localPlayer:GetMouse()
 local gui = script.Parent:WaitForChild("BookName")
 local right = false
+
+local considerWarn
+local timesLeft = 40
+considerWarn = function(model)
+	warn(model:GetFullName(), "has no ClickDetector!")
+	timesLeft -= 1
+	if timesLeft == 0 then
+		considerWarn = function() end
+	end
+end
 local clickers = {}
-
-
-for _, obj in pairs(workspace:GetChildren()) do
-	local book = Books:FromObj(obj)
-
-	if book then
-		clickers[#clickers + 1] = obj
+for _, book in ipairs(Books:GetBooks()) do
+	for _, model in ipairs(book.Models) do
+		clickers[#clickers + 1] = model:FindFirstChildOfClass("ClickDetector") or considerWarn(model)
 	end
 end
 
-
 local reading = false
-local events = require(localPlayer:WaitForChild("PlayerScripts"):WaitForChild("Gui"):WaitForChild("BookGui"))
+if ReplicatedStorage:FindFirstChild("MusicClient") then
+	local events = require(localPlayer:WaitForChild("PlayerScripts"):WaitForChild("Gui"):WaitForChild("BookGui"))
+	events.BookOpened:Connect(function()
+		reading = true
+		gui.Visible = false
+	end)
 
-events.BookOpened:Connect(function()
-	reading = true
-	gui.Visible = false
-end)
-
-events.BookClosed:Connect(function()
-	reading = false
-end)
+	events.BookClosed:Connect(function()
+		reading = false
+	end)
+end -- else in a workshop
 
 local lastEnterTime
 
@@ -64,7 +70,7 @@ for _, clickDet in ipairs(clickers) do
 	clickDet.MouseClick:Connect(function()
 		if not reading then
 			gui.Visible = false
-			open:Fire(model, getData:FireServer(model))
+			open:Invoke(model, getData:InvokeServer(model))
 		end
 	end)
 end

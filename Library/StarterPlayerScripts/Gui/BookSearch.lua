@@ -7,7 +7,8 @@ local tweenInfo = TweenInfo.new(0.3)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ObjectList = require(ReplicatedStorage.Utilities.ObjectList)
-local books = require(ReplicatedStorage.BooksClient):GetBooks()
+local Books = require(ReplicatedStorage.BooksClient)
+local books = Books:GetBooks()
 local gui = ReplicatedStorage.Guis.BookSearch
 gui.Enabled = false
 local Players = game:GetService("Players")
@@ -299,13 +300,13 @@ local function authorSearch(value)
 	end
 	if userId then -- search in AuthorIds
 		for _, book in ipairs(books) do
-			if book.AuthorIds[userId] then
+			if Books.AuthorIdContains(book, userId) then
 				results[#results + 1] = book
 			end
 		end
 	else
 		for _, book in ipairs(books) do
-			if books.AuthorNames[value] or book.AuthorLine:find(value, 1, true) then
+			if Books.AuthorNameContains(value) then
 				results[#results + 1] = book
 			end
 		end

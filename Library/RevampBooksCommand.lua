@@ -1,7 +1,8 @@
-local MAKE_CHANGES = true -- false for debugging
+local MAKE_CHANGES = false -- false for debugging
 local PRINT_LIBRARIAN_REPORT = false
 local SCAN_FOR_AUTHORS = false -- should be false normally; if this is true, MAKE_CHANGES will be set to false
-local CONVERT_AUTHORS = false -- if true, the above options will set to false
+local CONVERT_AUTHORS = false -- if true, the above options will be set to false
+--local ALLOW_REPLACING_AUTHOR_NAMES = true -- for when MAKE_CHANGES is active
 
 --[[Plan
 local authorName = "someone, BakedPot8to"
@@ -158,15 +159,21 @@ local detectPublishDateFormat, getLibrarianPutsDayFirst, librarianDateReport do
 			print(librarian, (nums[1] == 0 and nums[2] == 0 and (nums[3] == 0 and "no dates" or "!ambiguous!"))
 				or (nums[1] > 0 and nums[2] == 0) and "first"
 				or (nums[1] == 0 and nums[2] > 0) and "second" or "BOTH", unpack(nums))
-		end
+			end
 	end
 end
 
+local function trimEach(t)
+	for i, v in ipairs(t) do
+		t[i] = String.Trim(v)
+	end
+	return t
+end
 local function splitAuthorIdsField(authorIdsField)
-	return authorIdsField:gsub(" and", ","):gsub("/", ""):split(", ") -- gsub cases are for one book each
+	return trimEach(authorIdsField:gsub(" and", ","):gsub("/", ""):split(", ")) -- gsub cases are for one book each
 end
 local function splitAuthorNameField(authorNameField)
-	return authorNameField:split(", ")
+	return trimEach(authorNameField:gsub(" &", ","):split(", "))
 end
 local numAuthorsNoId = 0
 local function modifySource(source, genres, model)
@@ -181,8 +188,12 @@ local function modifySource(source, genres, model)
 	end
 	local authorIdsField = get(getAuthorId)
 	local authorIds = authorIdsField and splitAuthorIdsField(authorIdsField)
-	local authorNameField = authorIdsField and get(getAuthorName)
+	local authorNameField = get(getAuthorName)
 	local authors = authorNameField and splitAuthorNameField(authorNameField)
+	if authors or authorIds then
+		authors = authors or {}
+		authorIds = authorIds or {}
+	end
 	local data = {}
 	for var, func in pairs(getOther) do
 		data[var] = get(func)
@@ -193,24 +204,24 @@ local function modifySource(source, genres, model)
 			-- If someone has username "X" and we can't find their Id, what do we want to do?
 			-- We wanted to use the Id stored and see if it might be a valid account (using the table above)
 			-- If their Id comes up with username "Y", then we assume that they changed their account name to "Y"
-			if not id then
-				numAuthorsNoId += 1
-				-- see if the Id is any good (if it even exists)
-				id = authorIds[i] and tonumber(authorIds[i])
-				local name = userIdToName[id]
-				-- If their Id points to a valid account, use it, otherwise stick with the declared name
-				if name then
-					-- todo a lot of custom text is getting removed this way!
-					print("Replacing", authors[i], "with", name)
-					authors[i] = ('"%s"'):format(name)
-					authorIds[i] = tostring(id)
-				else
-					authors[i] = ('"%s"'):format(author)
-					authorIds[i] = "false"
-				end
-			else
+			if id then
 				authors[i] = ('"%s"'):format(author)
 				authorIds[i] = tostring(id)
+			else
+				numAuthorsNoId += 1
+				-- see if the Id is any good (if it even exists)
+				-- id = authorIds[i] and tonumber(authorIds[i])
+				-- local name = userIdToName[id]
+				-- -- If their Id points to a valid account, use it, otherwise stick with the declared name
+				-- if name and ALLOW_REPLACING_AUTHOR_NAMES then
+				-- 	-- todo a lot of custom text is getting removed this way!
+				-- 	print("Replacing", authors[i], "with", name)
+				-- 	authors[i] = ('"%s"'):format(name)
+				-- 	authorIds[i] = tostring(id)
+				-- else
+				authors[i] = ('"%s"'):format(author)
+				authorIds[i] = "false"
+				--end
 			end
 		end
 	end
@@ -289,20 +300,9 @@ local publishDate = "%s"
 		s[2] = "\n"
 		print(desc(model), "does not have `local words = paragraphs`!")
 	end
-	s[#s + 1] = 'require(game:GetService("ServerScriptService").Books):Register(script.Parent, genres, cover, title, customAuthorLine, authorNames, authorIds, authorsNote, publishDate, paragraphs, librarian)'
+	s[#s + 1] = 'require(game:GetService("ServerScriptService"):WaitForChild("Books")):Register(script.Parent, genres, cover, title, customAuthorLine, authorNames, authorIds, authorsNote, publishDate, content, librarian)'
     return table.concat(s):gsub("\nlocal paragraphs =", "\nlocal content =")
 end
--- local function removeDoubleHeader(s, source, start, header)
--- 	local hStart, hEnd = source:find(header, start, true)
--- 	if not hStart then return start end
---     local h2Start, h2End = source:find(header, hEnd + 1, true)
---     if h2Start then
---         s[#s + 1] = source:sub(start, h2Start - 1)
---         return h2End + 1
---     else
---         return start
---     end
--- end
 local unknownGenres = {} -- pre-normalized genre -> true
 local ServerScriptService = game:GetService("ServerScriptService")
 local Genres = require(ServerScriptService.Genres:Clone()) -- clone allows us to keep modifying Genres
@@ -310,15 +310,15 @@ local Utilities = game:GetService("ReplicatedStorage").Utilities
 local String = require(Utilities.String)
 local List = require(Utilities.List)
 local tmpAliases = {
-	foreignlangueges = "Foreign Languages",
+	foreignlangueges = "Languages",
 	ficton = "Fiction",
 	game = "Games",
 	fictionhorror = "Horror",
 	robloxppl = "Roblox People",
 	humor = "Comedy",
 	refrence = "Reference",
-	englishlit = "English Literature",
-	literature = "English Literature",
+	englishlit = "Fiction",
+	literature = "Fiction",
 	worldreligion = "Religion",
 	worldsport = "Sports",
 	worldsports = "Sports",
@@ -345,7 +345,7 @@ local tmpAliases = {
 	money = "Economics & Money",
 	scienceficiton = "Science Fiction",
 	learning = "Roblox Learning",
-	litfict = "English Literature",
+	litfict = "Fiction",
 	grammar = "Reference",
 	information = "Reference",
 	mathlearn = "Mathematics",
@@ -525,7 +525,6 @@ local function stripGenresFromPartName(part, nameWithoutGenres, tagsNotIdentifie
 	else
 		newName = nameWithoutGenres
 	end
-	--print(part.Name, "->", newName)
 	if MAKE_CHANGES then
 		part.Name = newName
 	end
@@ -587,20 +586,19 @@ if SCAN_FOR_AUTHORS then
 	function scanForAuthors(obj)
 		local source = obj.Source
 		local _, _, authorIdsField = getAuthorId(source)
-		if not authorIdsField then return end
-		for _, id in ipairs(splitAuthorIdsField(authorIdsField)) do
-			id = id and tonumber(id)
-			if id then
-				authorIds[id] = true
+		if authorIdsField then
+			for _, id in ipairs(splitAuthorIdsField(authorIdsField)) do
+				id = id and tonumber(id)
+				if id then
+					authorIds[id] = true
+				end
 			end
 		end
 		local _, _, authorName = getAuthorName(source)
-		if not authorName then
-			print(desc(obj), "has authorId but not authorName!") -- todo do we want to use a particular consistent value for anonymous?
-			return
-		end
-		for _, name in ipairs(splitAuthorNameField(authorName)) do
-			authorNames[name] = true
+		if authorName then
+			for _, name in ipairs(splitAuthorNameField(authorName)) do
+				authorNames[name] = true
+			end
 		end
 	end
 	local function setToStringList1(set)
@@ -650,10 +648,10 @@ elseif CONVERT_AUTHORS then
 		if nameIndex % 100 == 0 then print("getName", nameIndex) end
 		return authorNames[nameIndex]
 	end
-	--local _id, _name = {}, {}
 	local numWorkers = 3
 	for worker = 1, numWorkers do
 		coroutine.resume(coroutine.create(function()
+			---[[
 			while not stopValue.Value do
 				local id = getId()
 				if not id then break end
@@ -662,14 +660,32 @@ elseif CONVERT_AUTHORS then
 				--	_id[ind] = ind .. ": repeat"
 					continue
 				end
-				local success, name = pcall(function() return Players:GetNameFromUserIdAsync(id) end)
-				--_id[ind] = ind .. ": " .. (success and "success" or name)
+				local success, name
+				while true do
+					success, name = pcall(function() return Players:GetNameFromUserIdAsync(id) end)
+					if success then
+						break
+					else
+						if name:find("HTTP 400") then
+							name = nil
+							break
+						elseif name:find("HTTP 429") then -- too many requests
+							print("429 error - waiting...")
+							wait(10)
+						else
+							wait()
+							print(name)
+							error("Unknown error message")
+						end
+					end
+				end
 				name = success and name or nil
 				if name then
 					idToName[id] = name
 					nameToId[name] = id
 				end
 			end
+			--]]
 			while not stopValue.Value do
 				local name = getName()
 				if not name then break end
@@ -679,10 +695,26 @@ elseif CONVERT_AUTHORS then
 					--_name[ind] = ind .. ": repeat"
 					continue
 				end
-				local success, id = pcall(function() return Players:GetUserIdFromNameAsync(name) end)
-				--_name[ind] = ind .. ": " .. (success and "success" or id)
-				name = success and name or nil
-				if name then
+				local success, id
+				while true do
+					success, id = pcall(function() return Players:GetUserIdFromNameAsync(name) end)
+					if success then
+						break
+					else
+						if id:find("failed because the user does not exist") then
+							name = nil
+							break
+						elseif id:find("HTTP 429") then
+							wait(10)
+						else
+							wait()
+							print(id)
+							error("Unknown error message")
+						end
+					end
+				end
+				id = success and id or nil
+				if id then
 					idToName[id] = name
 					nameToId[name] = id
 				end
@@ -704,6 +736,7 @@ elseif CONVERT_AUTHORS then
 	return
 end
 
+local postBookGenres = {"Library Post"}
 for _, args in ipairs({{workspace.Books}, {workspace.BookOfTheMonth}, {workspace.NewBooks}, {workspace["Post Books"], postBookGenres}}) do
 	local container, genresOverride = args[1], args[2]
 	for _, obj in ipairs(container:GetDescendants()) do
@@ -718,8 +751,7 @@ end
 
 local copies = {} -- origBookSource -> book scripts
 
-local output = MAKE_CHANGES or getOrCreate(game.ServerStorage, "Book Revamp Test Output", "Script")
-local postBookGenres = {"Library Post"}
+--local output = MAKE_CHANGES or getOrCreate(game.ServerStorage, "Book Revamp Test Output", "Script")
 for _, args in ipairs({{workspace.Books}, {workspace.NewBooks}, {workspace.BookOfTheMonth}, {workspace["Post Books"], postBookGenres}}) do
 	local container, genresOverride = args[1], args[2]
 	for _, obj in ipairs(container:GetDescendants()) do
@@ -741,8 +773,9 @@ for _, args in ipairs({{workspace.Books}, {workspace.NewBooks}, {workspace.BookO
 					scanForAuthors(obj)
 				end
 			else
-				output.Source = RemoveAllComments(handleBookScript(obj, genresOverride), true)
-				break
+				handleBookScript(obj, genresOverride)
+				--output.Source = RemoveAllComments(handleBookScript(obj, genresOverride), true)
+				--break
 			end
 		end
 	end

@@ -1,6 +1,13 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local List = require(ReplicatedStorage.Utilities.List)
 local Books = {}
 local books = ReplicatedStorage:WaitForChild("GetBooks"):InvokeServer()
+local bookToAuthorNames = {}
+local bookToAuthorIds = {}
+for _, book in ipairs(books) do
+	bookToAuthorNames[book] = List.ToSet(book.Authors)
+	bookToAuthorIds[book] = List.ToSet(book.AuthorIds)
+end
 function Books:GetBooks()
 	--[[Returns a list of books:
 	{
@@ -24,6 +31,12 @@ function Books:FromObj(obj)
 end
 function Books:FromId(id)
 	return idToBook[id]
+end
+function Books:AuthorNamesContains(book, value)
+	return bookToAuthorNames[book][value] or book.AuthorLine:find(value, 1, true)
+end
+function Books:AuthorIdContains(book, userId)
+	return bookToAuthorIds[book][userId]
 end
 
 for _, book in ipairs(books) do

@@ -118,6 +118,7 @@ Update Book Scripts:
 			✔ Package that includes supporting scripts so you can read a book (for workshops)
 				✔ In this package, Books.lua should not warn if no id, since no books should have an id
 			✔ I want the book script to send 'script.Parent' to :Register, not 'script'
+			✔ Replace "paragraphs" with "content"
 	Maintenance Plugin Bugs:
 		✔ Author database not filled out after used/changed
 		✔ Author(s) field is sometimes getting book content
@@ -136,34 +137,70 @@ Update Book Scripts:
 			> It takes .01 sec to perform it for 1 book
 		✔ Maintenance should not allow itself to process for more than 1 sec
 		☐ customAuthorLine is somehow leaking into authorIds on previously dealt with special cases
-		☐ RevampCommands adds genres to individual copies, but not the whole list of them, thereby making BOTM copies inconsistent!
+		✔ A lot of books are losing their authors (might occur if they have no authorID, ex "Fantastic Frontier for Beginners")
+		✔ RevampCommands adds genres to individual copies, but not the whole list of them, thereby making BOTM copies inconsistent!
+		✔ Spread out report amongst multiple pages to avoid "string too long" error
+	More:
+		✔ BookMaintenancePlugin should change final line's WaitForChild("Books") to .Books @done(20-09-07 11:49)
 	Final stages:
-		☐ Pick BookScript documentation variant and update package (all are different)
+		✔ Pick BookScript documentation variant and update package (all are different)
 			Get an outside reviewer's feedback on which is easiest to understand
-		☐ Look for todo, debug, and print messages that shouldn't be there
+		✔ Update Book Template package
+		✔ Prepare BookScript demo and include with workshop
+		✔ Make sure Workshop package works
+		✔ Look for todo, debug, and print messages that shouldn't be there
 		☐ Re-enable Roblox LSP for an added check
 		✔ Delete Assign Book Ids.lua (it's now part of maintenance plugin)
-		☐ Prepare announcement for staff
-		☐ Prepare announcement for general server (including new books)
-		☐ Add people to credits
+		✔ Prepare announcements @done(20-09-07 12:18)
+		✔ Add people to credits @done(20-09-07 12:17)
 	Update Live Place:
-		✔ Scan for all authorIds and usernames
-		☐ Ask Roblox for id or username corresponding to each one
-		☐ Find list of all author ids that have not be on since 2015 and remove them from both collections
+		✔ Ensure all books have been added to the library
+		✔ SCAN_FOR_AUTHORS (to get all authorIds and usernames)
+		✔ CONVERT_AUTHORS (to get username/id conversions)
+		✔ Filter them (to get rid of ids that couldn't possibly be part of the library b/c not been on since 2015)
+		☐ Consider not allowing author name replacing
+			See how many are replaced in an offline test
+			76 replacements with inactive list from 2015. Samples:
+				Replacing Altdragonwizard2 with Ob_Sil
+				Replacing Open Source Initiative with Infinite_Frost
+				Replacing KR (Preshouse) with pinkyglitterykatie
+				Replacing Pioneerbambi with soccerboy
+				Replacing lukiemaster1234 with soccerboy
+				Replacing Blueninja312 with soccerboy
+				Replacing Timothy12139 with timothy12139
+				Replacing iNeedMyAnkleMonitor with soccerboy
+				Replacing ALEX with cobinasaur
+				Replacing AwesomeEllagaming with AwesomeEllagaming123
+
+				A lot of "soccerboy" replacing!
+				Some of them are minor adjustments
+
+		BUGS:
+			✔ Some usernames have " & " and they are not getting split up by RevampCommands
+			☐ Usernames aren't being trimmed (in RevampCommand - also check book maintenance)
+		Other:
+			✔ Packages need to be models with PrimaryPart so that books can be moved without Roblox calling it "changed" @done(20-09-08 10:54)
+		Steps to *not* solve the username/id problem:
+			☐ Disable replacing usernames
+			☐ Move authorName line to "customAuthorLine" if it has any deviation from what would be generated based on the authorNames
+		Steps to *solve* the username/id problem:
+			☐ Do the "not solve" section
+			☐ Author directory would have to list alternates
+			☐ When a user wants to search by an author, ask the server for full list of aliases
+				> or download that automatically
+			☐
 		✔ use rojo to update scripts (this will include the new menu system)
 		☐ transfer guis and DefaultMusic folder (ReplicatedStorage)
-		☐ Replace "paragraphs" with "content"
 		Deal with some more special cases:
-			☐ The Somewhat Okay Guide to Rogue Lineage (fails to convert authorIds)
-				> this might just be a bug
-			☐ Gavin (librarian & publishDate switched - librarian not listed)
+			✔ The Somewhat Okay Guide to Rogue Lineage (fails to convert authorIds) @done(20-09-07 13:17)
+			✔ Gavin (librarian & publishDate switched - librarian not listed) @done(20-09-07 13:17)
 			✘ The Roblox Zone: Grave Danger (publish date, manually switch day/month to month/day -- rest of librarian's dates are probably month/day/year)
-				> not needed
-			☐ "No note provided" is in some authorsNotes - remove?
+			✔ "No note provided" is in some authorsNotes - remove? @done(20-09-07 13:18)
 			These scripts assigned to words instead of paragraphs:
-				☐ The Living Tree
-				☐ Neighboor
-				☐ The bunker after the war
+				✔ The Living Tree @done(20-09-07 13:21)
+				✔ Neighboor @done(20-09-07 13:24)
+				✔ The bunker after the war @done(20-09-07 13:25)
+			✔ BOOM has 2 different book scripts (the non-BOTM version has most comments removed and some script changes that mean the maintenance script doesn't recognize them as the same) @done(20-09-07 13:27)
 		Perform test on offline copy:
 			☐ run RevampBooksCommand on offline copy and inspect books
 			☐ run maintenance plugin and inspect again
@@ -185,10 +222,11 @@ Update Book Scripts:
 		☐ publish
 		☐ update workshops (use a package for a shared template so updating either not required or easier in future)
 
-		Maintenance Plugin - Feature for the future:
+Maintenance Plugin - Feature for the future:
 	☐ A button to add in the covers so you can see what the books look like without pressing play
 		> It would add everything with Archivable = false so they won't save
 		> A 2nd button to remove them
+	☐ Have a "slimmed down" version that verifies book scripts in workshops
 
 New Book Gui:
 	☐ reorganize/redesign from cod's to work on any resolution

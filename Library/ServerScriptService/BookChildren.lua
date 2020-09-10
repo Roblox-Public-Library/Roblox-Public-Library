@@ -32,8 +32,10 @@ function module.AddTo(book)
 		if not book:FindFirstChild(data.Name or data.Type) then
 			local obj = Instance.new(data.Type)
 			if data.Name then obj.Name = data.Name end
-			for k, v in pairs(data.Props) do
-				obj[k] = v
+			if data.Props then
+				for k, v in pairs(data.Props) do
+					obj[k] = v
+				end
 			end
 			obj.Parent = book
 		end

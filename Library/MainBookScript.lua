@@ -3,7 +3,18 @@ local Books = require(ReplicatedStorage.BooksClient)
 local musicClientScript = ReplicatedStorage:FindFirstChild("MusicClient")
 local music = musicClientScript and require(musicClientScript) or {GoCrazy = function() end} -- Allows this script to be used in workshops without the music system
 local localPlayer = game:GetService("Players").LocalPlayer
-local events = require(localPlayer:WaitForChild("PlayerScripts"):WaitForChild("Gui"):WaitForChild("BookGui")) -- temporary patch to new menu system
+local events
+if musicClientScript then
+	events = require(localPlayer:WaitForChild("PlayerScripts"):WaitForChild("Gui"):WaitForChild("BookGui")) -- temporary patch to new menu system
+else -- workshop support
+	local function fakeEvent()
+		return {Fire = function() end}
+	end
+	events = {
+		bookOpened = fakeEvent(),
+		bookClosed = fakeEvent(),
+	}
+end
 local specialScreen = script.Parent.Parent:WaitForChild("SpecialScreen")
 local initialSilenceDuration = 5 -- for GoCrazy
 

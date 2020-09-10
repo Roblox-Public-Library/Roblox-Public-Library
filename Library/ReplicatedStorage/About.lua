@@ -2,11 +2,14 @@ return {
     Credits = {
         {"Building", "PinkOcelots"},
         {"Book Gui", "KeiRoMultiverse"},
+        {"Menu", "chess123mate (scripting)\nFantasyCoder (scripting)\nCodismn (gui design)"},
+        -- {"Book Database System"} -- to be enabled when book favouriting/etc is implemented
+        {"Off-Site Automation", "FantasyCoder"},
         {"Chess", "Cube Systems\nGamesAndMovies\nLoyal2One"},
         {"Connect 4", "Teaful's Library"},
         {"Music & SFX", "AudioBlocks"},
         {"", ""},
-        {"Thanks to", "Our Librarians, Book Movers, Development Team, and Authors!"}
+        {"Thanks to", "Our Authors, Secretaries, Librarians, Book Movers, and Development Team!"}
     },
     FAQ = {
         {
@@ -28,10 +31,6 @@ return {
         {
             Question = "How can I add pictures to my book(s)?",
             Answer = "They must be decals uploaded on Roblox with copying allowed. Just include the decal link in your story where you want the picture to be."
-        },
-        {
-            Question = "How do I get access to the channels?",
-            Answer = "You have to verify and agree to the rules first. Instructions for how to do these are in #welcome-channel."
         },
         {
             Question = "How do I become a staff member?",
