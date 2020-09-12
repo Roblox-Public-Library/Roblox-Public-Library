@@ -104,26 +104,8 @@ local function getProfile(player) -- note: can return nil if the player leaves b
 	end
 	return profile
 end
-local function pt(t,n,seen)
-	if not n then
-		n = 0
-		seen = seen or {[t]=true}
-		print(t)
-	end
-	local tab = string.rep("\t", n)
-	for k, v in pairs(t) do
-		print(tab .. tostring(k), v)
-		if type(v) == "table" and not seen[v] then
-			seen[v] = true
-			pt(v, n+1, seen)
-		end
-	end
-end
 new("RemoteFunction", "GetProfile").OnServerInvoke = function(player)
-	local data = getProfile(player):Serialize()
-	print(player, "Profile")
-	pt(data)
-	return data
+	return getProfile(player):Serialize()
 end
 local function get(key)
 	return function(player)

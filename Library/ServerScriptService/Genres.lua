@@ -114,6 +114,8 @@ local commonMispellings = {
 	-- spellingMistake = correct spelling (in normalized form)
 	-- Be careful not to add a substring of a legitimate string (ex 'ppl' below would be bad if we had an 'apple' genre)
 	learning = "learn", -- not a spelling mistake but simplifies aliases
+	rbx = "Roblox",
+	rblx = "Roblox",
 	ficiton = "fiction",
 	ficton = "fiction",
 	languege = "language",
@@ -124,7 +126,6 @@ local commonExtras = {
 	-- List of words that are often tacked on that can likely be removed
 	-- These strings will be removed from the input one at a time if the input doesn't match any genres/aliases, after considering mispellings
 	-- When one extra is a substring of another, put the longer version first
-	"learning",
 	"learn",
 	"fiction",
 	"fic",

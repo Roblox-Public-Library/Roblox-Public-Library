@@ -1,46 +1,41 @@
-local MAKE_CHANGES = false -- false for debugging
+local MAKE_CHANGES = true -- false for debugging
 local PRINT_LIBRARIAN_REPORT = false
 local SCAN_FOR_AUTHORS = false -- should be false normally; if this is true, MAKE_CHANGES will be set to false
 local CONVERT_AUTHORS = false -- if true, the above options will be set to false
 --local ALLOW_REPLACING_AUTHOR_NAMES = true -- for when MAKE_CHANGES is active
 
---[[Plan
-local authorName = "someone, BakedPot8to"
-local authorID = "anything"l
-->
-    local authors = {"user1", "user2"}
-    local authorIds = {123, false} -- false for "anonymous"/unknown
-
-GET /users/{userId}
-http://api.roblox.com/users/USERID -- must be performed outside Roblox Studio
-]]
---[[More special cases (maybe).. search for scripts with these author "ids":
-Anthony T. Hayes,N/A,Sidartha Septim,SuperMarkU1,http://www.roblox.com/asset/?id=428733812,unknown
-99570107 and 41904357 -- maybe just replace " and " with ", "
-]]
-
 if SCAN_FOR_AUTHORS or CONVERT_AUTHORS then MAKE_CHANGES = false end
 if CONVERT_AUTHORS then SCAN_FOR_AUTHORS = false end
 
-local function desc(obj)
-	return obj:GetFullName():gsub("Workspace%.", ""):gsub("BookEventScript%(This is what you edit%. Edit nothing else%.%)", "BookScript")
-end
+local ServerScriptService = game:GetService("ServerScriptService")
+local Genres = require(ServerScriptService.Genres:Clone()) -- clone allows us to keep modifying Genres
+local Utilities = game:GetService("ReplicatedStorage").Utilities
+local String = require(Utilities.String)
+local List = require(Utilities.List)
 
-local ServerStorage = game.ServerStorage
+local ServerStorage = game:GetService("ServerStorage")
 local RemoveAllComments = require(ServerStorage.RemoveAllComments)
 local userIdToName = (not CONVERT_AUTHORS and not SCAN_FOR_AUTHORS) and require(ServerStorage.AuthorDataFiltered) or {}
 local userNameToId = {}
 for id, name in pairs(userIdToName) do
 	userNameToId[name] = id
 end
+
+local function desc(obj)
+	return obj:GetFullName():gsub("Workspace%.", ""):gsub("BookEventScript%(This is what you edit%. Edit nothing else%.%)", "BookScript")
+end
+
+local wordStartBorder = "%f[%w_]"
+local wordEndBorder = "%f[^%w_]"
 local function genGetData(key)
-	local first = "^local%s+" .. key
-	local firstAlt = "\nlocal%s+" .. key
-	local second = "[ \t]-\n?[ \t]-="
+	local first = "^local%s+" .. key .. wordEndBorder
+	local firstAlt = "\nlocal%s+" .. key .. wordEndBorder
+	-- Note: "^" means "at start of where we're looking" based on the index we provide to string.find
+	local second = "^[ \t]-\n?[ \t]-="
 	local finds = {
-		'[ \t]-\n?[ \t]-"([^"\n]*)"',
-		'[ \t]-\n?[ \t]-%s-%[(=-)%[([^\n]-)%]%1%]',
-		"[ \t]-\n?[ \t]-'([^'\n]*)'",
+		'^[ \t]-\n?[ \t]-"([^"\n]*)"',
+		'^[ \t]-\n?[ \t]-%s-%[(=-)%[([^\n]-)%]%1%]',
+		"^[ \t]-\n?[ \t]-'([^'\n]*)'",
 	}
 	local useSecondData = {false, true, false}
 	return function(source)
@@ -63,9 +58,9 @@ local function genGetData(key)
 	end
 end
 local function genGetLineData(key)
-	local first = "^local%s+" .. key
-	local firstAlt = "\nlocal%s+" .. key
-	local second = "[ \t]-\n?[ \t]-=[ \t]*([^\n]*)"
+	local first = "^local%s+" .. key .. wordEndBorder
+	local firstAlt = "\nlocal%s+" .. key .. wordEndBorder
+	local second = "^[ \t]*\n?[ \t]*=[ \t]*\n?[ \t]*([^\n]*)"
 	return function(source)
 		local startIndex, firstEnd = source:find(first)
 		if not firstEnd then
@@ -87,7 +82,7 @@ local getAuthorName = genGetData("authorName")
 local getOther = {} -- things we add to this but don't use in modifySource will be deleted
 local getLibrarian = genGetData("librarian")
 local getEditor = genGetData("editor")
-for _, var in ipairs({"customAuthorLine", "title", "authorsNote", "cover", "publishDate"}) do
+for _, var in ipairs({"customAuthorLine", "title", "cover", "publishDate"}) do
 	getOther[var] = genGetData(var)
 end
 getOther.librarian = function(source)
@@ -95,7 +90,7 @@ getOther.librarian = function(source)
 	if a then return a, b, c end
 	return getEditor(source)
 end
-for _, var in ipairs({"authorIDs", "authorNames", "bookColor", "titleTextColor", "titleStrokeColor"}) do
+for _, var in ipairs({"authorIDs", "authorNames", "authorsNote", "bookColor", "titleTextColor", "titleStrokeColor"}) do
 	getOther[var] = genGetLineData(var)
 end
 
@@ -201,27 +196,10 @@ local function modifySource(source, genres, model)
 	if authors then
 		for i, author in ipairs(authors) do
 			local id = userNameToId[author]
-			-- If someone has username "X" and we can't find their Id, what do we want to do?
-			-- We wanted to use the Id stored and see if it might be a valid account (using the table above)
-			-- If their Id comes up with username "Y", then we assume that they changed their account name to "Y"
-			if id then
-				authors[i] = ('"%s"'):format(author)
-				authorIds[i] = tostring(id)
-			else
+			authors[i] = ('"%s"'):format(author)
+			authorIds[i] = id and tostring(id) or "false"
+			if not id then
 				numAuthorsNoId += 1
-				-- see if the Id is any good (if it even exists)
-				-- id = authorIds[i] and tonumber(authorIds[i])
-				-- local name = userIdToName[id]
-				-- -- If their Id points to a valid account, use it, otherwise stick with the declared name
-				-- if name and ALLOW_REPLACING_AUTHOR_NAMES then
-				-- 	-- todo a lot of custom text is getting removed this way!
-				-- 	print("Replacing", authors[i], "with", name)
-				-- 	authors[i] = ('"%s"'):format(name)
-				-- 	authorIds[i] = tostring(id)
-				-- else
-				authors[i] = ('"%s"'):format(author)
-				authorIds[i] = "false"
-				--end
 			end
 		end
 	end
@@ -254,12 +232,29 @@ local function modifySource(source, genres, model)
 			publishDate = "10/21/2019"
 		end
 	end
+	local customAuthorLine = data.customAuthorLine
+	if not customAuthorLine and authorNameField then
+		local standardAuthorLine
+		if authors then -- each author entry is wrapped in quotes
+			local new = {}
+			for i, author in ipairs(authors) do
+				new[i] = author:sub(2, -2)
+			end
+			standardAuthorLine = List.ToEnglish(new)
+		else
+			-- if authorNames exists then it'll be the string '{"a", "b"}'
+			standardAuthorLine = data.authorNames and List.ToEnglish(data.authorNames:gsub("[{}\"]+", ""):split(", ")) or ""
+		end
+		if standardAuthorLine ~= authorNameField then
+			customAuthorLine = authorNameField
+		end
+	end
 	local s = {([=[
 local title = "%s"
-local authorIds = %s
 local authorNames = %s
+local authorIds = %s
 local customAuthorLine = "%s"
-local authorsNote = [[%s]]
+local authorsNote = %s
 local genres = {%s}
 
 local cover = "%s"
@@ -267,10 +262,10 @@ local librarian = "%s"
 local publishDate = "%s"
 ]=]):format(
 		data.title or "",
-		authorIds and ("{%s}"):format(table.concat(authorIds, ", ")) or data.authorIDs or "{}",
 		authors and ("{%s}"):format(table.concat(authors, ", ")) or data.authorNames or "{}",
-		data.customAuthorLine or "",
-		data.authorsNote or "",
+		authorIds and ("{%s}"):format(table.concat(authorIds, ", ")) or data.authorIDs or "{}",
+		customAuthorLine or "",
+		data.authorsNote or '""',
 		genres and table.concat(genres, ", ") or "",
 
 		data.cover or "",
@@ -304,11 +299,6 @@ local publishDate = "%s"
     return table.concat(s):gsub("\nlocal paragraphs =", "\nlocal content =")
 end
 local unknownGenres = {} -- pre-normalized genre -> true
-local ServerScriptService = game:GetService("ServerScriptService")
-local Genres = require(ServerScriptService.Genres:Clone()) -- clone allows us to keep modifying Genres
-local Utilities = game:GetService("ReplicatedStorage").Utilities
-local String = require(Utilities.String)
-local List = require(Utilities.List)
 local tmpAliases = {
 	foreignlangueges = "Languages",
 	ficton = "Fiction",
@@ -545,19 +535,16 @@ local function updateTitleColors(bookScript)
 	end
 end
 
-local bookNameToGenre = {}
+local bookSourceToGenre = {}
 local function handleBookScript(obj, genresOverride, newSourceFromDuplicate)
 	local source = obj.Source
 	local new = {}
 	local start = 1
-	local bookName = getBookName(obj)
-	local genres = genresOverride or (bookName and bookNameToGenre[bookName])
+	local genres = genresOverride or bookSourceToGenre[source]
 	local nameWithoutGenres, tagsNotIdentified
 	if not genres then
 		genres, nameWithoutGenres, tagsNotIdentified = getGenresFromBook(obj.Parent)
-		if bookName then
-			bookNameToGenre[bookName] = bookNameToGenre
-		end
+		bookSourceToGenre[source] = genres
 	end
 	if nameWithoutGenres then
 		stripGenresFromPartName(obj.Parent, nameWithoutGenres, tagsNotIdentified)
@@ -816,17 +803,3 @@ if MAKE_CHANGES then
 		end
 	end
 end
-
---[[Some other cases:
-Regex find in all scripts: authorName =.*,
-local authorName = "EpicNerd5678, LostSouth, Galaga31656, Jwarrior999, and AE_FIRE (listed as LostArt)"
-
-local authorName = "The Imperial Lexicanium, published by ZuiuCenturion"
-local authorID = "17950085"
-
-local authorName = "ryan900fan (author), GoodDysAlt (coauthor)"
-
-local authorName = "ravioli_formioli, proofread by TahoqMacLeod"
-
-local authorName = "SushiSanPedrik, A.K.A BestAccountEverBois"
-]]

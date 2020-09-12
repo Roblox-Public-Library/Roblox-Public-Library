@@ -9,7 +9,7 @@ return {
         {"Connect 4", "Teaful's Library"},
         {"Music & SFX", "AudioBlocks"},
         {"", ""},
-        {"Thanks to", "Our Authors, Secretaries, Librarians, Book Movers, and Development Team!"}
+        {"Thanks to", "Our Authors, Secretaries, Librarians, Book Movers, and Dev Team!"}
     },
     FAQ = {
         {

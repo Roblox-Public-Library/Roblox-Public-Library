@@ -6,6 +6,7 @@ local TweenService = game:GetService("TweenService")
 local tweenInfo = TweenInfo.new(0.3)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local AuthorDirectory = require(ReplicatedStorage.AuthorDirectory)
 local ObjectList = require(ReplicatedStorage.Utilities.ObjectList)
 local Books = require(ReplicatedStorage.BooksClient)
 local books = Books:GetBooks()
@@ -290,25 +291,52 @@ local function titleSearch(value)
 	return results
 end
 local function authorSearch(value)
+	--[[So what's our new authorSearch algorithm need to be?
+	I know that if you look for "X" and "X" maps to an author ID, then we want all books with that author ID
+		Notably, there could be multiple IDs here
+	Also, if any author name includes "X" then we want that one too, regardless of id
+	]]
 	local results = {}
-	local userId = tonumber(value)
-	if not userId then -- see if can convert to userId. We can only do this if 'value' is the name of a player in the server
+	local authorIds
+	local authorId = tonumber(value)
+	if not authorId then -- see if can convert to userId. We can only do this if 'value' is the name of a player in the server
 		local player = Players:FindFirstChild(value)
 		if player then
-			userId = player.UserId
+			authorId = player.UserId
 		end
 	end
-	if userId then -- search in AuthorIds
-		for _, book in ipairs(books) do
-			if Books.AuthorIdContains(book, userId) then
-				results[#results + 1] = book
+	if authorId then
+		authorIds = {authorId}
+	else
+		authorIds = AuthorDirectory.ExactMatches(authorId or value)
+		if not authorIds or #authorIds == 0 then -- todo consider allowing both but at different priorities
+			authorIds = AuthorDirectory.PartialMatches(authorId or value)
+		end
+	end
+	if authorIds and #authorIds > 0 then
+		for _, authorId in ipairs(authorIds) do
+			for _, book in ipairs(books) do
+				local lookup = Books:GetAuthorIdLookup(book)
+				if lookup[authorId] then
+					results[#results + 1] = book
+				end
 			end
 		end
-	else
-		for _, book in ipairs(books) do
-			if Books.AuthorNameContains(value) then
-				results[#results + 1] = book
-			end
+	end
+	if #results > 0 then -- todo consider continuing but making the rest a lower priority
+		return results
+	end
+	for _, book in ipairs(books) do
+		if Books:AuthorNamesContainsFullWord(book, value) then
+			results[#results + 1] = book
+		end
+	end
+	if #results > 0 then -- todo consider allowing to continue at lower priority
+		return results
+	end
+	for _, book in ipairs(books) do
+		if Books:AuthorNamesContain(book, value) then
+			results[#results + 1] = book
 		end
 	end
 	return results

@@ -1,8 +1,8 @@
 -- Example values are to the side.
 
 local title = "" -- "BookTemplate"
-local authorIds = {} -- {false, 1} -- Use false for anonymous users or if the author elects for an author name other than their username.
 local authorNames = {} -- {"Anonymous", "ROBLOX"}
+local authorIds = {} -- {false, 1} -- Use false for anonymous users or if the author elects for an author name other than their username.
 local customAuthorLine = "" -- "Mystery Person (author) & Roblox (editor)" will show up on the cover page as "By: Mystery Person (author) & Roblox (editor)"
 --		If left blank, in this example, the cover page would display "By: Anonymous and ROBLOX"
 --		Note: always list the authorNames, regardless of if you have a customAuthorLine.

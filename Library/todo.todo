@@ -1,7 +1,7 @@
  (If you install the Todo+ extension you can toggle a task being done with Alt+d and create a new task with Ctrl+Enter)
 --------------------------
 Update Book Scripts:
-	✔ ListToEnglish -> Module (in Utilities)
+	✔ ListToEnglish -> Module (in Utilities)tk
 	✔ finish fixing BookEventScript to use ListToEnglish for authorLine
 	✔ book search needs to know that it's a list of names (comma separated in the StringValue)
 	✔ incorporate Pink's fix for Title @done(20-08-27 14:20)
@@ -126,22 +126,75 @@ Update Book Scripts:
 		✔ No output from author scan
 	Book Search:
 		✔ Some books use '’' character. Replace these with a '
+	Other:
+		✔ Packages need to be models with PrimaryPart so that books can be moved without Roblox calling it "changed" @done(20-09-08 10:54)
+	Steps to *not* solve the username/id problem:
+		✔ Disable replacing usernames
+		✔ Move authorName line to "customAuthorLine" if it has any deviation from what would be generated based on the authorNames
+	Steps to *solve* the username/id problem:
+		✔ Do the "not solve" section
+		✔ Author directory would have to list alternates
+		✔ As people update their usernames, update
+		✘ As authors publish different pennames associated with their account, add to the directory
+		✔ On startup, search through all books to find name->authorId connections (adding them to the author directory - allow more than one authorId for a given name)
+		✘ Books needs to send to the client *all* author info (both ID and "author name" lists)
+			> already done
+		✘ ? Author Directory: first name *must* be current username
+			> This is only useful if we want to give precedence/priority to certain names
+			> So long as it is consistent it doesn't matter
+		✔ When a user wants to search by an author, consider the full list of aliases
+		✔ Modify locks so that only 1 plugin can run author updating
+		✔ Author directory can now be a ModuleScript
+			returns {[id] = {name1, name2, ...}, -- Banned or LastUpdated:#}
+			> Banned means "don't bother updating again" so no need for LastUpdated in that case
+			✔ get a global lock on author updating
+			✔ parse the source
+			✔ query author names from Roblox as fast as possible
+			✔ every 100, update the source
+			✔ assemble the source
+			return {
+				[123] = {"name1", "name2"}, -- Banned
+				[124] = {"name1", "name2"}, -- LastUpdated:15325345
+				-- OR
+				[123] = {"name1", "name2", true},
+				[124] = {"name1", "name2", 15325345},
+			}
+			Updating:
+				✔ Notify original lock (if it exists) to release, unless we own it
+				✔ Wait up to 1 second for it to release (monitor it changing ancestry)
+				✔ Read info to ensure most-up-to-date content
+				✔ etc
+			✔ in book search, client requires this script to get author aliases
 	Test/Debug:
 		✔ Workshop Package  @done(20-09-03 13:31
 		✔ RevampBooksCommand (test on scripting dev; have backup of book folders handy)
 		✔ BookMaintenancePlugin (test on offline copy after revamp works)
+	More:
+		✔ BookMaintenancePlugin should change final line's WaitForChild("Books") to .Books @done(20-09-07 11:49)
+		✔ In Maintenance Plugin for new books, book parts should be named `"Title" by Author (Main Genre)`, defining Main Genre as 1st genre in list. This should be done *after* manual analysis of titles with differences to catch bugs and missing genres.
 	Bugs:
 		✔ Replacing fancy quotation marks can prematurely end a string
 		✔ RevampCommands assumes a certain order that isn't always there, resulting in data loss
 		✔ Maintenance should only get rid of special characters for new books
 			> It takes .01 sec to perform it for 1 book
 		✔ Maintenance should not allow itself to process for more than 1 sec
-		☐ customAuthorLine is somehow leaking into authorIds on previously dealt with special cases
 		✔ A lot of books are losing their authors (might occur if they have no authorID, ex "Fantastic Frontier for Beginners")
 		✔ RevampCommands adds genres to individual copies, but not the whole list of them, thereby making BOTM copies inconsistent!
 		✔ Spread out report amongst multiple pages to avoid "string too long" error
-	More:
-		✔ BookMaintenancePlugin should change final line's WaitForChild("Books") to .Books @done(20-09-07 11:49)
+		✔ customAuthorLine is somehow leaking into authorIds on previously dealt with special cases
+		✔ customAuthorLine is being assigned even when unnecessary
+		✔ "No authors detected. Run maintenance to detect authors." being spammed constantly
+		☐ Any authorIds with no author names: remove author name
+			> consider inspecting manually first
+		✔ Don't complain that Library Post books aren't on shelves
+		✔ "Snap"s aren't being removed @done(20-09-10 20:15)
+		✔ Models aren't being updated to have special characters removed
+		☐ Title field should be trimmed by Maintenance for new books
+			☐ TEST THIS
+		✔ "the circus (poetry)" didn't receive the Poetry genre! (A saw at least 1 other that had this)
+		✔ Author names being initialized should not be called "name changes"
+		☐ Should warn if books are in "New Books" only
+		✔ `s = {"authors here"}` appearing for special cases
 	Final stages:
 		✔ Pick BookScript documentation variant and update package (all are different)
 			Get an outside reviewer's feedback on which is easiest to understand
@@ -153,42 +206,14 @@ Update Book Scripts:
 		✔ Delete Assign Book Ids.lua (it's now part of maintenance plugin)
 		✔ Prepare announcements @done(20-09-07 12:18)
 		✔ Add people to credits @done(20-09-07 12:17)
+		✔ Some usernames have " & " and they are not getting split up by RevampCommands
+		✔ Usernames aren't being trimmed (in RevampCommand - also check book maintenance)
 	Update Live Place:
 		✔ Ensure all books have been added to the library
 		✔ SCAN_FOR_AUTHORS (to get all authorIds and usernames)
 		✔ CONVERT_AUTHORS (to get username/id conversions)
 		✔ Filter them (to get rid of ids that couldn't possibly be part of the library b/c not been on since 2015)
-		☐ Consider not allowing author name replacing
-			See how many are replaced in an offline test
-			76 replacements with inactive list from 2015. Samples:
-				Replacing Altdragonwizard2 with Ob_Sil
-				Replacing Open Source Initiative with Infinite_Frost
-				Replacing KR (Preshouse) with pinkyglitterykatie
-				Replacing Pioneerbambi with soccerboy
-				Replacing lukiemaster1234 with soccerboy
-				Replacing Blueninja312 with soccerboy
-				Replacing Timothy12139 with timothy12139
-				Replacing iNeedMyAnkleMonitor with soccerboy
-				Replacing ALEX with cobinasaur
-				Replacing AwesomeEllagaming with AwesomeEllagaming123
-
-				A lot of "soccerboy" replacing!
-				Some of them are minor adjustments
-
-		BUGS:
-			✔ Some usernames have " & " and they are not getting split up by RevampCommands
-			☐ Usernames aren't being trimmed (in RevampCommand - also check book maintenance)
-		Other:
-			✔ Packages need to be models with PrimaryPart so that books can be moved without Roblox calling it "changed" @done(20-09-08 10:54)
-		Steps to *not* solve the username/id problem:
-			☐ Disable replacing usernames
-			☐ Move authorName line to "customAuthorLine" if it has any deviation from what would be generated based on the authorNames
-		Steps to *solve* the username/id problem:
-			☐ Do the "not solve" section
-			☐ Author directory would have to list alternates
-			☐ When a user wants to search by an author, ask the server for full list of aliases
-				> or download that automatically
-			☐
+		✔ Consider not allowing author name replacing
 		✔ use rojo to update scripts (this will include the new menu system)
 		☐ transfer guis and DefaultMusic folder (ReplicatedStorage)
 		Deal with some more special cases:
@@ -200,9 +225,9 @@ Update Book Scripts:
 				✔ The Living Tree @done(20-09-07 13:21)
 				✔ Neighboor @done(20-09-07 13:24)
 				✔ The bunker after the war @done(20-09-07 13:25)
-			✔ BOOM has 2 different book scripts (the non-BOTM version has most comments removed and some script changes that mean the maintenance script doesn't recognize them as the same) @done(20-09-07 13:27)
+				✔ BOOM has 2 different book scripts (the non-BOTM version has most comments removed and some script changes that mean the maintenance script doesn't recognize them as the same) @done(20-09-07 13:27)
 		Perform test on offline copy:
-			☐ run RevampBooksCommand on offline copy and inspect books
+			✔ run RevampBooksCommand on offline copy and inspect books
 			☐ run maintenance plugin and inspect again
 			☐ test menus & books are working
 			Make sure nothing breaks:
@@ -218,15 +243,20 @@ Update Book Scripts:
 				local authorNames = {"EpicNerd5678", "LostSouth", "Jwarrior999", "AE_FIRE"}
 				local authorIDs = {115006960, 171216631, 143589351, 511027312}
 				local customAuthorLine = "EpicNerd5678, LostSouth, Jwarrior999, and AE_FIRE (listed as LostArt)"
+			✔ Change shelves to say "Roblox History" not "History"
+			☐ then disable the special check in the Maintenance plugin (ctrl+f for "is on shelf")
+			Fix Genres for...:
+				☐ Files in python
 		☐ final quick test menus & books are working
 		☐ publish
 		☐ update workshops (use a package for a shared template so updating either not required or easier in future)
 
-Maintenance Plugin - Feature for the future:
+Maintenance Plugin - Features for the future:
 	☐ A button to add in the covers so you can see what the books look like without pressing play
 		> It would add everything with Archivable = false so they won't save
 		> A 2nd button to remove them
 	☐ Have a "slimmed down" version that verifies book scripts in workshops
+	☐ Scan for new books continuously on startup
 
 New Book Gui:
 	☐ reorganize/redesign from cod's to work on any resolution

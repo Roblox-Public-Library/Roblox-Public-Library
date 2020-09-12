@@ -25,6 +25,31 @@ for i = 301, 306 do maxTries[i] = math.huge end -- queue exhausted
 local waitTimeBetweenAttempts = 6
 
 if isStudio then -- Set up fake data stores for studio testing
+	if not pcall(function() DataStoreService:GetGlobalDataStore() end) then
+		local global = {}
+		local ds = {} -- name -> scope -> ds
+		local ods = {} -- name -> scope -> ds
+		local function get(t, name, scope)
+			scope = scope or "global"
+			local a = t[name]
+			if not a then
+				a = {}
+				t[name] = a
+			end
+			local b = a[scope]
+			if not b then
+				b = {}
+				a[scope] = b
+			end
+			return b
+		end
+		DataStoreService = {
+			GetGlobalDataStore = function() return global end,
+			GetDataStore = function(name, scope) return get(ds, name, scope) end,
+			GetOrderedDataStore = function(name, scope) return get(ods, name, scope) end,
+		}
+	end
+
 	local dataStoreToData = {}
 	local function add(name, func)
 		DataStores[name] = function(dataStore, ...)

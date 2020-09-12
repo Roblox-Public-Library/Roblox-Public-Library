@@ -15,7 +15,7 @@ local modelToId = {}
 local warnOutdated
 if storage then
 	warnOutdated = function()
-		warn("Outdated book ids. Book Maintenance required.")
+		warn("Books missing ids - Book Maintenance required.")
 		warnOutdated = function() end
 	end
 else
