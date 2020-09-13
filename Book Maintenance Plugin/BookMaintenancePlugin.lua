@@ -11,6 +11,30 @@ Responsibilities:
 -Compile list of books with title, author, and all other available data into an output script
 -Remove unnecessary welds
 ]]
+--[[Helpful command bar debugging functions:
+function findId(objList)
+	objList = objList or game.Selection:Get()
+	if type(objList) ~= "table" then objList = {objList} end
+	if #objList == 0 then print("Select objects for id retrieval") return end
+	for _, obj in ipairs(objList) do
+		local found -- becomes string version of id
+		for _, idObj in ipairs(game.ServerStorage["Book Data Storage"].Ids:GetChildren()) do
+			found = idObj.Value == obj and idObj.Name
+			if found then break end
+			for _, c in ipairs(idObj:GetChildren()) do
+				found = c.Value == obj and idObj.Name
+				break
+			end
+			if found then break end
+		end
+		if found then
+			print("Id:", found, ("(%s)"):format(obj.Name))
+		else
+			print("No id for", obj.Name)
+		end
+	end
+end
+]]
 local Players = game:GetService("Players")
 local ServerStorage = game:GetService("ServerStorage")
 local function get(parent, child)
@@ -28,12 +52,26 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Utilities = get(ReplicatedStorage, "Utilities")
 local String = require(get(Utilities, "String"))
 local List = require(get(Utilities, "List"))
+local Report = require(script.Parent.Report:Clone()) -- todo :Clone() allows reloading changes
+-- Report order constants
+local IMPORTANT = 10
+local FINAL_SUMMARY = 20
 
 local RunService = game:GetService("RunService")
 local heartbeat = RunService.Heartbeat
 local isEditMode = RunService:IsEdit()
 
 -- In this script, a "model" is the BasePart of a book. A "book" refers to a table with fields including Title, Author, Models, and Source.
+
+local function path(obj)
+	return obj:GetFullName():gsub("Workspace.", "")
+end
+local function bookPath(book)
+	return path(book.Models[1])
+end
+local function getBookTitleByAuthorLine(book)
+	return ('"%s"%s%s'):format(book.Title or "?", #book.AuthorNames > 0 and " by " .. List.ToEnglish(book.AuthorNames) or " by Anonymous", #book.Genres > 0 and (" (%s)"):format(book.Genres[1]) or "")
+end
 
 local wordStartBorder = "%f[%w_]"
 local wordEndBorder = "%f[^%w_]"
@@ -100,7 +138,7 @@ local sourceToBook, dataKeyList, updateBookSource, allFieldsAffected do
 					if n then
 						new[#new + 1] = n
 					else
-						warn(("Unexpected value '%s' in %s in %s"):format(v, key, model:GetFullName()))
+						warn(("Unexpected value '%s' in %s in %s"):format(v, key, path(model)))
 					end
 				end
 			end
@@ -120,17 +158,35 @@ local sourceToBook, dataKeyList, updateBookSource, allFieldsAffected do
 	local allFieldsAffected = {}
 	for k, _ in pairs(dataProps) do allFieldsAffected[#allFieldsAffected + 1] = k end
 	local function calculateBookAuthors(book)
-		-- todo debug
+		-- todo remove the pcall if (debugging):
 		if not pcall(function() List.ToEnglish(book.AuthorNames) end) then
 			print(book.Title)
-			print(book.Models[1]:GetFullName())
+			print(bookPath(book))
 			for i, v in ipairs(book.AuthorNames) do
 				print(i, type(v), "|", v)
 			end
 		end
 		return book.CustomAuthorLine or #book.AuthorNames > 0 and List.ToEnglish(book.AuthorNames) or "Anonymous"
 	end
-	sourceToBook = function(source, models)
+	local noAuthor = Report.NewListCollector("1 book has no authors:", "%d books have no authors:")
+	local noGenres = Report.NewListCollector("1 book has no genres:", "%d books have no genres:")
+	local bookMissingField = Report.PreventDuplicates(
+		Report.NewCategoryCollector("1 book is missing fields:", "%d books are missing fields:"),
+		function(data) data.fieldSeenSource = {} end,
+		function(data, field, _, source)
+			local seen = data.fieldSeenSource[field]
+			if not seen then
+				seen = {}
+				data.fieldSeenSource[field] = seen
+			end
+			if not seen[source] then
+				seen[source] = true
+				return false
+			else
+				return true
+			end
+		end)
+	sourceToBook = function(report, source, models)
 		local book = {
 			Models = models,
 			Source = source,
@@ -139,15 +195,21 @@ local sourceToBook, dataKeyList, updateBookSource, allFieldsAffected do
 		for k, v in pairs(dataProps) do
 			book[k] = v(source, model)
 		end
-		if book.AuthorNames[1] == nil then print(models[1]:GetFullName(), "has a nil 1st AuthorName") end
+		if book.AuthorNames[1] == nil then
+			report(noAuthor, ("%s.%s"):format(path(models[1].Parent), getBookTitleByAuthorLine(book)))
+		end
+		if #book.Genres == 0 then
+			report(noGenres, ("%s.%s"):format(path(models[1].Parent), getBookTitleByAuthorLine(book)))
+		end
 		book.Authors = calculateBookAuthors(book)
+		local invalid = false
 		for _, field in ipairs(mandatoryFields) do
 			if not book[field] then
-				warn(("%s is missing '%s'!"):format(models[1]:GetFullName(), field))
-				return nil
+				report(bookMissingField, field, path(models[1]), source)
+				invalid = true
 			end
 		end
-		return book
+		return not invalid and book or nil
 	end
 	updateBookSource = function(book, newSource, affectedFields) -- in affectedFields, do not include Authors. If all may have been changed, provide allFieldsAffected. If none changed, omit it.
 		local updateAuthors = false
@@ -182,16 +244,17 @@ local function listToTableContents(list, suppressSpace)
 	end
 	return table.concat(new, suppressSpace and "," or ", ")
 end
-local function modifySourceVarList(source, var, newValue, model) -- newValue:list
+local failedToFindVar = Report.NewListCollector("Failed to find variables for the following books:")
+local function modifySourceVarList(report, source, var, newValue, model) -- newValue:list
 	--	returns success, source; warns if fails to find 'var'
 	local _, lastCharToKeep = source:find("local%s+" .. var .. "%s*=%s*%{")
 	if not lastCharToKeep then
-		warn(("Failed to find variable '%s' in %s"):format(var, model:GetFullName()))
+		report(failedToFindVar, ("'%s' in %s"):format(var, path(model)))
 		return false, source
 	end
 	local _, firstCharToKeep = source:find("}", lastCharToKeep, true)
 	if not firstCharToKeep then
-		warn(("Failed to find variable '%s' in %s"):format(var, model:GetFullName()))
+		report(failedToFindVar, ("'%s' in %s"):format(var, path(model)))
 		return false, source
 	end
 	return true, ("%s%s%s"):format(
@@ -264,11 +327,9 @@ local GenLock do
 		--	Returns a lock object
 		--	Note: name defaults to Lock, but don't let 2 different locks share the same name if they might lock the same object
 		name = name or "Lock"
-		local lock
 		local fullyLocked = true -- only read from this if lock.Parent
-		--if isEditMode and #Players:GetPlayers() >= 1 then -- need lock
-		--(The 'if' has been disabled because now 2 threads on one client might both want to lock the same thing
-		lock = Instance.new("ObjectValue")
+		-- Note: since two threads on one client might both want to lock the same thing, we don't skip making a lock just because this client is alone
+		local lock = Instance.new("ObjectValue")
 		lock.Name = name
 		lock.Value = Players.LocalPlayer
 		lock.Archivable = false -- if everyone leaves the team create, this is removed
@@ -283,10 +344,10 @@ local GenLock do
 				if other then
 					if other == lock then
 						return false
-					elseif not other.Value or not other.Value.Parent or (other.Value == lock.Value and other ~= lock) then
+					elseif not other.Value or not other.Value.Parent or other.Value == lock.Value then
 						other:Destroy()
 					else
-						return other ~= lock and other or false
+						return other
 					end
 				else
 					return false
@@ -307,8 +368,8 @@ local GenLock do
 					end
 				end
 			end)
-			local obj = lock:Clone()
-			obj.Parent = other
+			local lockOverride = lock:Clone()
+			lockOverride.Parent = other
 			if not released then
 				releasedEvent = Instance.new("BindableEvent")
 				delay(2, function()
@@ -323,7 +384,7 @@ local GenLock do
 				releasedEvent:Destroy()
 				releasedEvent = nil
 			end
-			obj:Destroy()
+			lockOverride:Destroy()
 		end
 		local releaseDesired = Instance.new("BindableEvent")
 		self.ReleaseDesired = releaseDesired.Event
@@ -340,7 +401,7 @@ local GenLock do
 				return true
 			end
 			if self:OtherHasLock(obj) then return false end
-			lock.Parent = obj
+			if not pcall(function() lock.Parent = obj end) then return false end -- typically occurs when loading a new version of the plugin
 			local success = true
 			if #Players:GetPlayers() > 1 then -- wait for a moment
 				fullyLocked = false
@@ -627,11 +688,11 @@ end
 local authorLock, onMaintenanceFinished do
 	authorLock = GenLock("AuthorScanLock", 1)
 	local getCheckAuthorsEvery = getSetting("Check authors every # seconds", 7 * 24 * 3600)
-	local getAuthorCheckingEnabled = getSetting("Automatic author name updating enabled", false) --DEBUG: should be true
+	local getAuthorCheckingEnabled = getSetting("Automatic author name updating enabled", true)
 	local authorCheckRunning = false
 	local usernameRetrievalWarnings = {}
 	local warnings = 0
-	local printedReportBefore = false
+	local printedReportUpToDate = false
 	local function scanAuthors()
 		--print("[Automatic Book Maintenance] Author database detected - commencing automatic author scanning.")
 		-- [Old note when we were using IntValues] Based on my performance calculations, even though this algorithm throttles itself to only consume 25% of the time per frame, it should be able to check the NextTime on 2400+ authors/sec
@@ -667,28 +728,46 @@ local authorLock, onMaintenanceFinished do
 				yielding = false
 				lastYieldTime = os.clock()
 			end
+			local function getTimeLeft(lastUpdated)
+				return lastUpdated + getCheckAuthorsEvery() - os.time()
+			end
 			local idToEntry = readAuthorDirectory()
 			local authorIds
-			local authorsDetected
-			local unbannedAuthorsDetected
 			local printWelcomeBefore = false
+			local authorsDetected
 			local function refreshIds()
 				--	returns true if should exit early
 				authorIds = {}
 				authorsDetected = 0
-				unbannedAuthorsDetected = 0
+				local unbannedAuthorsDetected = 0
+				local upToDate = 0
 				for id, entry in pairs(idToEntry) do
 					authorsDetected += 1
 					if entry.LastUpdated then
 						unbannedAuthorsDetected += 1
 						authorIds[unbannedAuthorsDetected] = id
+						if getTimeLeft(entry.LastUpdated) > 0 then
+							upToDate += 1
+						end
+					else
+						upToDate += 1
 					end
 				end
 				table.sort(authorIds, function(a, b) return idToEntry[a].LastUpdated < idToEntry[b].LastUpdated end)
 				-- the ones updated longest ago will now be first
 				if not printWelcomeBefore then
 					if authorsDetected > 0 then
-						print(("[Author Updater] Commencing scanning of %d/%d unbanned authors"):format(unbannedAuthorsDetected, authorsDetected))
+						local authorsDesc = unbannedAuthorsDetected == authorsDetected
+							and ("%d authors"):format(authorsDetected)
+							or ("authors (%d/%d not banned)"):format(unbannedAuthorsDetected, authorsDetected)
+						if upToDate == authorsDetected then
+							print(("[Author Updater] All %s up to date"):format(authorsDesc))
+							printedReportUpToDate = true -- report will only say the same thing
+						else
+							print(("[Author Updater] Commencing scanning of %s%s"):format(
+								authorsDesc,
+								upToDate == 0 and "" or (" (%d up to date)"):format(upToDate)))
+						end
 						printWelcomeBefore = true
 					else
 						print("[Author Updater] No authors detected. Run maintenance to detect authors.")
@@ -713,11 +792,15 @@ local authorLock, onMaintenanceFinished do
 				if numInit > 0 then list[#list + 1] = ("%d author names initialized"):format(numInit) end
 				if numUpdated > 0 then list[#list + 1] = ("%d name changes detected"):format(numUpdated) end
 				if numBannedDiscovered > 0 then list[#list + 1] = ("%d bans detected"):format(numBannedDiscovered) end
-				if numConfirmed > 0 then list[#list + 1] = ("%d author names up to date"):format(numConfirmed) end
-				print(("[Author Updater] %s%s"):format(
-					List.ToEnglish(list),
-					numErrors > 0 and (" (%d unknown errors)"):format(numErrors) or ""))
-				numBannedDiscovered, numUpdated, numInit, numConfirmed, numErrors = 0, 0, 0, 0, 0
+				if numConfirmed > 0 then list[#list + 1] = ("%d author names unchanged"):format(numConfirmed) end
+				if #list > 0 or numErrors > 0 then
+					print(("[Author Updater] %s%s"):format(
+						List.ToEnglish(list),
+						numErrors > 0 and (" (%d unknown errors)"):format(numErrors) or ""))
+					numBannedDiscovered, numUpdated, numInit, numConfirmed, numErrors = 0, 0, 0, 0, 0
+				else
+					print("[Author Updater] All authors up to date")
+				end
 			end
 			while not released do
 				considerSafeYield()
@@ -740,15 +823,16 @@ local authorLock, onMaintenanceFinished do
 				end
 				local curEntry = idToEntry[userId]
 				local lastUpdated = curEntry.LastUpdated
-				local timeLeft = lastUpdated + getCheckAuthorsEvery() - os.time()
+				local timeLeft = getTimeLeft(lastUpdated)
 				if timeLeft > 0 then
 					writeIfProgressMade()
-					if timeLeft >= 60 or not printedReportBefore then
+					if not printedReportUpToDate then
 						printReport()
-						printedReportBefore = true
+						printedReportUpToDate = true
 					end
 					yield(timeLeft)
 				else -- Update this id
+					printedReportUpToDate = false
 					nextCheckIndex += 1
 					local success, username = pcall(function() return Players:GetNameFromUserIdAsync(userId) end)
 					if not success then
@@ -781,11 +865,11 @@ local authorLock, onMaintenanceFinished do
 								numUpdated += 1
 							end
 							curEntry.Names[username] = true
-							unwrittenChanges += 1
 						else
 							numConfirmed += 1
 						end
 						curEntry.LastUpdated = os.time()
+						unwrittenChanges += 1
 					end
 				end
 			end
@@ -797,9 +881,8 @@ local authorLock, onMaintenanceFinished do
 		authorCheckRunning = true
 		coroutine.resume(coroutine.create(function()
 			heartbeat:Wait() -- keep stack trace for debugging
-			scanAuthors() -- and naturally the bug disappears now :(
+			scanAuthors()
 		end))
-		--coroutine.wrap(scanAuthors)()
 	end
 	considerScanAuthors()
 	function onMaintenanceFinished()
@@ -807,6 +890,7 @@ local authorLock, onMaintenanceFinished do
 	end
 end
 
+local noAuthorName = Report.NewListCollector("%d book%s have an authorId but no corresponding author name:")
 local function updateAuthorInformation(report, books)
 	--[[
 		Read database
@@ -823,7 +907,7 @@ local function updateAuthorInformation(report, books)
 			idsFound[authorId] = true
 			local authorName = book.AuthorNames[i]
 			if not authorName then
-				warn(book.Models[1]:GetFullName(), "has authorId", authorId, "but no corresponding author name")
+				report(noAuthorName, ("%s (id %d)"):format(bookPath(book), authorId))
 				continue
 			end
 			local entry = idToEntry[authorId]
@@ -845,8 +929,17 @@ local function updateAuthorInformation(report, books)
 		local list = {}
 		if numNew > 0 then list[#list + 1] = ("%d new authors"):format(numNew) end
 		if numRemoved > 0 then list[#list + 1] = ("%d authors no longer published"):format(numRemoved) end
-		report[#report + 1] = ("Author database updated: %s"):format(List.ToEnglish(list))
+		report(FINAL_SUMMARY, ("Author database updated: %s"):format(List.ToEnglish(list)))
 	end
+end
+
+local function leftAlign(s, width) --zzz
+	--	s: string
+	--	will ensure there is a space on character number 'width'
+	local n = utf8.len(s)
+	return n >= width
+		and s:sub(1, width - 4) .. "... | "
+		or s .. string.rep(" ", width - n - 1) .. " | "
 end
 
 local generateReportToScript do
@@ -917,7 +1010,7 @@ local generateReportToScript do
 	end
 	generateReportToScript = function(report, books)
 		local numPages = generateReport(books)
-		report[#report + 1] = ("%d unique books compiled into %d ServerStorage.Book List Report page%s"):format(#books, numPages, numPages == 1 and "" or "s")
+		report(FINAL_SUMMARY, ("%d unique books compiled into %d ServerStorage.Book List Report page%s"):format(#books, numPages, numPages == 1 and "" or "s"))
 	end
 end
 
@@ -928,7 +1021,8 @@ local function isBook(obj)
 	end
 	return false
 end
-local function findAllBooks()
+local noBookCopy = Report.NewListCollector("1 book lacks a copy in the main shelving", "%d books lack a copy in the main shelving:")
+local function findAllBooks(report)
 	-- returns books (list of data with .Models)
 	local sourceToModels = {}
 	local function addToList(model, source)
@@ -951,7 +1045,7 @@ local function findAllBooks()
 		if isBook(c) then
 			local source = c:FindFirstChildOfClass("Script").Source
 			if not sourceToModels[source] then
-				warn("No book script is the same as the one in", c:GetFullName())
+				report(noBookCopy, path(c))
 			end
 			addToList(c, source)
 		end
@@ -960,7 +1054,7 @@ local function findAllBooks()
 		if isBook(c) then
 			local source = c:FindFirstChildOfClass("Script").Source
 			if not sourceToModels[source] then
-				warn("No book script is the same as the one in", c:GetFullName())
+				report(noBookCopy, path(c))
 			end
 			addToList(c, source)
 		end
@@ -968,7 +1062,7 @@ local function findAllBooks()
 	local books = {}
 	local n = 0
 	for source, models in pairs(sourceToModels) do
-		local book = sourceToBook(source, models)
+		local book = sourceToBook(report, source, models)
 		if book then
 			n = n + 1
 			books[n] = book
@@ -1055,10 +1149,10 @@ local function trimFields(book)
 	for field, var in pairs(trimFieldToVar) do
 		local start, final = source:find("local%s+" .. field .. "%s*=%s*")
 		if start then
-			local char = source:sub(final + 1)
+			local char = source:sub(final + 1, final + 1)
 			if char == "[" then
 				local _
-				_, _, char = source:find("(%[=*%[)", final + 1)
+				_, _, char = source:find("^(%[=*%[)", final + 1)
 			end
 			local nChar = #char
 			local valueStart = final + 1 + nChar
@@ -1091,14 +1185,20 @@ local function trimFields(book)
 	end
 end
 
-local function updateModelName(book)
-	if #book.Genres == 0 then -- todo move this elsewhere
-		warn(book.Models[1]:GetFullName(), " has no genres")
-	end
-	local name = ('"%s"%s%s'):format(book.Title or "?", #book.AuthorNames > 0 and " by " .. List.ToEnglish(book.AuthorNames) or " by Anonymous", #book.Genres > 0 and (" (%s)"):format(book.Genres[1]) or "")
+zzz
+
+local numNamesUpdated = Report.NewCountCollector("%d book model name%s updated")
+numNamesUpdated.Order = FINAL_SUMMARY
+local function updateModelName(report, book)
+	local name = getBookTitleByAuthorLine(book)
 	for _, model in ipairs(book.Models) do
 		local botmTag = model.Name:match(" %- BOTM.*") -- preserve BOTM tag
-		model.Name = botmTag and name .. botmTag or name
+		local newName = botmTag and name .. botmTag or name
+		if model.Name ~= newName then
+			model.Name = newName
+			print(model.Name, "->", newName) -- todo/debug
+			report(numNamesUpdated, 1)
+		end
 	end
 end
 
@@ -1110,22 +1210,27 @@ local function getIdsFolder()
 	return idsFolder
 end
 local idToModels, idToFolder -- can read from these after calling readIdsFolder
+local invalidValues = Report.NewListCollector("The following %d value%s in the Book Data Storage.Ids folder are not ObjectValues:")
+local incorrectlyNamedEntries = Report.NewListCollector("The following %d name%s in the Book Data Storage.Ids folder are not integers.")
 local function readIdsFolder(report)
 	--	stores results in idToModels, idToFolder (and also returns them)
+	--	'report' is optional (for the sake of the Update Copies button)
 	if idToModels then return end -- already cached (this is broken by updateIdsFolder)
+	local madeReport = not report
+	report = report or Report.new()
 	getIdsFolder()
 	idToModels = {}
 	idToFolder = {}
-	local invalid = 0
+	local invalid
 	for _, obj in ipairs(idsFolder:GetChildren()) do
 		if obj.ClassName ~= "ObjectValue" then
-			warn(("Invalid value in %s: %s (a %s instead of an ObjectValue"):format(idsFolder:GetFullName(), obj.Name, obj.ClassName))
-			invalid += 1
+			report(invalidValues, ("%s:%s"):format(obj.Name, obj.ClassName))
+			invalid = true
 		else
 			local id = tonumber(obj.Name)
-			if not id then
-				warn("Incorrectly named entry:", obj:GetFullName())
-				invalid += 1
+			if not id or id % 1 ~= 0 or id <= 0 then
+				report(incorrectlyNamedEntries, obj.Name)
+				invalid = true
 			else
 				local models = {}
 				local function considerAdd(value)
@@ -1142,18 +1247,19 @@ local function readIdsFolder(report)
 			end
 		end
 	end
-	if invalid > 0 then
-		local msg = ("Detected %d invalid id entries - see warnings above for objects to remove/deal with"):format(invalid)
-		if report then
-			report[#report + 1] = msg
-		else
-			warn(msg)
-		end
+	if invalid and madeReport then
+		warn(report:Compile())
 	end
 end
 local function updateIdsFolder(report, books, invalidIds)
+	-- Note: any ids remaining in invalidIds after the for loop will be deleted
 	for _, book in ipairs(books) do
-		if not book.Id or invalidIds[book.Ids] then continue end
+		if not book.Id then
+			continue
+		elseif invalidIds[book.Id] then
+			idToFolder[book.Id] = nil -- don't let it get deleted just because there's a configuration problem
+			continue
+		end
 		local folder = idToFolder[book.Id]
 		if folder then
 			idToFolder[book.Id] = nil
@@ -1188,12 +1294,38 @@ local function updateIdsFolder(report, books, invalidIds)
 		n += 1
 	end
 	if n > 0 then
-		report[#report + 1] = ("Removed %d unused id entries"):format(n)
+		report(FINAL_SUMMARY, ("Removed %d unused id entries"):format(n))
 	end
 	idToModels = nil
 	idToFolder = nil
 end
-local function verifyExistingBooksHaveSameId(idToModels, invalidIds, invalidSources)
+local sameIdDifSource = {
+	Order = IMPORTANT,
+	Init = function(data)
+		data.idToSet = {}
+	end,
+	Collect = function(data, id, model1, model2)
+		local entry = data.idToSet[id]
+		if not entry then
+			entry = {}
+			data.idToSet[entry] = entry
+		end
+		entry[model1] = true
+		entry[model2] = true
+	end,
+	Compile = function(data)
+		local s = {"The following books have same ids but different sources! For each set, select the newer book and click \"Update Copies\" to fix, then run maintenance again."}
+		for id, set in pairs(data.idToSet) do
+			local t = {}
+			for model, _ in pairs(set) do
+				t[#t + 1] = path(model)
+			end
+			s[#s + 1] = List.ToEnglish(t)
+		end
+		return table.concat(s, "\n\t")
+	end,
+}
+local function verifyExistingBooksHaveSameId(report, idToModels, invalidIds, invalidSources)
 	--	invalidIds[id] = true is performed for any id that has this problem
 	--	invalidSources[source] = true is also performed for all sources affected
 	for id, models in pairs(idToModels) do
@@ -1202,9 +1334,7 @@ local function verifyExistingBooksHaveSameId(idToModels, invalidIds, invalidSour
 			for i = 2, #models do
 				local other = models[i]:FindFirstChildOfClass("Script").Source
 				if first ~= other then
-					warn(("%s's source is different than %s's! Select the newer book and click \"Update Copies\" to fix, then run maintenance again."):format(
-						models[1]:GetFullName(),
-						models[i]:GetFullName()))
+					report(sameIdDifSource, id, models[1], models[i])
 					invalidSources[first] = true
 					invalidSources[other] = true
 					invalidIds[id] = true
@@ -1214,6 +1344,47 @@ local function verifyExistingBooksHaveSameId(idToModels, invalidIds, invalidSour
 	end
 end
 
+local sameSourceDifIds = {
+	Order = IMPORTANT + 1,
+	Init = function(data)
+		data.seenSource = {}
+		data[1] = "CRITICAL: Same book source has multiple ids! If the books haven't been published to the live game, carefully delete the invalid ids from ServerStorage.Book Data Storage.Ids"
+		data[2] = "Otherwise, notify the scripting team immediately to implement an id upgrader to handle this situation! Affected books:"
+	end,
+	Collect = function(data, book, modelToId)
+		if data.seenSource[book.Source] then return end
+		data.seenSource[book.Source] = true
+		local s = {("%s:"):format(book.Models[1].Name)}
+		for i, model in ipairs(book.Models) do
+			local id = modelToId[model]
+			s[i] = ("(%s) %s"):format(id and "Id " .. id or "No id", path(model))
+		end
+		data[#data + 1] = table.concat(s, "\n\t\t")
+	end,
+	Compile = function(data)
+		return table.concat(data, "\n\t")
+	end,
+}
+local difSourceSameFields = Report.NewListCollector("The following %d pair%s of books have different sources but the same fields! Make the sources identical if they're the same book, otherwise change the fields.")
+difSourceSameFields.Order = IMPORTANT
+local base = difSourceSameFields.Collect
+difSourceSameFields.Collect = function(data, other, book)
+	base(data, ("%s and %s"):format(bookPath(other), bookPath(book)))
+	if #other.Models > 1 then
+		local entries = {"Copies of first:"}
+		for i, model in ipairs(other.Models) do
+			entries[i + 1] = ("%s"):format(path(model))
+		end
+		base(data, table.concat(entries, "\n\t\t"))
+	end
+	if #book.Models > 1 then
+		local entries = {"Copies of second:"}
+		for i, model in ipairs(book.Models) do
+			entries[i + 1] = ("%s"):format(path(model))
+		end
+		base(data, table.concat(entries, "\n\t\t"))
+	end
+end
 local function assignIds(report, books, pauseIfNeeded)
 	--[[Ids folder
 	Contents: ObjectValue with .Name = id for the first model with 0+ ObjectValue children (nameless) for each extra model
@@ -1225,7 +1396,7 @@ local function assignIds(report, books, pauseIfNeeded)
 	local maxId = getOrCreate(getStorage(), "MaxId", "IntValue")
 
 	local invalidIds, invalidSources = {}, {} -- id/source->true if there is an id problem and books relating to this id/source should not be given ids
-	verifyExistingBooksHaveSameId(idToModels, invalidIds, invalidSources)
+	verifyExistingBooksHaveSameId(report, idToModels, invalidIds, invalidSources)
 	--[[
 	for each book in books ('new' == no id record in ids):
 		if 2+ old & they have inconsistent ids
@@ -1260,15 +1431,8 @@ local function assignIds(report, books, pauseIfNeeded)
 			local id = modelToId[model]
 			if not existingId then
 				existingId = id
-			elseif existingId ~= id then -- same source has multiple ids
-				warn("CRITICAL: Same book source has multiple ids! If the books haven't been published to the live game, carefully delete the invalid ids from ServerStorage.Book Data Storage.Ids")
-				warn("\tOtherwise, notify the scripting team immediately to implement an id upgrader to handle this situation! Affected books:")
-				local entries = {}
-				for i, model in ipairs(models) do
-					local id = modelToId[model]
-					entries[i] = ("\t(%s) %s"):format(id and "Id " .. id or "No id", model:GetFullName())
-				end
-				warn(table.concat(entries, "\n"))
+			elseif existingId ~= id and id then -- same source has multiple ids
+				report(sameSourceDifIds, book, modelToId)
 				invalid = true
 				break
 			end
@@ -1276,6 +1440,9 @@ local function assignIds(report, books, pauseIfNeeded)
 				invalid = true
 				break
 			end
+		end
+		if existingId then
+			book.Id = existingId
 		end
 		if invalid then
 			invalidSources[book.Source] = true
@@ -1285,37 +1452,21 @@ local function assignIds(report, books, pauseIfNeeded)
 					invalidIds[id] = true
 				end
 			end
-		elseif existingId then -- either they're all old or there are new copies but no inconsistencies; accept the id either way
-			book.Id = existingId
+		elseif existingId then -- either they're all old or there are new copies but no inconsistencies; do quick maintenance only
+			updateModelName(report, book) -- just in case it's been changed (we assume that any editing will not introduce a need to trim/get rid of special characters/will not invalidate the book)
 		else --allNew. if it doesn't share fields with another book, add to 'new' list so it can get a new id if its source doesn't end up on the invalid list
 			-- First step for new books: get rid of all special characters. We do that before storeReturnSame since we may be modifying the fields.
 			--	We don't do this for all books because the operation takes ~0.01 sec per book.
 			trimFields(book)
 			getRidOfSpecialCharactersAndCommentsAndWaitForChildFor(book)
-			updateModelName(book)
+			updateModelName(report, book)
 			pauseIfNeeded()
 			local other = storeReturnSame(book)
 			if other then -- Same fields
 				if not (invalidIfNew[other] and invalidIfNew[book]) then
 					invalidIfNew[other] = true
 					invalidIfNew[book] = true
-					warn(other.Models[1]:GetFullName(), "has a different source but the same fields as", book.Models[1]:GetFullName() .. ". Either change the fields or make the sources the same.")
-					if #other.Models > 1 then
-						local entries = {}
-						for i, model in ipairs(other.Models) do
-							entries[i] = ("\t> %s"):format(model:GetFullName())
-						end
-						warn("\tCopies of first:")
-						warn(table.concat(entries, "\n"))
-					end
-					if #book.Models > 1 then
-						local entries = {}
-						for i, model in ipairs(book.Models) do
-							entries[i] = ("\t> %s"):format(model:GetFullName())
-						end
-						warn("\tCopies of second:")
-						warn(table.concat(entries, "\n"))
-					end
+					report(difSourceSameFields, other, book)
 				end -- else otherwise warned already (not likely to happen, but could if 3 different variants all share same fields)
 			else
 				new[#new + 1] = book
@@ -1333,44 +1484,37 @@ local function assignIds(report, books, pauseIfNeeded)
 		nextId += 1
 	end
 	local numNew = nextId - 1 - maxId.Value
-	report[#report + 1] = (numNew == 0 and "No new books detected" or numNew .. " new book ids assigned") .. (skipped > 0 and (" (%d skipped)"):format(skipped) or "")
+	report(FINAL_SUMMARY, (numNew == 0 and "No new books detected" or numNew .. " new book ids assigned") .. (skipped > 0 and (" (%d skipped)"):format(skipped) or ""))
 	maxId.Value = nextId - 1
 	updateIdsFolder(report, books, invalidIds)
 end
 
-local function deleteUnneededChildren(books)
+local function deleteUnneededChildren(report, books)
+	local n = 0
 	for _, book in ipairs(books) do
 		for _, model in ipairs(book.Models) do
-			BookChildren.RemoveFrom(model)
+			n += BookChildren.RemoveFrom(model)
 		end
 	end
+	if n > 0 then
+		report(FINAL_SUMMARY, ("%d unnecessary instances have been removed from books"):format(n))
+	end
 end
-local function updateCoverGuis(books)
+local function updateCoverGuis(report, books)
+	local num, total = 0, 0
 	for _, book in ipairs(books) do
 		local title = book.Title
 		for _, model in ipairs(book.Models) do
-			BookChildren.UpdateGuis(model, title)
+			local n = BookChildren.UpdateGuis(model, title)
+			if n > 0 then
+				num += 1
+				total += n
+			end
 		end
 	end
-end
-
-local hallToPrepend = {
-	--[workspace["Hall C"]] = "World",
-	[workspace["Hall D"]] = "Roblox",
-}
-local function getOptionalPrepend(shelf)
-	for hall, prepend in pairs(hallToPrepend) do
-		if shelf:IsDescendantOf(hall) then return prepend end
+	if total > 0 then
+		report(FINAL_SUMMARY, ("%d book models have had a combined %d SurfaceGui updates"):format(num, total))
 	end
-end
-local function getGenreConsideringShelf(shelf, input) -- todo when all Roblox shelves start with "Roblox " when appropriate, won't need this or hallToPrepend/getOptionalPrepend
-	-- Check prepend first. Thus, if input is "History" and it's in the Roblox section, it'll choose Roblox History.
-	local prepend = shelf and getOptionalPrepend(shelf)
-	local genre
-	if prepend then
-		genre = Genres.InputToGenre(prepend .. input)
-	end
-	return genre or Genres.InputToGenre(input)
 end
 
 local getGenreInputFromShelf do
@@ -1402,17 +1546,56 @@ local getGenreInputFromShelf do
 		local desiredFace = relCF.Z > 0 and Enum.NormalId.Back or Enum.NormalId.Front
 		for _, genreText in ipairs(shelf:GetChildren()) do
 			if genreText.Face == desiredFace then
-				return getGenreConsideringShelf(shelf, genreText.TextLabel.Text), shelf
+				return genreText.TextLabel.Text, shelf
 			end
 		end
-		print(shelf:GetFullName(), bookModel:GetFullName(), relCF, desiredFace)
+		print(path(shelf), path(bookModel), relCF, desiredFace)
 		warn("Error: Didn't find genreText with desired face")
 		return nil
 	end
 end
-local getSupportMultiShelfBooks = getSetting("Allow the same book on different shelf genres", true)
+
+local getSupportMultiShelfBooks = getSetting("Allow the same book on different shelf genres", false)
+local invalidGenreEntry = Report.NewListCollector("%d book%s have invalid genre entries:")
+local bookNotOnShelf = Report.NewListCollector("%d book%s have no copies on any shelf:")
+local onShelfLackingGenre = {
+	Init = function(data)
+		-- "shelf" being "genreInput"
+		data.shelfToGenre = {}
+		data.shelfToBooks = {}
+	end,
+	Collect = function(data, genreInput, genre, book)
+		local list = data.shelfToBooks[genreInput]
+		if not list then
+			list = {}
+			data.shelfToGenre[genreInput] = genre
+			data.shelfToBooks[genreInput] = list
+		end
+		list[#list + 1] = book
+	end,
+	Compile = function(data)
+		local s = {"The following shelves contain books lacking that shelf's genre:"}
+		local shelfToGenre = data.shelfToGenre
+		for shelf, books in pairs(data.shelfToBooks) do
+			s[#s + 1] = ("\t%s%s:"):format(shelf, shelf == shelfToGenre[shelf] and "" or (" (genre %s)"):format(shelfToGenre[shelf]))
+			for _, book in ipairs(books) do
+				s[#s + 1] = ("\t\t%s"):format(bookPath(book))
+			end
+		end
+		return table.concat(s, "\n")
+	end,
+}
+local multiShelfBooks = Report.NewListCollector("%d books have copies on shelves of different genres:")
+local base = multiShelfBooks.Collect
+function multiShelfBooks.Collect(data, shelfModel, book, shelfToModel)
+	local list = {book.Models[1].Name}
+	for shelf, model in pairs(shelfToModel) do
+		list[#list + 1] = ("\n\t\t%s: %s"):format(shelf, path(model))
+	end
+	base(data, table.concat(list))
+end
+local unknownShelfGenre = Report.NewListCollector("1 shelf refers to unknown genres:", "%d shelves refer to unknown genres:")
 local function verifyGenres(report, books)
-	local noShelfBooks = {}
 	local shelfGenreWarnings = {}
 	local genreFixes = 0
 	for _, book in ipairs(books) do
@@ -1431,14 +1614,14 @@ local function verifyGenres(report, books)
 			end -- else genre == input so no change to make
 		end
 		if #invalid > 0 then
-			warn(("%s's genres contain invalid entries: %s"):format(book.Models[1]:GetFullName(), table.concat(invalid, ", ")))
+			report(invalidGenreEntry, ("%s: %s"):format(bookPath(book), table.concat(invalid, ", ")))
 		end
 		-- Find genre from shelf (if any)
 		local genreInput
 		local supportMultiShelfBooks = getSupportMultiShelfBooks()
 		local multiShelf = supportMultiShelfBooks or {} -- if not supportMultiShelfBooks, [genre input] = model
 		local multiShelfDetected = false -- only true if supportMultiShelfBooks
-		local shelfBookModel -- the model that the shelf genreInput was found on
+		local shelfBookModel -- the book model for which the shelf genreInput was found
 		for _, model in ipairs(book.Models) do
 			local input = getGenreInputFromShelf(model)
 			if input then
@@ -1459,47 +1642,32 @@ local function verifyGenres(report, books)
 		end
 		if not genreInput then
 			if not table.find(book.Genres, "Library Post") then -- todo allow customization in settings, perhaps (ex to allow a "Secret" genre that also isn't warned about)
-				noShelfBooks[#noShelfBooks + 1] = book
+				report(bookNotOnShelf, bookPath(book))
 			end
 		else
 			if multiShelfDetected then
-				local list = {"A book's copies are located on multiple shelves of different genres:"}
-				for input, model in pairs(multiShelf) do
-					list[#list + 1] = ("%s: %s"):format(input, model:GetFullName())
-				end
-				warn(table.concat(list, "\n\t"))
+				report(multiShelfBooks, shelfBookModel, book, multiShelf)
 			end
 			local genre = Genres.InputToGenre(genreInput)
 			if not genre and not shelfGenreWarnings[genreInput] then
-				warn(("Shelf (near %s) was labelled with unknown genre '%s'"):format(shelfBookModel:GetFullName(), genreInput))
+				report(unknownShelfGenre, ("%s (near %s)"):format(genreInput, path(shelfBookModel)))
 				shelfGenreWarnings[genreInput] = true
 			end
-			if genre and not table.find(genres, "Roblox " .. genre) and not table.find(genres, genre) then -- TODO 'and' with "Roblox " is until shelves are renamed only!
-				warn(("%s is on shelf %s%s but is lacking that genre!"):format(
-					book.Models[1]:GetFullName(),
-					genreInput,
-					genre == genreInput and "" or (" (genre %s)"):format(genre)))
+			if genre and not table.find(genres, genre) then
+				report(onShelfLackingGenre, genreInput, genre, book)
 			end
 		end
 		if modified then -- Update script with modified genres
-			local success, source = modifySourceVarList(book.Source, "genres", genres, book.Models[1])
+			local success, source = modifySourceVarList(report, book.Source, "genres", genres, book.Models[1])
 			if success then
 				updateBookSource(book, source)
 			end
 		end
 	end
 	if genreFixes > 0 then
-		report[#report + 1] = ("%d genre tags fixed"):format(genreFixes)
-	end
-	if #noShelfBooks > 0 then
-		local compiled = {("The %d following books have no copies on any shelf:"):format(#noShelfBooks)}
-		for i, book in ipairs(noShelfBooks) do
-			compiled[i + 1] = book.Models[1]:GetFullName()
-		end
-		report[#report + 1] = table.concat(compiled, "\n\t")
+		report(FINAL_SUMMARY, ("%d genre tags fixed"):format(genreFixes))
 	end
 end
-
 local function removeUnnecessaryWelds(report)
 	local n = 0
 	local locations = {workspace, game:GetService("ServerScriptService"), game:GetService("ServerStorage"), game:GetService("ServerScriptService"), game:GetService("ReplicatedStorage"), game:GetService("Lighting"), game:GetService("StarterGui"), game:GetService("StarterPack")}
@@ -1514,7 +1682,7 @@ local function removeUnnecessaryWelds(report)
 		end
 	end
 	if n > 0 then
-		report[#report + 1] = ("%d unnecessary welds removed"):format(n)
+		report(FINAL_SUMMARY, ("%d unnecessary welds removed"):format(n))
 	end
 end
 
@@ -1542,21 +1710,20 @@ local function run()
 	-- 	print("Book Maintenance Scanning Stopped")
 	-- else
 	-- 	analysisRunning = true
-
 	local gotLock = maintenanceLock:TryLock(getStorage(), function(storage)
 		local pauseIfNeeded = genPauseIfNeeded(1)
-		local books = findAllBooks()
-		local report = {}
+		local report = Report.new()
+		report:OrderHeader(IMPORTANT, "IMPORTANT")
+		local books = findAllBooks(report)
 		local ready = Instance.new("BindableEvent")
 		coroutine.wrap(function() authorScanOverrideLock:NotifyOtherToRelease(storage) ready:Fire() ready:Destroy() ready = nil end)()
 		assignIds(report, books, pauseIfNeeded); pauseIfNeeded()
 		-- note: books don't have .Id until after assignIds, and invalid books never get an id
 		verifyGenres(report, books); pauseIfNeeded()
-		deleteUnneededChildren(books); pauseIfNeeded()
-		updateCoverGuis(books); pauseIfNeeded()
+		deleteUnneededChildren(report, books); pauseIfNeeded()
+		updateCoverGuis(report, books); pauseIfNeeded()
 		removeUnnecessaryWelds(report); pauseIfNeeded()
 		generateReportToScript(report, books)
-		print(table.concat(report, "\n"))
 		local success = false
 		if ready then
 			ready.Event:Wait()
@@ -1566,6 +1733,7 @@ local function run()
 		end) then
 			warn("Failed to acquire lock to update author database")
 		end
+		print(report:Compile())
 		onMaintenanceFinished()
 	end)
 	if not gotLock then
@@ -1584,7 +1752,6 @@ local function run()
 	-- 	}
 	-- end
 end
-run() -- debug
 
 local toolbar = plugin:CreateToolbar("Book Maintenance")
 local updateCopiesButton = toolbar:CreateButton("Update\nCopies", "Update other copies of the selected book to reflect new script changes", "")

@@ -16,13 +16,13 @@ end
 local module = {}
 module.Data = data
 function module.RemoveFrom(book)
-	--	Returns true if anything removed from book
-	local found = false
+	--	Returns the number of things destroyed
+	local found = 0
 	for _, data in ipairs(data) do
 		local c = book:FindFirstChild(data.Name or data.Type)
 		if c then
 			c:Destroy()
-			found = true
+			found += 1
 		end
 	end
 	return found
@@ -42,12 +42,16 @@ function module.AddTo(book)
 	end
 end
 function module.UpdateGuis(book, title)
+	--	Returns the number of gui modifications made
 	local titleColor = book.TitleColor.Value
 	local titleOutlineColor = book.TitleOutlineColor.Value
+	local modified = 0
 	for _, obj in ipairs({book.BookNameFront.BookName, book.BookNameSide.BookName}) do
+		modified += (obj.Text ~= title and 1 or 0) + (obj.TextColor3 ~= titleColor and 1 or 0) + (obj.TextStrokeColor3 ~= titleOutlineColor and 1 or 0)
 		obj.Text = title
 		obj.TextColor3 = titleColor
 		obj.TextStrokeColor3 = titleOutlineColor
 	end
+	return modified
 end
 return module

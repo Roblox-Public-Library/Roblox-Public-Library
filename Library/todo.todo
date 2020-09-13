@@ -25,7 +25,7 @@ Update Book Scripts:
 		✔ support genres = {} in BookEventScript
 		✔ Locate shelves that are mostly one genre automatically? (determine genre by proximity to others)
 		✔ use hall to determine proper genre (Roblox History vs [World] History)
-			☐ test this
+			✔ test this
 	Genre Cleanup:
 		✔ These books aren't on a shelf, apparently (this can be okay if it's on a special display, but some of them are stuck inside shelves): @done(20-08-30 12:10)
 			✔ The last 2 are particularly bad - it implies they don't exist elsewhere (but should!) @done(20-08-30 11:46)
@@ -189,12 +189,15 @@ Update Book Scripts:
 		✔ Don't complain that Library Post books aren't on shelves
 		✔ "Snap"s aren't being removed @done(20-09-10 20:15)
 		✔ Models aren't being updated to have special characters removed
-		☐ Title field should be trimmed by Maintenance for new books
-			☐ TEST THIS
+		✔ Title field should be trimmed by Maintenance for new books
 		✔ "the circus (poetry)" didn't receive the Poetry genre! (A saw at least 1 other that had this)
 		✔ Author names being initialized should not be called "name changes"
-		☐ Should warn if books are in "New Books" only
+		✔ Should warn if books are in "New Books" only
 		✔ `s = {"authors here"}` appearing for special cases
+		✔ Book search isn't working for a lot of book title substrings, including "death"
+		✔ Clicking on Author in Book Search -> 330: nil value
+		☐ Maps aren't being preloaded
+		✔ while book search is open, "catchclick" should *not* be active
 	Final stages:
 		✔ Pick BookScript documentation variant and update package (all are different)
 			Get an outside reviewer's feedback on which is easiest to understand
@@ -215,7 +218,10 @@ Update Book Scripts:
 		✔ Filter them (to get rid of ids that couldn't possibly be part of the library b/c not been on since 2015)
 		✔ Consider not allowing author name replacing
 		✔ use rojo to update scripts (this will include the new menu system)
-		☐ transfer guis and DefaultMusic folder (ReplicatedStorage)
+		☐ transfer Guis, DefaultMusic, Remotes, SFX folders (ReplicatedStorage) and update StarterGuis
+			> Disable BookPouchGui
+		☐ remove old BookSearch localScript (that is not in Guis folder) and MusicScript
+		☐ update MainBookScript, SelectScript, and anything else in "Library" directory
 		Deal with some more special cases:
 			✔ The Somewhat Okay Guide to Rogue Lineage (fails to convert authorIds) @done(20-09-07 13:17)
 			✔ Gavin (librarian & publishDate switched - librarian not listed) @done(20-09-07 13:17)
@@ -228,13 +234,13 @@ Update Book Scripts:
 				✔ BOOM has 2 different book scripts (the non-BOTM version has most comments removed and some script changes that mean the maintenance script doesn't recognize them as the same) @done(20-09-07 13:27)
 		Perform test on offline copy:
 			✔ run RevampBooksCommand on offline copy and inspect books
-			☐ run maintenance plugin and inspect again
-			☐ test menus & books are working
+			✔ run maintenance plugin and inspect again
+			✔ test menus & books are working
 			Make sure nothing breaks:
-				☐ Modify book source & Update copies
-				☐ Add new book source
-				☐ Clone existing book
-				☐ Clone existing book and modify story content
+				✔ Modify book source & Update copies
+				✔ Add new book source
+				✔ Clone existing book
+				✔ Clone existing book and modify story content
 		☐ run RevampBooksCommand
 		☐ run maintenance plugin
 		☐ look in script analysis and fix issues
@@ -249,6 +255,7 @@ Update Book Scripts:
 				☐ Files in python
 		☐ final quick test menus & books are working
 		☐ publish
+		☐ announce changes to public, librarians and admins
 		☐ update workshops (use a package for a shared template so updating either not required or easier in future)
 
 Maintenance Plugin - Features for the future:
@@ -444,4 +451,4 @@ Theme Editor:
 	Bugs:
 		☐ Update visual list of themes upon adding or removing
 		☐ Remove existing theme rows when closing plugin/widget
-		☐ Need to add Undo points after installationM
+		☐ Need to add Undo points after installationMc

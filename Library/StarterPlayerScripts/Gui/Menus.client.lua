@@ -41,6 +41,12 @@ catchClick.Visible = true
 catchClick.Active = false
 catchClickGui.Parent = playerGui
 
+--[[Menus have the following interface:
+:Open()
+:Close()
+.CloseOnCatchClick = true by default
+]]
+
 local displayedMenu
 local function displayMenu(menu)
 	if displayedMenu == menu then return end
@@ -54,7 +60,7 @@ local function displayMenu(menu)
 	if displayedMenu then
 		sfx.BookOpen:Play()
 		displayedMenu:Open()
-		catchClickGui.Enabled = true
+		catchClickGui.Enabled = menu.CloseOnCatchClick ~= false
 	else
 		catchClickGui.Enabled = false
 	end

@@ -284,7 +284,7 @@ local function titleSearch(value)
 	local results = {}
 	value = value:lower()
 	for _, book in ipairs(books) do
-		if book.Title:find(value, 1, true) then
+		if Books:BookTitleContains(book, value) then
 			results[#results + 1] = book
 		end
 	end
@@ -383,6 +383,7 @@ author.Activated:Connect(function()
 end)
 box:GetPropertyChangedSignal("Text"):Connect(performSearch)
 
+module.CloseOnCatchClick = false
 local open = false
 local hidden = false
 function module:Open()

@@ -2,11 +2,32 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local List = require(ReplicatedStorage.Utilities.List)
 local Books = {}
 local books = ReplicatedStorage:WaitForChild("GetBooks"):InvokeServer()
+-- The following collections have their strings :lower()ed to assist in searching
 local bookToAuthorNames = {}
 local bookToAuthorIds = {}
+local bookToTitle = {}
+local function lowerEachValue(t)
+	local new = {}
+	for i, v in ipairs(t) do
+		new[i] = type(v) == "string" and v:lower() or v
+	end
+	return new
+end
+local modelToBook = {}
+local idToBook = {}
 for _, book in ipairs(books) do
-	bookToAuthorNames[book] = List.ToSet(book.Authors)
-	bookToAuthorIds[book] = List.ToSet(book.AuthorIds)
+	bookToAuthorNames[book] = List.ToSet(lowerEachValue(book.Authors))
+	bookToAuthorIds[book] = List.ToSet(lowerEachValue(book.AuthorIds))
+	local lowerTitle = book.Title:lower()
+	bookToTitle[book] = lowerTitle
+
+	local id = book.Id
+	if id then
+		idToBook[id] = book
+	end
+	for _, model in ipairs(book.Models) do
+		modelToBook[model] = book
+	end
 end
 function Books:GetBooks()
 	--[[Returns a list of books:
@@ -24,13 +45,14 @@ function Books:GetBooks()
 	]]
 	return books
 end
-local modelToBook = {}
-local idToBook = {}
 function Books:FromObj(obj)
 	return modelToBook[obj]
 end
 function Books:FromId(id)
 	return idToBook[id]
+end
+function Books:BookTitleContains(book, value)
+	return bookToTitle[book]:find(value, 1, true)
 end
 function Books:AuthorNamesContainsFullWord(book, value)
 	local safeValue = value:gsub("%%", "") -- just in case someone throws a % in there
@@ -46,15 +68,5 @@ function Books:AuthorIdsContain(book, userId)
 	return bookToAuthorIds[book][userId]
 end
 function Books:GetAuthorIdLookup(book) return bookToAuthorIds[book] end
-
-for _, book in ipairs(books) do
-	local id = book.Id
-	if id then
-		idToBook[id] = book
-	end
-	for _, model in ipairs(book.Models) do
-		modelToBook[model] = book
-	end
-end
 
 return Books
