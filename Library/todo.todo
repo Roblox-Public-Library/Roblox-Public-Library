@@ -218,10 +218,11 @@ Update Book Scripts:
 		✔ Filter them (to get rid of ids that couldn't possibly be part of the library b/c not been on since 2015)
 		✔ Consider not allowing author name replacing
 		✔ use rojo to update scripts (this will include the new menu system)
-		☐ transfer Guis, DefaultMusic, Remotes, SFX folders (ReplicatedStorage) and update StarterGuis
+		✔ transfer Guis, DefaultMusic, Remotes, SFX folders (ReplicatedStorage) and update StarterGuis
 			> Disable BookPouchGui
-		☐ remove old BookSearch localScript (that is not in Guis folder) and MusicScript
-		☐ update MainBookScript, SelectScript, and anything else in "Library" directory
+		✔ remove old BookSearch localScript (that is not in Guis folder) and MusicScript
+		✔ update MainBookScript, SelectScript
+			✘ and anything else in "Library" directory
 		Deal with some more special cases:
 			✔ The Somewhat Okay Guide to Rogue Lineage (fails to convert authorIds) @done(20-09-07 13:17)
 			✔ Gavin (librarian & publishDate switched - librarian not listed) @done(20-09-07 13:17)
@@ -241,29 +242,51 @@ Update Book Scripts:
 				✔ Add new book source
 				✔ Clone existing book
 				✔ Clone existing book and modify story content
-		☐ run RevampBooksCommand
-		☐ run maintenance plugin
-		☐ look in script analysis and fix issues
+		✔ run RevampBooksCommand
+		✔ run maintenance plugin
+		✔ look in script analysis and fix issues
 		Post-transformation special cases:
-			☐ clean up "The World Of Scat"'s authorsNote, authorNames, etc
+			✔ clean up "The World Of Scat"'s authorsNote, authorNames, etc
 				local authorNames = {"EpicNerd5678", "LostSouth", "Jwarrior999", "AE_FIRE"}
 				local authorIDs = {115006960, 171216631, 143589351, 511027312}
 				local customAuthorLine = "EpicNerd5678, LostSouth, Jwarrior999, and AE_FIRE (listed as LostArt)"
 			✔ Change shelves to say "Roblox History" not "History"
-			☐ then disable the special check in the Maintenance plugin (ctrl+f for "is on shelf")
-			Fix Genres for...:
-				☐ Files in python
-		☐ final quick test menus & books are working
-		☐ publish
-		☐ announce changes to public, librarians and admins
-		☐ update workshops (use a package for a shared template so updating either not required or easier in future)
+			✔ then disable the special check in the Maintenance plugin (ctrl+f for "is on shelf")
+		✔ final quick test menus & books are working
+		✔ publish
+		✔ announce changes to public, librarians and admins
+		✔ update workshops (use a package for a shared template so updating either not required or easier in future)
+	Fix Genres for...:
+		☐ Files in python (we need a "Programming" genre I think)
+	Bugs:
+		✔ book search when you click on book to search for it then try to change text
+		✔ The Secret Book is searchable again
+		✔ book search doesn't expand when you modify text
+		✔ book count is completely wrong
+		✔ CRITICAL: several BOTM have no data (can't open the book)
+		✘ COVER DATA LOSS: 155 books have `local cover = ""`; many have decals (almost always called Decal) with the cover
+		The decals have already been deleted; you'll need to scan for them in an older offline copy
+			✔ In old copy, search for books with `local cover = ""` in source that also have decals with decals of any name, excluding known transparent & pages ones
+			✘ Update live place cover for each book (probably via script)
+			> Turns out that there were no decals with content for books without covers *except* one that was already updated
+		✔ CRITICAL: RemoveAllComments fails to remove block comments correctly (such as the one in the template!)
+		✔ CRITICAL: When you add a new book with the same fields as an existing book, it doesn't warn and instead creates a new id!!!
+		Staff Recs didn't exist before!
+		I tried updating them but now they're listed as diff
+		☐ The "critical" warning occurs when an old id is being removed (can occur after manually fixing it)
+			Don't warn for ids that are being removed
 
 Maintenance Plugin - Features for the future:
+	High Priority:
+		☐ Add exceptions to each rule.
+		☐ Exclude some books from getting an ID (like the 'Example Book' and 'The Secret Book')
+	☐ If someone deparents AuthorScanLock, the script should identify this and stop running
 	☐ A button to add in the covers so you can see what the books look like without pressing play
 		> It would add everything with Archivable = false so they won't save
 		> A 2nd button to remove them
 	☐ Have a "slimmed down" version that verifies book scripts in workshops
 	☐ Scan for new books continuously on startup
+	☐ Allow dependencies to be added after startup (ie create toolbar etc)
 
 New Book Gui:
 	☐ reorganize/redesign from cod's to work on any resolution

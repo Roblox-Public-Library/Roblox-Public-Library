@@ -513,7 +513,7 @@ end
 local open = Instance.new("BindableFunction")
 open.Name = "OpenBook"
 open.Parent = ReplicatedStorage
-open.OnInvoke = function(model, authorsNote, bookWords)
+open.OnInvoke = function(model, cover, authorsNote, bookWords)
 	local book = Books:FromObj(model)
 	local titleTextColor = model.TitleColor.Value
 	local titleStrokeColor = handleStrokeColor(titleTextColor, model.TitleOutlineColor.Value)
@@ -526,7 +526,7 @@ open.OnInvoke = function(model, authorsNote, bookWords)
 			end
 		end
 	end
-	script.Parent.Pg1.Cover.Image = model.Cover.Texture
+	script.Parent.Pg1.Cover.Image = cover
 	script.Parent.Pg1.BackgroundColor3 = model.Color
 	script.Parent.Pg2.Title.Text = book.Title
 	script.Parent.Pg2.Title.TextColor3 = titleTextColor

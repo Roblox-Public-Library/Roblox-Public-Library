@@ -35,24 +35,39 @@ function findId(objList)
 	end
 end
 ]]
+
 local Players = game:GetService("Players")
 local ServerStorage = game:GetService("ServerStorage")
+local function isInstalled()
+	return ServerStorage:FindFirstChild("Book Data Storage")
+end
+local failed = false
 local function get(parent, child)
-	local obj = parent:FindFirstChild(child)
-	if not obj then
-		error("Book Maintenance Plugin is missing " .. parent:GetFullName() .. "." .. child .. " - this plugin is meant to be used with other library code.")
+	local obj = not failed and parent:FindFirstChild(child)
+	if not obj and not failed then
+		failed = ("%s.%s"):format(parent:GetFullName(), child)
 	end
 	return obj
 end
-local RemoveAllComments = require(get(ServerStorage, "RemoveAllComments"))
+local function tryRequire(obj)
+	return not failed and require(obj)
+end
 local ServerScriptService = game:GetService("ServerScriptService")
-local BookChildren = require(get(ServerScriptService, "BookChildren"))
-local Genres = require(get(ServerScriptService, "Genres"))
+local BookChildren = tryRequire(get(ServerScriptService, "BookChildren"))
+local Genres = tryRequire(get(ServerScriptService, "Genres"))
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Utilities = get(ReplicatedStorage, "Utilities")
-local String = require(get(Utilities, "String"))
-local List = require(get(Utilities, "List"))
-local Report = require(script.Parent.Report:Clone()) -- todo :Clone() allows reloading changes
+local String = tryRequire(get(Utilities, "String"))
+local List = tryRequire(get(Utilities, "List"))
+local RemoveAllComments = tryRequire(script.Parent.RemoveAllComments)
+local ReplaceInStrings = tryRequire(script.Parent.ReplaceInStrings)
+local Report = tryRequire(script.Parent.Report)
+if failed then
+	if isInstalled() then
+		warn(("Book Maintenance Plugin is missing %s - this plugin is meant to be used with other library code."):format(failed))
+	end
+	return
+end
 -- Report order constants
 local IMPORTANT = 10
 local FINAL_SUMMARY = 20
@@ -69,8 +84,58 @@ end
 local function bookPath(book)
 	return path(book.Models[1])
 end
+
+-- Note: Maximum instance name length of 100 characters
+local lengthRestrictions = {
+	-- Available space: 76 (100 - 15 (botm possibility) - 2 (for title's "") - 4 (for " by ") - 3 (for genre " ()"))
+	-- Order here matters: first entry is given any bonus space first
+	{"Title", 40},
+	{"Author", 18},
+	{"Genre", 18},
+	-- Botm expected to fit in 15
+}
 local function getBookTitleByAuthorLine(book)
-	return ('"%s"%s%s'):format(book.Title or "?", #book.AuthorNames > 0 and " by " .. List.ToEnglish(book.AuthorNames) or " by Anonymous", #book.Genres > 0 and (" (%s)"):format(book.Genres[1]) or "")
+	local fields = {
+		Title = ("%s"):format(book.Title or "?"),
+		Author = #book.AuthorNames > 0 and List.ToEnglish(book.AuthorNames) or "Anonymous",
+		Genre = #book.Genres > 0 and book.Genres[1]
+	}
+	local bonusSpace = 0
+	local spaceBalance = 0 -- used to determine whether we need to shorten at all
+	for _, r in ipairs(lengthRestrictions) do
+		local value = fields[r[1]]
+		local dif = r[2] - (value and #value or 0)
+		spaceBalance += dif
+		bonusSpace += math.max(0, dif)
+	end
+	if spaceBalance < 0 then
+		for _, r in ipairs(lengthRestrictions) do
+			local field, length = r[1], r[2]
+			local value = fields[field]
+			if value then
+				local n = #fields[field]
+				local limit = length + bonusSpace
+				if n > length + bonusSpace then -- shorten
+					local goodLastIndex = 0
+					limit -= 3 -- allow room for '...'
+					for first, last in utf8.graphemes(fields[field]) do
+						if last <= limit then
+							goodLastIndex = last
+						else
+							break
+						end
+					end
+					fields[field] = fields[field]:sub(1, goodLastIndex) .. "..."
+					bonusSpace = 0
+				elseif n > length then -- use up some bonus space
+					-- ex if length is 40, bonusSpace is 10,
+					-- if we use 45 (n), then we use 5 bonusSpace
+					bonusSpace -= n - length
+				end
+			end
+		end
+	end
+	return ('"%s" by %s%s'):format(fields.Title, fields.Author, fields.Genre and (" (%s)"):format(fields.Genre) or "")
 end
 
 local wordStartBorder = "%f[%w_]"
@@ -158,14 +223,6 @@ local sourceToBook, dataKeyList, updateBookSource, allFieldsAffected do
 	local allFieldsAffected = {}
 	for k, _ in pairs(dataProps) do allFieldsAffected[#allFieldsAffected + 1] = k end
 	local function calculateBookAuthors(book)
-		-- todo remove the pcall if (debugging):
-		if not pcall(function() List.ToEnglish(book.AuthorNames) end) then
-			print(book.Title)
-			print(bookPath(book))
-			for i, v in ipairs(book.AuthorNames) do
-				print(i, type(v), "|", v)
-			end
-		end
 		return book.CustomAuthorLine or #book.AuthorNames > 0 and List.ToEnglish(book.AuthorNames) or "Anonymous"
 	end
 	local noAuthor = Report.NewListCollector("1 book has no authors:", "%d books have no authors:")
@@ -285,10 +342,6 @@ local function getOrCreateWithDefault(parent, name, type, default)
 end
 
 local storage
-local function storageExists()
-	storage = storage or ServerStorage:FindFirstChild("Book Data Storage")
-	return storage
-end
 local function getStorage()
 	if not storage then
 		storage = getOrCreate(ServerStorage, "Book Data Storage", "Folder")
@@ -298,7 +351,7 @@ end
 local settingsFolder
 local function getSettings()
 	if not settingsFolder then
-		settingsFolder = getOrCreate(storage, "Settings", "Configuration")
+		settingsFolder = getOrCreate(getStorage(), "Settings", "Configuration")
 	end
 	return settingsFolder
 end
@@ -317,7 +370,7 @@ local function getSetting(name, default, typeOverride)
 	--	Returns a function that retrieves the value (automatically switching to a concrete setting object if the maintenance is run for the first time)
 	--	supports strings, booleans, integers, and numbers. ex, typeOverride could be "NumberValue" if default is 0.
 	return function()
-		if not storageExists() then return default end
+		if not isInstalled() then return default end
 		return getOrCreateWithDefault(getSettings(), name, typeOverride or valueToType(default), default).Value
 	end
 end
@@ -588,7 +641,13 @@ local readAuthorDirectory, writeAuthorDirectory do
 		end
 		return list
 	end
-	local writeMPSAuthorDirectory = WriteMultiPageScript(getAuthorDirectory(), "return {\n", "}")
+	local writeMPSAuthorDirectory
+	local function getWriteMPSAuthorDirectory()
+		if not writeMPSAuthorDirectory then
+			writeMPSAuthorDirectory = WriteMultiPageScript(getAuthorDirectory(), "return {\n", "}")
+		end
+		return writeMPSAuthorDirectory
+	end
 	function writeAuthorDirectory(idToEntry, considerYield)
 		local clientDir = getOrCreate(ReplicatedStorage, "AuthorDirectory", "ModuleScript")
 		considerYield = considerYield or function() end
@@ -677,7 +736,7 @@ function AuthorDirectory.PartialMatches(value)
 	return ids
 end
 return AuthorDirectory]]):format(numPages)
-		writeMPSAuthorDirectory(function(write)
+		getWriteMPSAuthorDirectory()(function(write)
 			for id, list in pairs(idToList) do
 				write(("\t{%d%s%s,%s},\n"):format(id, list == "" and "" or ",", list, tostring(idToExtra[id] or 0)))
 			end
@@ -877,7 +936,7 @@ local authorLock, onMaintenanceFinished do
 		authorCheckRunning = false
 	end
 	local function considerScanAuthors()
-		if not isEditMode or authorCheckRunning or not storageExists() or not getAuthorCheckingEnabled() then return end
+		if not isEditMode or authorCheckRunning or not isInstalled() or not getAuthorCheckingEnabled() then return end
 		authorCheckRunning = true
 		coroutine.resume(coroutine.create(function()
 			heartbeat:Wait() -- keep stack trace for debugging
@@ -931,15 +990,6 @@ local function updateAuthorInformation(report, books)
 		if numRemoved > 0 then list[#list + 1] = ("%d authors no longer published"):format(numRemoved) end
 		report(FINAL_SUMMARY, ("Author database updated: %s"):format(List.ToEnglish(list)))
 	end
-end
-
-local function leftAlign(s, width) --zzz
-	--	s: string
-	--	will ensure there is a space on character number 'width'
-	local n = utf8.len(s)
-	return n >= width
-		and s:sub(1, width - 4) .. "... | "
-		or s .. string.rep(" ", width - n - 1) .. " | "
 end
 
 local generateReportToScript do
@@ -1059,6 +1109,15 @@ local function findAllBooks(report)
 			addToList(c, source)
 		end
 	end
+	for _, c in ipairs(workspace["Staff Recs"]:GetDescendants()) do
+		if isBook(c) then
+			local source = c:FindFirstChildOfClass("Script").Source
+			if not sourceToModels[source] then
+				report(noBookCopy, path(c))
+			end
+			addToList(c, source)
+		end
+	end
 	local books = {}
 	local n = 0
 	for source, models in pairs(sourceToModels) do
@@ -1071,9 +1130,10 @@ local function findAllBooks(report)
 	return books
 end
 
-local storeReturnSame do
+local storeReturnSame, storeReturnSameReset do
 	local fields = {}
 	-- fields["someAuthor"] = {["someTitle"] = {etc}} -- in order of dataKeyList
+	function storeReturnSameReset() fields = {} end
 	local function getOrCreateTable(t, k)
 		local v = t[k]
 		if not v then
@@ -1103,7 +1163,6 @@ local storeReturnSame do
 end
 
 local getRidOfSpecialCharactersAndCommentsAndWaitForChildFor do
-	local ReplaceInStrings = require(ServerStorage.ReplaceInStrings)
 	local specials = {
 		['‘'] = "'",
 		['’'] = "'",
@@ -1185,18 +1244,32 @@ local function trimFields(book)
 	end
 end
 
-zzz
-
 local numNamesUpdated = Report.NewCountCollector("%d book model name%s updated")
 numNamesUpdated.Order = FINAL_SUMMARY
 local function updateModelName(report, book)
 	local name = getBookTitleByAuthorLine(book)
 	for _, model in ipairs(book.Models) do
 		local botmTag = model.Name:match(" %- BOTM.*") -- preserve BOTM tag
+--[[
+new name
+reserve 40 chars for title
+20 for author
+20 for genre
+Botm can be limited to 15 chars
+
+Possible algorithm:
+1. Try to allow everything regardless of size
+2. If it goes past max size, reduce anything that exceeds its limit until it all fits
+
+Complication:
+max size is 100 bytes, but titles can have utf8 characters (ie 2+ bytes ohh), and we ideally don't split up a utf8 character
+
+
+]]
+
 		local newName = botmTag and name .. botmTag or name
 		if model.Name ~= newName then
 			model.Name = newName
-			print(model.Name, "->", newName) -- todo/debug
 			report(numNamesUpdated, 1)
 		end
 	end
@@ -1392,6 +1465,7 @@ local function assignIds(report, books, pauseIfNeeded)
 		Keeps track of the ids for each book in a place that can't easily be modified by people moving/editing books
 		If we kept ids in books, then using this plugin on a book in a different place would mess things up if someone then transfers that book to this place
 	]]
+	storeReturnSameReset()
 	readIdsFolder(report)
 	local maxId = getOrCreate(getStorage(), "MaxId", "IntValue")
 
@@ -1454,23 +1528,23 @@ local function assignIds(report, books, pauseIfNeeded)
 			end
 		elseif existingId then -- either they're all old or there are new copies but no inconsistencies; do quick maintenance only
 			updateModelName(report, book) -- just in case it's been changed (we assume that any editing will not introduce a need to trim/get rid of special characters/will not invalidate the book)
-		else --allNew. if it doesn't share fields with another book, add to 'new' list so it can get a new id if its source doesn't end up on the invalid list
-			-- First step for new books: get rid of all special characters. We do that before storeReturnSame since we may be modifying the fields.
-			--	We don't do this for all books because the operation takes ~0.01 sec per book.
+		else --allNew. if it doesn't share fields with another book, add to 'new' list (done further down) so it can get a new id if its source doesn't end up on the invalid list
+			-- Note: we only get rid of special characters (etc) for new books because it takes at least several seconds to perform this for a few thousand books.
 			trimFields(book)
 			getRidOfSpecialCharactersAndCommentsAndWaitForChildFor(book)
 			updateModelName(report, book)
 			pauseIfNeeded()
-			local other = storeReturnSame(book)
-			if other then -- Same fields
-				if not (invalidIfNew[other] and invalidIfNew[book]) then
-					invalidIfNew[other] = true
-					invalidIfNew[book] = true
-					report(difSourceSameFields, other, book)
-				end -- else otherwise warned already (not likely to happen, but could if 3 different variants all share same fields)
-			else
-				new[#new + 1] = book
-			end
+		end
+		local other = storeReturnSame(book)
+		if other then -- todo this comes from below - refactor
+			if not (invalidIfNew[other] and invalidIfNew[book]) then
+				invalidIfNew[other] = true
+				invalidIfNew[book] = true
+				report(difSourceSameFields, other, book)
+			end -- else otherwise warned already (not likely to happen, but could if 3 different variants all share same fields)
+		end
+		if not invalid and not invalidIfNew[book] and not existingId then -- New book that is still valid
+			new[#new + 1] = book
 		end
 	end
 	local nextId = maxId.Value + 1

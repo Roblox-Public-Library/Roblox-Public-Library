@@ -5,7 +5,8 @@ local data = {
 	{Type = "ClickDetector"},
 	{Type = "Decal", Name = "Cover", Props = {Color3 = Color3.new(1, 1, 1), Texture = "http://www.roblox.com/asset/?id=131591224", Transparency = 0.5, Face = Enum.NormalId.Top}},
 	{Type = "Decal", Name = "Pages", Props = {Color3 = Color3.new(1, 1, 1), Texture = "http://www.roblox.com/asset/?id=131591224", Transparency = 0, Face = Enum.NormalId.Front}},
-	{Old = true, Name = "BookClick"}
+	{Old = true, Name = "BookClick"},
+	{Old = true, Name = "Decal"},
 }
 local dataToAdd = {}
 for _, data in ipairs(data) do

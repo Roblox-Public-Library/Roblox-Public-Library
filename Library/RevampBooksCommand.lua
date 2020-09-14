@@ -14,7 +14,6 @@ local String = require(Utilities.String)
 local List = require(Utilities.List)
 
 local ServerStorage = game:GetService("ServerStorage")
-local RemoveAllComments = require(ServerStorage.RemoveAllComments)
 local userIdToName = (not CONVERT_AUTHORS and not SCAN_FOR_AUTHORS) and require(ServerStorage.AuthorDataFiltered) or {}
 local userNameToId = {}
 for id, name in pairs(userIdToName) do
@@ -154,7 +153,7 @@ local detectPublishDateFormat, getLibrarianPutsDayFirst, librarianDateReport do
 			print(librarian, (nums[1] == 0 and nums[2] == 0 and (nums[3] == 0 and "no dates" or "!ambiguous!"))
 				or (nums[1] > 0 and nums[2] == 0) and "first"
 				or (nums[1] == 0 and nums[2] > 0) and "second" or "BOTH", unpack(nums))
-			end
+		end
 	end
 end
 
@@ -245,7 +244,7 @@ local function modifySource(source, genres, model)
 			-- if authorNames exists then it'll be the string '{"a", "b"}'
 			standardAuthorLine = data.authorNames and List.ToEnglish(data.authorNames:gsub("[{}\"]+", ""):split(", ")) or ""
 		end
-		if standardAuthorLine ~= authorNameField then
+		if standardAuthorLine ~= String.Trim(authorNameField) then
 			customAuthorLine = authorNameField
 		end
 	end
@@ -724,10 +723,10 @@ elseif CONVERT_AUTHORS then
 end
 
 local postBookGenres = {"Library Post"}
-for _, args in ipairs({{workspace.Books}, {workspace.BookOfTheMonth}, {workspace.NewBooks}, {workspace["Post Books"], postBookGenres}}) do
+for _, args in ipairs({{workspace.Books}, {workspace.BookOfTheMonth}, {workspace.NewBooks}, {workspace["Staff Recs"]}, {workspace["Post Books"], postBookGenres}}) do
 	local container, genresOverride = args[1], args[2]
 	for _, obj in ipairs(container:GetDescendants()) do
-		if obj:IsA("Script") and obj.Name == "BookEventScript(This is what you edit. Edit nothing else.)" then
+		if obj:IsA("Script") and (obj.Name == "BookEventScript(This is what you edit. Edit nothing else.)" or obj.Name == "BookScript") then
 			detectPublishDateFormat(obj)
 		end
 	end
@@ -739,10 +738,11 @@ end
 local copies = {} -- origBookSource -> book scripts
 
 --local output = MAKE_CHANGES or getOrCreate(game.ServerStorage, "Book Revamp Test Output", "Script")
-for _, args in ipairs({{workspace.Books}, {workspace.NewBooks}, {workspace.BookOfTheMonth}, {workspace["Post Books"], postBookGenres}}) do
+--for _, args in ipairs({{workspace.Books}, {workspace.NewBooks}, {workspace.BookOfTheMonth}, {workspace["Staff Recs"]}, {workspace["Post Books"], postBookGenres}}) do
+for _, args in ipairs({{workspace["Staff Recs"]}}) do
 	local container, genresOverride = args[1], args[2]
 	for _, obj in ipairs(container:GetDescendants()) do
-		if obj:IsA("Script") and obj.Name == "BookEventScript(This is what you edit. Edit nothing else.)" then
+		if obj:IsA("Script") and (obj.Name == "BookEventScript(This is what you edit. Edit nothing else.)" or obj.Name == "BookScript") then
 			local source = obj.Source
 			local list = copies[source]
 			local isDuplicate = list
@@ -795,11 +795,12 @@ else
 	end
 end
 
-if MAKE_CHANGES then
-	for _, obj in ipairs(workspace:GetDescendants()) do
-		if obj:IsA("Script") and (obj.Name == "BookEventScript(This is what you edit. Edit nothing else.)" or obj.Name == "BookScript") then
-			obj.Name = "BookScript"
-			obj.Source = RemoveAllComments(obj.Source, true)
-		end
-	end
-end
+-- if MAKE_CHANGES then
+--	local RemoveAllComments = require(ServerStorage.RemoveAllComments)
+-- 	for _, obj in ipairs(workspace:GetDescendants()) do
+-- 		if obj:IsA("Script") and (obj.Name == "BookEventScript(This is what you edit. Edit nothing else.)" or obj.Name == "BookScript") then
+-- 			obj.Name = "BookScript"
+-- 			obj.Source = RemoveAllComments(obj.Source, true)
+-- 		end
+-- 	end
+-- end

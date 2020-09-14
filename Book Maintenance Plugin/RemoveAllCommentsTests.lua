@@ -85,5 +85,13 @@ b
 c
 ]])
 test("Don't remove multiple newlines with tabs/spaces", "a--c\n\t\n\t\n \n \bb", "a\n\t\n\t\n \n \bb")
+test("Block comment removed", [==[
+a
+--[=[
+	/b
+]=]--
+c]==], [==[
+a
+c]==])
 
 return true

@@ -1,6 +1,5 @@
 local Nexus = require("NexusUnitTesting")
-local ServerStorage = game:GetService("ServerStorage")
-local ris = require(ServerStorage.ReplaceInStrings)
+local ris = require(script.Parent.ReplaceInStrings)
 
 local function test(name, input, replaceFunc, output)
 	--	if output is a number, 'replaceFunc' must run that many times

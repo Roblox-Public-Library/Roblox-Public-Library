@@ -46,7 +46,6 @@ local function newTween(props, instant)
 end
 local function shrink(toIndex)
 	shrunk = true
-	resultsFrame.Visible = false
 	local targetY = (toIndex - 1) * (entrySizeY + 1) - 1 -- +1 for padding, -1 because first entry doesn't have padding
 	newTween({
 		Position = shrinkPos,
@@ -61,7 +60,6 @@ local function shrink(toIndex)
 end
 local function expand(instant)
 	shrunk = false
-	resultsFrame.Visible = true
 	newTween({
 		Position = origPos,
 		Size = origSize,
@@ -280,12 +278,17 @@ for i, entry in ipairs(entries) do
 	end)
 end
 
+local function shouldKeepResult(book)
+	return book.Title ~= "The Secret Book" -- todo make customizable and based on id and make it so that Books doesn't even allow it to return true for any search function
+end
 local function titleSearch(value)
 	local results = {}
 	value = value:lower()
 	for _, book in ipairs(books) do
 		if Books:BookTitleContains(book, value) then
-			results[#results + 1] = book
+			if shouldKeepResult(book) then
+				results[#results + 1] = book
+			end
 		end
 	end
 	return results
@@ -318,7 +321,9 @@ local function authorSearch(value)
 			for _, book in ipairs(books) do
 				local lookup = Books:GetAuthorIdLookup(book)
 				if lookup[authorId] then
-					results[#results + 1] = book
+					if shouldKeepResult(book) then
+						results[#results + 1] = book
+					end
 				end
 			end
 		end
@@ -328,7 +333,9 @@ local function authorSearch(value)
 	end
 	for _, book in ipairs(books) do
 		if Books:AuthorNamesContainsFullWord(book, value) then
-			results[#results + 1] = book
+			if shouldKeepResult(book) then
+				results[#results + 1] = book
+			end
 		end
 	end
 	if #results > 0 then -- todo consider allowing to continue at lower priority
@@ -336,7 +343,9 @@ local function authorSearch(value)
 	end
 	for _, book in ipairs(books) do
 		if Books:AuthorNamesContain(book, value) then
-			results[#results + 1] = book
+			if shouldKeepResult(book) then
+				results[#results + 1] = book
+			end
 		end
 	end
 	return results
@@ -355,6 +364,9 @@ local function unhighlight(obj)
 	obj.TextTransparency = 0.25
 end
 local function performSearch()
+	if shrunk then
+		expand()
+	end
 	if box.Text == "" then return end
 	results = search(box.Text)
 	local num = math.min(#results, 200)

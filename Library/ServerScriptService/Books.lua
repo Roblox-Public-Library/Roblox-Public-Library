@@ -7,7 +7,7 @@ local Genres = require(ServerScriptService.Genres)
 
 local books = {} -- List<Book> where each book is {.Id .Title .Author .Models} note: everything in books can be replicated as-is to clients
 local idToBook = {}
-local bookToContent = {} -- content stored here so it is not replicated to clients automatically
+local bookModelToContent = {} -- content stored here so it is not replicated to clients automatically
 local defaultCover = "http://www.roblox.com/asset/?id=428733812"
 local ServerStorage = game:GetService("ServerStorage")
 local storage = ServerStorage:FindFirstChild("Book Data Storage")
@@ -29,13 +29,13 @@ if storage then
 			if obj.Value then
 				modelToId[obj.Value] = id
 			else
-				warnOutdated()
+				warn("Improperly configured Ids:", obj:GetFullName())
 			end
 			for _, c in ipairs(obj:GetChildren()) do
 				if c.Value then
 					modelToId[c.Value] = id
 				else
-					warnOutdated()
+					warn("Improperly configured Ids in:", obj:GetFullName())
 				end
 			end
 		else
@@ -47,9 +47,9 @@ end
 local getData = Instance.new("RemoteFunction")
 getData.Name = "GetBookData"
 getData.Parent = ReplicatedStorage
-getData.OnServerInvoke = function(player, book)
-	local response = bookToContent[book] or error(tostring(book) .. " has no data")
-	return response[1], response[2] -- authorsNote, words
+getData.OnServerInvoke = function(player, bookModel)
+	local response = bookModelToContent[bookModel] or error(tostring(bookModel:GetFullName()) .. " has no data")
+	return response[1], response[2], response[3] -- cover, authorsNote, words
 end
 local getBooks = Instance.new("RemoteFunction")
 getBooks.Name = "GetBooks"
@@ -72,7 +72,10 @@ function Books:Register(book, genres, cover, title, customAuthorLine, authorName
 		end
 	end
 
-	book.Cover.Texture = cover
+	local coverDecal = book:FindFirstChild("Cover")
+	if coverDecal then
+		coverDecal.Texture = cover
+	end
 	if not storage then -- if storage exists, maintenance plugin takes care of this
 		BookChildren.UpdateGuis(book, title)
 	end
@@ -81,10 +84,15 @@ function Books:Register(book, genres, cover, title, customAuthorLine, authorName
 
 	-- Register book into system
 
-	local id = modelToId[book] or warnOutdated()
+	local id = modelToId[book]
+	if not id and not book.Name:find("Example Book") and not book.Name:find("The Secret Book") then -- todo generalize exceptions
+		warnOutdated()
+	end
 	local bookData = id and idToBook[id]
 	if bookData then
 		bookData.Models[#bookData.Models + 1] = book
+		local copyModel = bookData.Models[1]
+		bookModelToContent[book] = bookModelToContent[copyModel]
 	else
 		bookData = {
 			Id = id,
@@ -97,8 +105,11 @@ function Books:Register(book, genres, cover, title, customAuthorLine, authorName
 			Models = {book},
 			Genres = genres,
 		}
+		if id then
+			idToBook[id] = bookData
+		end
 		books[#books + 1] = bookData
-		bookToContent[book] = {authorsNote, words}
+		bookModelToContent[book] = {cover, authorsNote, words}
 	end
 end
 function Books:GetCount() return #books end

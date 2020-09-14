@@ -33,7 +33,7 @@ local function removeAllComments(source, removeBlankLines)
 			s[#s + 1] = source:sub(index, length)
 		end
 	end
-	local function endComment(atIndex)
+	local function endLineComment(atIndex)
 		--	atIndex: newline character that ends the comment (or this can be the end of the source, ie lengthPlusOne)
 		-- First, look back at last string. If it has a newline followed by spaces/tabs followed by this comment we're ending, remove the newline
 		--	If it just has spaces/tabs before the comment, remove those also
@@ -71,7 +71,13 @@ local function removeAllComments(source, removeBlankLines)
 		local nextIndex = math.min(nextCommentStart or lengthPlusOne, nextStringStart or lengthPlusOne, nextBlockStart or lengthPlusOne)
 		if nextIndex == nextCommentStart then
 			startComment(nextIndex)
-			endComment(source:find("\n", index) or lengthPlusOne)
+			if nextIndex + 2 == nextBlockStart then
+				-- look for ending block
+				local _, blockEnd = source:find("%]" .. equals .. "%]", index)
+				index = blockEnd and blockEnd + 1 or lengthPlusOne
+			else -- line comment
+				endLineComment(source:find("\n", index) or lengthPlusOne)
+			end
 		elseif nextIndex == nextStringStart then
 			-- look for another quotationMark that *isn't* escaped
 			local i = nextIndex + 1
@@ -102,8 +108,8 @@ local function removeAllComments(source, removeBlankLines)
 		end
 	end
 	endOfSource()
-	return removeBlankLines and
-		String.Trim(table.concat(s)):gsub("\n\n+", "\n\n")
-		or table.concat(s)
+	return removeBlankLines
+	and String.Trim(table.concat(s)):gsub("\n\n+", "\n\n")
+	or table.concat(s)
 end
 return removeAllComments
