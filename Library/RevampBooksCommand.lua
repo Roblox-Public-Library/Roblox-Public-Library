@@ -737,10 +737,7 @@ end
 
 local copies = {} -- origBookSource -> book scripts
 
---local output = MAKE_CHANGES or getOrCreate(game.ServerStorage, "Book Revamp Test Output", "Script")
---for _, args in ipairs({{workspace.Books}, {workspace.NewBooks}, {workspace.BookOfTheMonth}, {workspace["Staff Recs"]}, {workspace["Post Books"], postBookGenres}}) do
-for _, args in ipairs({{workspace["Staff Recs"]}}) do
-	local container, genresOverride = args[1], args[2]
+local function scanFolder(container, genresOverride)
 	for _, obj in ipairs(container:GetDescendants()) do
 		if obj:IsA("Script") and (obj.Name == "BookEventScript(This is what you edit. Edit nothing else.)" or obj.Name == "BookScript") then
 			local source = obj.Source
@@ -761,12 +758,26 @@ for _, args in ipairs({{workspace["Staff Recs"]}}) do
 				end
 			else
 				handleBookScript(obj, genresOverride)
-				--output.Source = RemoveAllComments(handleBookScript(obj, genresOverride), true)
-				--break
 			end
 		end
 	end
 end
+local alreadyDone = {
+	[workspace.Books] = true,
+	[workspace.NewBooks] = true,
+	[workspace.BookOfTheMonth] = true,
+	[workspace["Staff Recs"]] = true,
+	[workspace["Post Books"]] = true,
+}
+for _, folder in ipairs(workspace:GetChildren()) do
+	if not alreadyDone[folder] then
+		scanFolder(folder)
+	end
+end
+-- for _, args in ipairs({{workspace["Staff Recs"]}}) do
+-- for _, args in ipairs({{workspace.Books}, {workspace.NewBooks}, {workspace.BookOfTheMonth}, {workspace["Staff Recs"]}, {workspace["Post Books"], postBookGenres}}) do
+-- 	scanFolder(args[1], args[2])
+-- end
 if SCAN_FOR_AUTHORS then
 	scanForAuthorsReport()
 else

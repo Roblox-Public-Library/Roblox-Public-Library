@@ -22,6 +22,9 @@ local function onPlayerAdded(player)
 		weld.Part1 = newHead
 		weld.Parent = newHead
 		model.Parent = character
+		head.Changed:Connect(function(prop)
+			newHead[prop] = head[prop]
+		end)
 	end
 	player.CharacterAdded:Connect(onCharacterAdded)
 	if player.Character then

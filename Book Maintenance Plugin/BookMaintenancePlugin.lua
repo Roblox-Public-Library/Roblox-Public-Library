@@ -314,10 +314,7 @@ local function modifySourceVarList(report, source, var, newValue, model) -- newV
 		report(failedToFindVar, ("'%s' in %s"):format(var, path(model)))
 		return false, source
 	end
-	return true, ("%s%s%s"):format(
-		source:sub(1, lastCharToKeep),
-		listToTableContents(newValue),
-		source:sub(firstCharToKeep))
+	return true, ("%s%s%s"):format(source:sub(1, lastCharToKeep), listToTableContents(newValue), source:sub(firstCharToKeep))
 end
 
 local function getOrCreate(parent, name, type)
@@ -1084,38 +1081,37 @@ local function findAllBooks(report)
 		end
 		list[#list + 1] = model
 	end
+	local foldersConsidered = {}
 	for _, folder in ipairs({workspace.Books, workspace["Post Books"]}) do
+		foldersConsidered[folder] = true
 		for _, c in ipairs(folder:GetDescendants()) do
 			if isBook(c) then
 				addToList(c)
 			end
 		end
 	end
-	for _, c in ipairs(workspace.BookOfTheMonth:GetDescendants()) do
-		if isBook(c) then
-			local source = c:FindFirstChildOfClass("Script").Source
-			if not sourceToModels[source] then
-				report(noBookCopy, path(c))
+	for _, folder in ipairs({workspace.BookOfTheMonth, workspace.NewBooks, workspace["Staff Recs"]}) do
+		foldersConsidered[folder] = true
+		for _, c in ipairs(folder:GetDescendants()) do
+			if isBook(c) then
+				local source = c:FindFirstChildOfClass("Script").Source
+				if not sourceToModels[source] then
+					report(noBookCopy, path(c))
+				end
+				addToList(c, source)
 			end
-			addToList(c, source)
 		end
 	end
-	for _, c in ipairs(workspace.NewBooks:GetDescendants()) do
-		if isBook(c) then
-			local source = c:FindFirstChildOfClass("Script").Source
-			if not sourceToModels[source] then
-				report(noBookCopy, path(c))
-			end
-			addToList(c, source)
+	for _, folder in ipairs(workspace:GetChildren()) do
+		if isBook(folder) then
+			addToList(folder)
 		end
-	end
-	for _, c in ipairs(workspace["Staff Recs"]:GetDescendants()) do
-		if isBook(c) then
-			local source = c:FindFirstChildOfClass("Script").Source
-			if not sourceToModels[source] then
-				report(noBookCopy, path(c))
+		if not foldersConsidered[folder] then
+			for _, c in ipairs(folder:GetDescendants()) do
+				if isBook(c) then
+					addToList(c)
+				end
 			end
-			addToList(c, source)
 		end
 	end
 	local books = {}
