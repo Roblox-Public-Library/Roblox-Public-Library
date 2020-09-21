@@ -313,7 +313,7 @@ function Music:GoCrazy(initialSilenceDuration)
 		wait(2)
 		curTrack.Volume = 0
 		curTrack:Play()
-		TweenService:CreateTween(curTrack, TweenInfo.new(2, Enum.EasingStyle.Linear), {Volume = getMusicVolume()})
+		TweenService:Create(curTrack, TweenInfo.new(2, Enum.EasingStyle.Linear), {Volume = getMusicVolume()}):Play()
 	end)
 end
 

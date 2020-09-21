@@ -280,6 +280,10 @@ Maintenance Plugin - Features for the future:
 	High Priority:
 		☐ Add exceptions to each rule.
 		☐ Exclude some books from getting an ID (like the 'Example Book' and 'The Secret Book')
+	If books might ever be restored (accidental deletions or fixing books that break rules)?:
+		☐ Add title and author to each id in the database and don't delete them without some special confirmation menu. If the book returns, you can then reuse it.
+		☐ Add "Delete" button that deletes all copies & the database entry (after a confirmation message)
+			> Maybe move to a Recycle Bin for a couple weeks
 	☐ If someone deparents AuthorScanLock, the script should identify this and stop running
 	☐ A button to add in the covers so you can see what the books look like without pressing play
 		> It would add everything with Archivable = false so they won't save
@@ -287,6 +291,12 @@ Maintenance Plugin - Features for the future:
 	☐ Have a "slimmed down" version that verifies book scripts in workshops
 	☐ Scan for new books continuously on startup
 	☐ Allow dependencies to be added after startup (ie create toolbar etc)
+
+Bugs:
+	✔ If you wear a packaged head (i.e. Womens Head, Man Head, etc.), the face decal won't show up
+		> RServerNames: when descendant added, repl or move
+	✔ Run:20 Font not part of ImageButton
+
 
 New Book Gui:
 	☐ reorganize/redesign from cod's to work on any resolution

@@ -151,8 +151,7 @@ local function sizeChange()
 					pageParity = pageParity / 2
 				end
 ---Image Turn Function---
--- The next 2 sections are commented out because they are not used anywhere (nor explained properly)
-			--[[elseif string.sub(v, 1, 10) == "/fillImage" then
+			elseif string.sub(v, 1, 10) == "/fillImage" then
 				line = 1
 				pageDiv = page
 				if pageDiv % 2 == 0 then
@@ -194,7 +193,6 @@ local function sizeChange()
 						label.BorderSizePixel = 0
 					end
 				end
-				]]--
 ---Image Function---
 			elseif string.sub(v, 1, 6) == "/image" then
 				if frame[page]:WaitForChild(tostring(line)).Text ~= "" and frame[page]:WaitForChild(tostring(line)).Text ~= [[]] and frame[page]:WaitForChild(tostring(line)).Text ~= '' then
@@ -484,8 +482,13 @@ script.Parent.BottomFrame.X.Activated:Connect(function()
 			wait(initialSilenceDuration)
 			specialScreen.Visible = false
 			game.Players.LocalPlayer.Character.Humanoid.Health = 0
-			game["Run Service"].RenderStepped:Connect(function()
+			local con1, con2
+			con1 = game["Run Service"].RenderStepped:Connect(function()
 				SFX.PageTurn:Play()
+			end)
+			con2 = game.Players.LocalPlayer.CharacterAdded:Connect(function()
+				con1:Disconnect()
+				con2:Disconnect()
 			end)
 		end
 		debounce = false

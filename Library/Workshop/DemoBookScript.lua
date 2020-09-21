@@ -21,5 +21,4 @@ local content = {
 	]]
 }
 
--- Never modify this line:
 require(game:GetService("ServerScriptService"):WaitForChild("Books")):Register(script.Parent, genres, cover, title, customAuthorLine, authorNames, authorIds, authorsNote, publishDate, content, librarian)

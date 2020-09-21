@@ -18,7 +18,7 @@ if UserInputService.TouchEnabled then
 	setIsRunning = function(value)
 		base(value)
 		button.Font = value and Enum.Font.SourceSansItalic or Enum.Font.SourceSans
-		button.BackgroundColor3 = value and Color3.new(.5, .5, .5) or Color3.new()
+		button.BackgroundColor3 = value and Color3.new(.3, .3, .3) or Color3.new(.1, .1, .1)
 	end
 	-- Set it up so that the use of a keyboard or gamepad will make the touch controls invisible
 	local nonTouchTypes = {
