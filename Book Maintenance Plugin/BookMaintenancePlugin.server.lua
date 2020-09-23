@@ -12,7 +12,7 @@ Responsibilities:
 -Remove unnecessary welds
 ]]
 --[[Helpful command bar debugging functions:
-function findId(objList)
+function findId(objList) -- Select 1+ books and this will print the id assigned to each (if any)
 	objList = objList or game.Selection:Get()
 	if type(objList) ~= "table" then objList = {objList} end
 	if #objList == 0 then print("Select objects for id retrieval") return end
@@ -678,7 +678,11 @@ local readAuthorDirectory, writeAuthorDirectory do
 local idToNames = {}
 for i = 1, %d do
 	for k, v in pairs(require(script["Pg" .. i])) do
-		idToNames[k] = v
+		local new = #v > 0 and {} or v
+		for j, name in ipairs(v) do
+			new[j] = name:lower()
+		end
+		idToNames[k] = new
 	end
 end
 
@@ -688,14 +692,16 @@ local Books = require(ReplicatedStorage.BooksClient)
 local books = Books:GetBooks()
 for _, book in ipairs(books) do
 	for i, authorId in ipairs(book.AuthorIds) do
-		local author = book.Authors[i]
-		if author then
-			local list = idToNames[authorId]
-			if not list then
-				list = {}
-				idToNames[authorId] = list
+		if authorId then
+			local author = book.Authors[i]
+			if author then
+				local list = idToNames[authorId]
+				if not list then
+					list = {}
+					idToNames[authorId] = list
+				end
+				list[#list + 1] = author:lower()
 			end
-			list[#list + 1] = author
 		end
 	end
 end
@@ -718,16 +724,22 @@ local AuthorDirectory = {
 }
 
 function AuthorDirectory.ExactMatches(value)
+	--	if value is a number, returns the list of usernames (all lowercase) associated with that id
+	--	if value is a string (must be lowercase), returns the list of ids associated with that username
 	return idToNames[value] or nameToIds[value]
 end
 function AuthorDirectory.PartialMatches(value)
+	--	if value is a number, this is exactly like ExactMatches (it returns the list of usernames (all lowercase) associated with that id)
+	--	if value is a string (must be lowercase), returns the list of all user ids who have ever had a username containing that substring
 	if type(value) == "number" then
 		return idToNames[value]
 	end
 	local ids = {}
-	for name, id in pairs(nameToIds) do
-		if name:find(value) then
-			ids[#ids + 1] = id
+	for name, idList in pairs(nameToIds) do
+		if name:find(value, 1, true) then
+			for _, id in ipairs(idList) do
+				ids[#ids + 1] = id
+			end
 		end
 	end
 	return ids

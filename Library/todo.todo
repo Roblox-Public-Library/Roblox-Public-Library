@@ -1,301 +1,24 @@
  (If you install the Todo+ extension you can toggle a task being done with Alt+d and create a new task with Ctrl+Enter)
 --------------------------
-Update Book Scripts:
-	✔ ListToEnglish -> Module (in Utilities)tk
-	✔ finish fixing BookEventScript to use ListToEnglish for authorLine
-	✔ book search needs to know that it's a list of names (comma separated in the StringValue)
-	✔ incorporate Pink's fix for Title @done(20-08-27 14:20)
-	✔ add faq to new menu system @done(20-08-27 14:36)
-	✔ Books now accepts :Register for all books
-	Update scripts:
-		✔ reimplement how the update script will modify all BookEventScripts
-			> plan is in AuthorIDLookupCommand
-			✔ get rid of section ending headers (like --Images--)
-			✔ are the comments I added suitable?
-		✔ BookSearch that uses Books module and book.Author now needs to use book.Authors (a dictionary)
-		✔ BooksClient needs updated documentation on what :GetBooks is @started(20-08-28 10:58) @done(20-08-28 11:07) @lasted(9m15s)
-		✔ SelectScript must use BooksClient @done(20-08-28 12:09)
-		✔ change to AuthorIds (not IDs)
-	Genre handling:
-		✔ Detect genre in author commands
-		Books:Register must:
-			✔ normalize genre (lower case, get rid of all spaces and dashes, ex "Sci - Fi" to "scifi")
-			✔ convert normalized form to "pleasant" form (ex "scifi" to "Sci-Fi")
-		✔ get other genres/aliases (modify revampbooks temporarily to list them) @started(20-08-28 13:23) @done(20-08-28 16:57) @lasted(3h34m48s)
-		✔ support genres = {} in BookEventScript
-		✔ Locate shelves that are mostly one genre automatically? (determine genre by proximity to others)
-		✔ use hall to determine proper genre (Roblox History vs [World] History)
-			✔ test this
-	Genre Cleanup:
-		✔ These books aren't on a shelf, apparently (this can be okay if it's on a special display, but some of them are stuck inside shelves): @done(20-08-30 12:10)
-			✔ The last 2 are particularly bad - it implies they don't exist elsewhere (but should!) @done(20-08-30 11:46)
-	Genres Update:
-		✔ Update genres script
-		✔ Update tmpAliases to accomodate for old names
-		✔ Remove identified genres from part names
-		✔ Tell cod about updating google doc (including "Library Post", "Action", and renaming) @done(20-09-01 11:03)
-	Edge Cases:
-		✘ make backup of live place @cancelled(20-08-28 10:56)
-		✔ leave notice to *not* publish the Library until we're done remaining changes
-		✔ go through edge cases (the customAuthorLines and other cases) @started(20-08-28 11:15) @done(20-08-28 11:30) @lasted(15m22s)
-	Gui Improvement:
-		✔ show FAQ gui on first join @started(20-08-30 12:11) @done(20-08-31 14:15) @lasted(1d2h4m22s)
-		✔ save that they've seen it before (as part of profile)
-		✔ test in studio
-		✔ test online to confirm data stores working
-	cod's new guis:
-		✔ reorganize
-		✔ connect scripting
-		FAQ:
-			✔ Create entry for each question (dif font for Q than A) @done(20-09-01 11:53)
-			✔ Auto separate questions from answers or reformat in About @done(20-09-01 11:53)
-		About:
-			✔ Preload all floor maps when user opens About
-			✔ 	also preload Control images
-			✔ Switch between floors on button press (change FloorMap.Image)
-			✔ ensure FAQ scrolling is working correctly (call the handler func)
-			✔ FAQ needs work
-			✔ Credits - scrolling frame
-			✔ Controls - use scale
-		Music:
-			✔ finish merging
-			✔ implement next/prev track
-			✔ implement pause/play
-			✔ delete pause button after storing its details
-			✔ bold currently playing track
-	Misc:
-		✔ rename book scripts to "BookScript" @done(20-09-01 09:09)
-		✔ remove all major comment blocks and empty lines @done(20-09-01 14:16)
-	Before updating live place:
-		Prepare package (shared template) for books:
-			✔ Write template
-			remove cover/etc from books in:
-				✘ command
-					> won't need to - we can run maintenance after
-				✔ maintenance
-				✔ package template
-			✔ add them back in in Books.lua
-			✔ Make package @done(20-09-02 18:58)
-		Efficiency Improvements:
-			Book Color:
-				✔ remove book color from template
-				✔ in template, encourage people to change colour of book part directly @done(20-09-03 11:13)
-				✔ update RevampCommand to set book.Color based on BookColor value, then remove the value @done(20-09-03 11:19)
-				✔ remove book color from server scripts
-				✔ client looks at colour of the book it clicked on to get the 'bookColor'
-				✔ Remove titleTextcolor/titleStrokeColor from replication (have client read from them, too)
-			Move titleTextColor/titleStrokeColor to direct child of books for easy access:
-				✔ in template instructions @done(20-09-03 11:26)
-				✔ in RevampCommand @done(20-09-03 11:23)
-				✔ update template package
-				✔ in MainBookScript
-
-		Maintenance Plugin:
-			✔ fetch book title/data/etc
-				> needed for report and something else I think
-			Id system:
-				✔ Assign Ids
-				✔ verify 2 dif books don't share the same id!
-				✔ Store each id-book pair in ServerStorage and use this to help detect new books
-					> This is for if someone manually adds an Id or runs the book maintenance plugin in a different place and then transfers the book
-					> This can be stored as a lua table if desired
-			✔ Delete unnecessary items
-			✔ add these back in books.lua
-			✔ Update cover label gui with title (for the sake of those editing)
-				> If this will be done reliably, this code can be moved out of Books:Register
-			✔ Ensure the book's genre includes the shelf it is on
-			✔ Inspect genres
-			✔ remove unnecessary welds
-			✔ Replace all fancy quotation marks with simple equivalents (in both script source and part name) @done(20-09-02 19:06)
-			✔ inspect author ids/names as much as we can from the plugin
-			Button to handle changing the source:
-				✔ Add button to toolbar @done(20-09-03 11:39)
-				✔ Find book from selection @done(20-09-03 11:39)
-				✔ If no id, warn instead (since we can't know what id to update) @done(20-09-03 11:40)
-				✔ Update copies based on selected book @done(20-09-03 11:39)
-		Other:
-			✔ Transfer modified book reader gui to scripting dev @done(20-09-03 11:57)
-			✔ Package that includes supporting scripts so you can read a book (for workshops)
-				✔ In this package, Books.lua should not warn if no id, since no books should have an id
-			✔ I want the book script to send 'script.Parent' to :Register, not 'script'
-			✔ Replace "paragraphs" with "content"
-	Maintenance Plugin Bugs:
-		✔ Author database not filled out after used/changed
-		✔ Author(s) field is sometimes getting book content
-		✔ In Book List Report, Genres is "table: 0x092fbdbab27a610f"
-		✔ No output from author scan
-	Book Search:
-		✔ Some books use '’' character. Replace these with a '
-	Other:
-		✔ Packages need to be models with PrimaryPart so that books can be moved without Roblox calling it "changed" @done(20-09-08 10:54)
-	Steps to *not* solve the username/id problem:
-		✔ Disable replacing usernames
-		✔ Move authorName line to "customAuthorLine" if it has any deviation from what would be generated based on the authorNames
-	Steps to *solve* the username/id problem:
-		✔ Do the "not solve" section
-		✔ Author directory would have to list alternates
-		✔ As people update their usernames, update
-		✘ As authors publish different pennames associated with their account, add to the directory
-		✔ On startup, search through all books to find name->authorId connections (adding them to the author directory - allow more than one authorId for a given name)
-		✘ Books needs to send to the client *all* author info (both ID and "author name" lists)
-			> already done
-		✘ ? Author Directory: first name *must* be current username
-			> This is only useful if we want to give precedence/priority to certain names
-			> So long as it is consistent it doesn't matter
-		✔ When a user wants to search by an author, consider the full list of aliases
-		✔ Modify locks so that only 1 plugin can run author updating
-		✔ Author directory can now be a ModuleScript
-			returns {[id] = {name1, name2, ...}, -- Banned or LastUpdated:#}
-			> Banned means "don't bother updating again" so no need for LastUpdated in that case
-			✔ get a global lock on author updating
-			✔ parse the source
-			✔ query author names from Roblox as fast as possible
-			✔ every 100, update the source
-			✔ assemble the source
-			return {
-				[123] = {"name1", "name2"}, -- Banned
-				[124] = {"name1", "name2"}, -- LastUpdated:15325345
-				-- OR
-				[123] = {"name1", "name2", true},
-				[124] = {"name1", "name2", 15325345},
-			}
-			Updating:
-				✔ Notify original lock (if it exists) to release, unless we own it
-				✔ Wait up to 1 second for it to release (monitor it changing ancestry)
-				✔ Read info to ensure most-up-to-date content
-				✔ etc
-			✔ in book search, client requires this script to get author aliases
-	Test/Debug:
-		✔ Workshop Package  @done(20-09-03 13:31
-		✔ RevampBooksCommand (test on scripting dev; have backup of book folders handy)
-		✔ BookMaintenancePlugin (test on offline copy after revamp works)
-	More:
-		✔ BookMaintenancePlugin should change final line's WaitForChild("Books") to .Books @done(20-09-07 11:49)
-		✔ In Maintenance Plugin for new books, book parts should be named `"Title" by Author (Main Genre)`, defining Main Genre as 1st genre in list. This should be done *after* manual analysis of titles with differences to catch bugs and missing genres.
+Maintenace Plugin:
 	Bugs:
-		✔ Replacing fancy quotation marks can prematurely end a string
-		✔ RevampCommands assumes a certain order that isn't always there, resulting in data loss
-		✔ Maintenance should only get rid of special characters for new books
-			> It takes .01 sec to perform it for 1 book
-		✔ Maintenance should not allow itself to process for more than 1 sec
-		✔ A lot of books are losing their authors (might occur if they have no authorID, ex "Fantastic Frontier for Beginners")
-		✔ RevampCommands adds genres to individual copies, but not the whole list of them, thereby making BOTM copies inconsistent!
-		✔ Spread out report amongst multiple pages to avoid "string too long" error
-		✔ customAuthorLine is somehow leaking into authorIds on previously dealt with special cases
-		✔ customAuthorLine is being assigned even when unnecessary
-		✔ "No authors detected. Run maintenance to detect authors." being spammed constantly
-		☐ Any authorIds with no author names: remove author name
-			> consider inspecting manually first
-		✔ Don't complain that Library Post books aren't on shelves
-		✔ "Snap"s aren't being removed @done(20-09-10 20:15)
-		✔ Models aren't being updated to have special characters removed
-		✔ Title field should be trimmed by Maintenance for new books
-		✔ "the circus (poetry)" didn't receive the Poetry genre! (A saw at least 1 other that had this)
-		✔ Author names being initialized should not be called "name changes"
-		✔ Should warn if books are in "New Books" only
-		✔ `s = {"authors here"}` appearing for special cases
-		✔ Book search isn't working for a lot of book title substrings, including "death"
-		✔ Clicking on Author in Book Search -> 330: nil value
-		☐ Maps aren't being preloaded
-		✔ while book search is open, "catchclick" should *not* be active
-	Final stages:
-		✔ Pick BookScript documentation variant and update package (all are different)
-			Get an outside reviewer's feedback on which is easiest to understand
-		✔ Update Book Template package
-		✔ Prepare BookScript demo and include with workshop
-		✔ Make sure Workshop package works
-		✔ Look for todo, debug, and print messages that shouldn't be there
-		☐ Re-enable Roblox LSP for an added check
-		✔ Delete Assign Book Ids.lua (it's now part of maintenance plugin)
-		✔ Prepare announcements @done(20-09-07 12:18)
-		✔ Add people to credits @done(20-09-07 12:17)
-		✔ Some usernames have " & " and they are not getting split up by RevampCommands
-		✔ Usernames aren't being trimmed (in RevampCommand - also check book maintenance)
-	Update Live Place:
-		✔ Ensure all books have been added to the library
-		✔ SCAN_FOR_AUTHORS (to get all authorIds and usernames)
-		✔ CONVERT_AUTHORS (to get username/id conversions)
-		✔ Filter them (to get rid of ids that couldn't possibly be part of the library b/c not been on since 2015)
-		✔ Consider not allowing author name replacing
-		✔ use rojo to update scripts (this will include the new menu system)
-		✔ transfer Guis, DefaultMusic, Remotes, SFX folders (ReplicatedStorage) and update StarterGuis
-			> Disable BookPouchGui
-		✔ remove old BookSearch localScript (that is not in Guis folder) and MusicScript
-		✔ update MainBookScript, SelectScript
-			✘ and anything else in "Library" directory
-		Deal with some more special cases:
-			✔ The Somewhat Okay Guide to Rogue Lineage (fails to convert authorIds) @done(20-09-07 13:17)
-			✔ Gavin (librarian & publishDate switched - librarian not listed) @done(20-09-07 13:17)
-			✘ The Roblox Zone: Grave Danger (publish date, manually switch day/month to month/day -- rest of librarian's dates are probably month/day/year)
-			✔ "No note provided" is in some authorsNotes - remove? @done(20-09-07 13:18)
-			These scripts assigned to words instead of paragraphs:
-				✔ The Living Tree @done(20-09-07 13:21)
-				✔ Neighboor @done(20-09-07 13:24)
-				✔ The bunker after the war @done(20-09-07 13:25)
-				✔ BOOM has 2 different book scripts (the non-BOTM version has most comments removed and some script changes that mean the maintenance script doesn't recognize them as the same) @done(20-09-07 13:27)
-		Perform test on offline copy:
-			✔ run RevampBooksCommand on offline copy and inspect books
-			✔ run maintenance plugin and inspect again
-			✔ test menus & books are working
-			Make sure nothing breaks:
-				✔ Modify book source & Update copies
-				✔ Add new book source
-				✔ Clone existing book
-				✔ Clone existing book and modify story content
-		✔ run RevampBooksCommand
-		✔ run maintenance plugin
-		✔ look in script analysis and fix issues
-		Post-transformation special cases:
-			✔ clean up "The World Of Scat"'s authorsNote, authorNames, etc
-				local authorNames = {"EpicNerd5678", "LostSouth", "Jwarrior999", "AE_FIRE"}
-				local authorIDs = {115006960, 171216631, 143589351, 511027312}
-				local customAuthorLine = "EpicNerd5678, LostSouth, Jwarrior999, and AE_FIRE (listed as LostArt)"
-			✔ Change shelves to say "Roblox History" not "History"
-			✔ then disable the special check in the Maintenance plugin (ctrl+f for "is on shelf")
-		✔ final quick test menus & books are working
-		✔ publish
-		✔ announce changes to public, librarians and admins
-		✔ update workshops (use a package for a shared template so updating either not required or easier in future)
-	Fix Genres for...:
-		☐ Files in python (we need a "Programming" genre I think)
-	Bugs:
-		✔ book search when you click on book to search for it then try to change text
-		✔ The Secret Book is searchable again
-		✔ book search doesn't expand when you modify text
-		✔ book count is completely wrong
-		✔ CRITICAL: several BOTM have no data (can't open the book)
-		✘ COVER DATA LOSS: 155 books have `local cover = ""`; many have decals (almost always called Decal) with the cover
-		The decals have already been deleted; you'll need to scan for them in an older offline copy
-			✔ In old copy, search for books with `local cover = ""` in source that also have decals with decals of any name, excluding known transparent & pages ones
-			✘ Update live place cover for each book (probably via script)
-			> Turns out that there were no decals with content for books without covers *except* one that was already updated
-		✔ CRITICAL: RemoveAllComments fails to remove block comments correctly (such as the one in the template!)
-		✔ CRITICAL: When you add a new book with the same fields as an existing book, it doesn't warn and instead creates a new id!!!
-		Staff Recs didn't exist before!
-		I tried updating them but now they're listed as diff
 		☐ The "critical" warning occurs when an old id is being removed (can occur after manually fixing it)
 			Don't warn for ids that are being removed
-
-Maintenance Plugin - Features for the future:
-	High Priority:
-		☐ Add exceptions to each rule.
-		☐ Exclude some books from getting an ID (like the 'Example Book' and 'The Secret Book')
-	If books might ever be restored (accidental deletions or fixing books that break rules)?:
-		☐ Add title and author to each id in the database and don't delete them without some special confirmation menu. If the book returns, you can then reuse it.
-		☐ Add "Delete" button that deletes all copies & the database entry (after a confirmation message)
-			> Maybe move to a Recycle Bin for a couple weeks
-	☐ If someone deparents AuthorScanLock, the script should identify this and stop running
-	☐ A button to add in the covers so you can see what the books look like without pressing play
-		> It would add everything with Archivable = false so they won't save
-		> A 2nd button to remove them
-	☐ Have a "slimmed down" version that verifies book scripts in workshops
-	☐ Scan for new books continuously on startup
-	☐ Allow dependencies to be added after startup (ie create toolbar etc)
-
-Bugs:
-	✔ If you wear a packaged head (i.e. Womens Head, Man Head, etc.), the face decal won't show up
-		> RServerNames: when descendant added, repl or move
-	✔ Run:20 Font not part of ImageButton
+	Features for the future:
+		High Priority:
+			☐ Add exceptions to each rule.
+			☐ Exclude some books from getting an ID (like the 'Example Book' and 'The Secret Book')
+		If books might ever be restored (accidental deletions or fixing books that break rules)?:
+			☐ Add title and author to each id in the database and don't delete them without some special confirmation menu. If the book returns, you can then reuse it.
+			☐ Add "Delete" button that deletes all copies & the database entry (after a confirmation message)
+				> Maybe move to a Recycle Bin for a couple weeks
+		☐ If someone deparents AuthorScanLock, the script should identify this and stop running
+		☐ A button to add in the covers so you can see what the books look like without pressing play
+			> It would add everything with Archivable = false so they won't save
+			> A 2nd button to remove them
+		☐ Have a "slimmed down" version that verifies book scripts in workshops
+		☐ Scan for new books continuously on startup
+		☐ Allow dependencies to be added after startup (ie create toolbar etc)
 
 
 New Book Gui:
@@ -347,66 +70,12 @@ TopBar:
 	Book Finder:
 		✔ Get magnifying icon
 
-Profile / Music:
-	✔ Profile *has* music and can ask Music to serialize/etc
-	✔ Music has functions for active playlist/etc instead of Profile
-	Server-side Note:
-		No need to check whether the profile has changed; it's easier to just assume that it has and autosave regardless
-
-Custom Playlist:
-	Bugs:
-		✔ View playlist not updated when editing same one
-		✔ After deleting a playlist, "+" doesn't create a new one
-		✔ After deleting a playlist, the currently active playlist should be reset to the default (if it was the deleted one)
-		✔ Switching playlists bug (GetCurSongDesc fails - curMusic[curMusicIndex] is nil)
-		✔ If APM music were stored, will it cause an error? Is this handled properly?
-	Unfinished:
-		✔ Load existing playlists from old data store
-	Untested:
-		✔ Try temporarily limiting # of playlists and songs to very small to test
-		✔ Try loading (from fake data) APM music and make sure it's removed
-	Polish:
-		✔ Show # of songs beside each playlist name in all views
-	Data structure to save:
-		✔ Each playlist must have a unique id (per user)
-		✔ Must store the "next" playlist id for each user
-		✔ All requests/functions should use this id (they currently use the name)
-	Checks to perform on server:
-		✔ Name must be unique
-		✔ Name must get through filtering or be "Custom #%d+"
-	For new playlists, server must support either:
-		1. Can change the name of a playlist that doesn't exist
-		✔ 2. Can create an empty playlist (and maybe even save it?)
-	On init:
-		✔ Dropdown contains all editable playlists
-		✔ Open editor to active custom playlist else any custom playlist else "Custom #1"
-	✔ Gui will have "x" to delete entry and then 1+ rows for sound IDs
-	✔ after pressing enter a label with Title (Length) is supposed to show up (maybe "by Creator" as well?)
-	On Enter of one of the IDs:
-		✔ Validate the input. If it's no good, revert to previous value.
-			✔ Tell user what's wrong by sending a notification
-		✔ Music:TrySetCustomPlaylistTrack(index, id)
-			will return true OR false, reason
-			if it fails, tell user why via notification like before
-			& revert text box
-		✔ If successful, if there is no empty text box, create another row
-	On startup:
-		✔ Populate the Music list with all the default music (with Name, Length, creator)
-		✔ On "+" Activated, copy into new slot in the playlist
-	> For now, do not support multiple playlists - most players will only use 1 at most (and not popular feature anyway)
-	Currently playing display:
-		> In the main menu, or the custom playlist editor
-		✔ Create this display
-		✔ When the current music changes, activate an event
-		✔ When the event fires, update the Currently Playing display
-
 Teleport:
 	✔ When player touches portal, server tells client to inquire about teleporting to the appropriate ID (with RemoteEvent)
 	✔ MessageBox is client only
 	☐ Client side handler of remote knows to teleport
 	☐ Client keeps track of distance
 	☐ When client moves away or presses no/etc, tell the server that they're not interested
-	WhirlPlay is working on this
 	✔ Shared teleport code
 	✔ ConfirmationBox module (that doesn't know anything about teleport)
 	✔ Have teleport scripts use shared teleport code
@@ -416,22 +85,6 @@ Teleport:
 	✔ If a player declines, don't let the message trigger again until they've moved away at least a bit
 	✘ Can we write any tests for this?
 		> Can't easily test player
-
-
-
-Bugs:
-	✔ Can't toggle Music on/off
-	✔ Toggling music on/off doesn't actually work
-	✔ Playlist says "Center" instead of "Default"
-	✔ Playlist label should be init to whatever the user's preference is and updated appropriately
-	✔ Opening Book Finder doesn't close menu
-
-Profile:
-	✔ Algorithm that can handle merging
-	> see SaveableSet
-	✔ serialize profile and its contents (ex via SaveableSet) both for over the network and to/from the data store
-		✘ for data store only, need to be able to encode with a version so that they can be upgraded over time (or use tables with string keys that we can change over time)
-			x if we use string keys to upgrade, then you have to check every possible string key, "just in case"
 
 New Book Gui:
 	For now we can add on to the existing book gui

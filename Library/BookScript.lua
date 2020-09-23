@@ -3,9 +3,11 @@ local title = ""
 -- local title = "Book Template"
 local authorIds = {}
 -- local authorIds = {false, 1}
+-- The list of Roblox user ids for each author.
 -- Use false for anonymous users or if the author elects for an author name other than their username.
 local authorNames = {}
 -- local authorNames = {"Anonymous", "ROBLOX"}
+-- This must be in the same order as authorIds.
 local customAuthorLine = ""
 -- local customAuthorLine = "Mystery Person (author) & Roblox (editor)"
 -- This example would show up on the cover page as "By: Mystery Person (author) & Roblox (editor)".
@@ -28,7 +30,7 @@ local publishDate = ""
 -- local publishDate = "01/30/2020"
 -- Always in MM/DD/YYYY format.
 
--- You can also customize the book's part color, TitleColor and TitleOutlineColor values.
+-- You can also customize the book's Part Color (or BrickColor), as well as the TitleColor and TitleOutlineColor Color3Values.
 
 local image1 = ""
 -- local image1 = "rbxassetid://5230133461 " --  Note: must always have a space after the image URL. Can also do:

@@ -55,6 +55,18 @@ local getBooks = Instance.new("RemoteFunction")
 getBooks.Name = "GetBooks"
 getBooks.Parent = ReplicatedStorage
 getBooks.OnServerInvoke = function(player) return books end
+local function convertEmptyToAnonymous(authorNames)
+	for _, name in ipairs(authorNames) do -- Check to see if generating a new list is necessary
+		if name == "" then
+			local new = {}
+			for i, name in ipairs(authorNames) do
+				new[i] = name == "" and "Anonymous" or ""
+			end
+			return new
+		end
+	end
+	return authorNames
+end
 function Books:Register(book, genres, cover, title, customAuthorLine, authorNames, authorIds, authorsNote, publishDate, words, librarian)
 	BookChildren.AddTo(book)
 
@@ -80,7 +92,7 @@ function Books:Register(book, genres, cover, title, customAuthorLine, authorName
 		BookChildren.UpdateGuis(book, title)
 	end
 
-	local authorLine = customAuthorLine or List.ToEnglish(authorNames)
+	local authorLine = customAuthorLine or List.ToEnglish(convertEmptyToAnonymous(authorNames))
 
 	-- Register book into system
 
@@ -97,7 +109,7 @@ function Books:Register(book, genres, cover, title, customAuthorLine, authorName
 		bookData = {
 			Id = id,
 			Title = title,
-			AuthorLine = authorLine,
+			AuthorLine = authorLine == "" and "Anonymous" or authorLine,
 			Authors = authorNames,
 			AuthorIds = authorIds, -- todo use this for players who are in-game in case they changed their name recently
 			PublishDate = publishDate,

@@ -34,6 +34,7 @@ function List.Shuffle(list, rnd)
 		index = rnd and rnd:NextNumber(i, n) or math.random(i, n)
 		list[i], list[index] = list[index], list[i]
 	end
+	return list
 end
 function List.ToSet(list)
 	local set = {}

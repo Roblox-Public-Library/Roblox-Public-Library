@@ -2,22 +2,24 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local List = require(ReplicatedStorage.Utilities.List)
 local Books = {}
 local books = ReplicatedStorage:WaitForChild("GetBooks"):InvokeServer()
--- The following collections have their strings :lower()ed to assist in searching
-local bookToAuthorNames = {}
-local bookToAuthorIds = {}
-local bookToTitle = {}
-local function lowerEachValue(t)
+local bookToAuthorNames = {} --[book][authorName:lower()] = true
+local bookToAuthorLine = {} --[book] = authorLine:lower()
+local bookToAuthorIds = {} --[book][authorId] = true
+local bookToTitle = {} --[book] = title:lower()
+local function lowerEachValue(t, anonymousValue) -- if anonymousValue provided, ensure it is all lowercase
+	anonymousValue = anonymousValue or ""
 	local new = {}
 	for i, v in ipairs(t) do
-		new[i] = type(v) == "string" and v:lower() or v
+		new[i] = type(v) == "string" and (v == "" and anonymousValue or v:lower()) or v
 	end
 	return new
 end
 local modelToBook = {}
 local idToBook = {}
 for _, book in ipairs(books) do
-	bookToAuthorNames[book] = List.ToSet(lowerEachValue(book.Authors))
+	bookToAuthorNames[book] = List.ToSet(lowerEachValue(book.Authors), "anonymous")
 	bookToAuthorIds[book] = List.ToSet(lowerEachValue(book.AuthorIds))
+	bookToAuthorLine[book] = book.AuthorLine:lower()
 	local lowerTitle = book.Title:lower()
 	bookToTitle[book] = lowerTitle
 
@@ -51,22 +53,27 @@ end
 function Books:FromId(id)
 	return idToBook[id]
 end
-function Books:BookTitleContains(book, value)
+function Books:BookTitleContains(book, value) -- value must be :lower()'d
 	return bookToTitle[book]:find(value, 1, true)
 end
-function Books:AuthorNamesContainsFullWord(book, value)
-	local safeValue = value:gsub("%%", "") -- just in case someone throws a % in there
-	return bookToAuthorNames[book][value] or book.AuthorLine:find("%f[%w_]" .. safeValue .. "%f[^%w_]")
+local function escape(s)
+	return s:gsub("([%%%[%]()%.%+%-%*%?%^%$])", "%%%1")
 end
-function Books:AuthorNamesContain(book, value)
-	for _, author in ipairs(book.Authors) do
+function Books:AuthorNamesContainFullWord(book, value) -- value must be :lower()'d
+	local safeValue = escape(value)
+	return bookToAuthorNames[book][value] or bookToAuthorLine[book]:find("%f[%w_]" .. safeValue .. "%f[^%w_]")
+end
+function Books:AuthorNamesContain(book, value) -- value must be :lower()'d
+	for author, _ in pairs(bookToAuthorNames[book]) do
 		if author:find(value, 1, true) then return true end
 	end
-	return book.AuthorLine:find(value, 1, true)
+	return bookToAuthorLine[book]:find(value, 1, true)
 end
 function Books:AuthorIdsContain(book, userId)
 	return bookToAuthorIds[book][userId]
 end
-function Books:GetAuthorIdLookup(book) return bookToAuthorIds[book] end
+function Books:GetAuthorIdLookup(book)
+	return bookToAuthorIds[book]
+end
 
 return Books

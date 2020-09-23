@@ -7,6 +7,7 @@ local tweenInfo = TweenInfo.new(0.3)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local AuthorDirectory = require(ReplicatedStorage.AuthorDirectory)
+local List = require(ReplicatedStorage.Utilities.List)
 local ObjectList = require(ReplicatedStorage.Utilities.ObjectList)
 local Books = require(ReplicatedStorage.BooksClient)
 local books = Books:GetBooks()
@@ -281,9 +282,10 @@ end
 local function shouldKeepResult(book)
 	return book.Title ~= "The Secret Book" -- todo make customizable and based on id and make it so that Books doesn't even allow it to return true for any search function
 end
+local desiredResults = 200
 local function titleSearch(value)
-	local results = {}
 	value = value:lower()
+	local results = {}
 	for _, book in ipairs(books) do
 		if Books:BookTitleContains(book, value) then
 			if shouldKeepResult(book) then
@@ -293,83 +295,107 @@ local function titleSearch(value)
 	end
 	return results
 end
+local function newAuthorResults()
+	local self = {}
+	function self:ConsiderAdd(book)
+		if self[book] or not shouldKeepResult(book) then return end
+		self[#self + 1] = book
+		self[book] = true
+	end
+	return self
+end
+local function extendResultsAuthorIdsSearch(results, authorIds)
+	--	results:AuthorResults
+	for _, book in ipairs(books) do
+		local lookup = Books:GetAuthorIdLookup(book)
+		for _, authorId in ipairs(authorIds) do
+			if lookup[authorId] then
+				results:ConsiderAdd(book)
+				break
+			end
+		end
+	end
+end
 local function authorSearch(value)
-	--[[So what's our new authorSearch algorithm need to be?
-	I know that if you look for "X" and "X" maps to an author ID, then we want all books with that author ID
-		Notably, there could be multiple IDs here
-	Also, if any author name includes "X" then we want that one too, regardless of id
+	--[[
+	If 'value' refers to a player in the server, use their UserId, otherwise find all UserIds that this may refer to
+	Go through all books and see if any of the UserIds are found
+	After this, if insufficient results, see if any partial matches for 'value' exist in any book
+	After this, if insufficient results, see if any partial matches for past usernames turn up any more ids.
 	]]
-	local results = {}
+	value = value:lower()
+	local results = newAuthorResults()
 	local authorIds
 	local authorId = tonumber(value)
-	if not authorId then -- see if can convert to userId. We can only do this if 'value' is the name of a player in the server
-		local player = Players:FindFirstChild(value)
-		if player then
-			authorId = player.UserId
+	if not authorId then -- see if the specified username is a player in the server
+		for _, player in ipairs(Players:GetPlayers()) do
+			if player.Name:lower() == value then
+				authorIds = {player.UserId}
+				break
+			end
 		end
 	end
 	if authorId then
 		authorIds = {authorId}
 	else
-		authorIds = AuthorDirectory.ExactMatches(authorId or value)
-		if not authorIds or #authorIds == 0 then -- todo consider allowing both but at different priorities
-			authorIds = AuthorDirectory.PartialMatches(authorId or value)
-		end
+		authorIds = AuthorDirectory.ExactMatches(value)
 	end
 	if authorIds and #authorIds > 0 then
-		for _, authorId in ipairs(authorIds) do
-			for _, book in ipairs(books) do
-				local lookup = Books:GetAuthorIdLookup(book)
-				if lookup[authorId] then
-					if shouldKeepResult(book) then
-						results[#results + 1] = book
-					end
-				end
-			end
-		end
+		extendResultsAuthorIdsSearch(results, authorIds)
 	end
-	if #results > 0 then -- todo consider continuing but making the rest a lower priority
-		return results
-	end
+	if #results >= desiredResults then return results end
 	for _, book in ipairs(books) do
-		if Books:AuthorNamesContainsFullWord(book, value) then
-			if shouldKeepResult(book) then
-				results[#results + 1] = book
-			end
+		if Books:AuthorNamesContainFullWord(book, value) then
+			results:ConsiderAdd(book)
 		end
 	end
-	if #results > 0 then -- todo consider allowing to continue at lower priority
-		return results
-	end
+	if #results >= desiredResults then return results end
 	for _, book in ipairs(books) do
 		if Books:AuthorNamesContain(book, value) then
-			if shouldKeepResult(book) then
-				results[#results + 1] = book
+			results:ConsiderAdd(book)
+		end
+	end
+	if #results >= desiredResults then return results end
+	local partialAuthorIds = AuthorDirectory.PartialMatches(authorId or value)
+	if partialAuthorIds then
+		for i = #partialAuthorIds, 1, -1 do
+			if authorIds and table.find(authorIds, partialAuthorIds[i]) then
+				table.remove(partialAuthorIds, i)
 			end
+		end
+		if #partialAuthorIds > 0 then
+			extendResultsAuthorIdsSearch(results, partialAuthorIds)
 		end
 	end
 	return results
+end
+local numBooks = #books
+local function getRandomResults()
+	if numBooks <= desiredResults * 2 then -- easier to shuffle a larger list than to try to randomly select that many unique elements
+		return List.Shuffle(List.Clone(books))
+	else
+		local results = {}
+		local selected = {}
+		for i = 1, desiredResults do
+			for attempts = 1, 3 do
+				local new = math.random(1, numBooks)
+				if not selected[new] then
+					selected[new] = true
+					results[#results + 1] = books[new]
+					break
+				end
+			end
+		end
+		return results
+	end
 end
 
 local box = searchFrame.TextBox
 local search = titleSearch
 local title = searchFrame.SortBy.Title
 local author = searchFrame.SortBy.Author
-local function highlight(obj)
-	obj.TextStrokeTransparency = 0
-	obj.TextTransparency = 0
-end
-local function unhighlight(obj)
-	obj.TextStrokeTransparency = 1
-	obj.TextTransparency = 0.25
-end
-local function performSearch()
-	if shrunk then
-		expand()
-	end
-	if box.Text == "" then return end
-	results = search(box.Text)
-	local num = math.min(#results, 200)
+local function showResults(results)
+	local num = math.min(#results, desiredResults)
 	for i = 1, num do
 		local entry = entries[i]
 		local book = results[i]
@@ -381,18 +407,68 @@ local function performSearch()
 		entries[i].Parent = nil
 	end
 end
-title.Activated:Connect(function()
-	search = titleSearch
-	highlight(title)
-	unhighlight(author)
+local showingRandom = false
+local function performSearch()
+	if shrunk then
+		expand()
+	end
+	if box.Text == "" then
+		if not showingRandom then
+			showingRandom = true
+			results = getRandomResults()
+		end
+	else
+		results = search(box.Text)
+		showingRandom = false
+	end
+	showResults(results)
+end
+local lastFocusLost = 0
+box.FocusLost:Connect(function()
+	lastFocusLost = os.clock()
+end)
+local function highlight(obj)
+	obj.TextStrokeTransparency = 0
+	obj.TextTransparency = 0
+end
+local function unhighlight(obj)
+	obj.TextStrokeTransparency = 1
+	obj.TextTransparency = 0.25
+end
+local prevButton
+local function setSearchMode(mode)
+	search = mode.search
+	if prevButton then
+		unhighlight(prevButton)
+	end
+	prevButton = mode.button
+	highlight(prevButton)
+	box.PlaceholderText = mode.placeholderText
+end
+local function activateSearchButton(mode)
+	setSearchMode(mode)
+	if os.clock() - lastFocusLost < 0.1 then
+		box:CaptureFocus()
+	end
 	performSearch()
+end
+local titleSearchMode = {
+	search = titleSearch,
+	button = title,
+	placeholderText = "Book title",
+}
+local authorSearchMode = {
+	search = authorSearch,
+	button = author,
+	placeholderText = "Author username or id",
+}
+title.Activated:Connect(function()
+	activateSearchButton(titleSearchMode)
 end)
 author.Activated:Connect(function()
-	search = authorSearch
-	highlight(author)
-	unhighlight(title)
-	performSearch()
+	activateSearchButton(authorSearchMode)
 end)
+activateSearchButton(titleSearchMode)
 box:GetPropertyChangedSignal("Text"):Connect(performSearch)
 
 module.CloseOnCatchClick = false
@@ -402,6 +478,7 @@ function module:Open()
 	open = true
 	if not hidden then
 		gui.Enabled = true
+		box:CaptureFocus()
 	end
 end
 function module:Close()

@@ -1,0 +1,41 @@
+{
+	"name": "root-project",
+	"tree": {
+		"$className": "DataModel",
+		"ReplicatedStorage": {
+			"$className": "ReplicatedStorage",
+			"$path": "ReplicatedStorage",
+			"$ignoreUnknownInstances": true
+		},
+		"ServerScriptService": {
+			"$className": "ServerScriptService",
+			"$path": "ServerScriptService",
+			"$ignoreUnknownInstances": true
+		},
+		"ServerStorage": {
+			"$className": "ServerStorage",
+			"Book Maintenance Plugin": {
+				"$path": "../Book Maintenance Plugin"
+			}
+		},
+		"StarterPlayer": {
+			"$className": "StarterPlayer",
+			"StarterCharacterScripts": {
+				"$className": "StarterCharacterScripts",
+				"$path": "StarterCharacterScripts",
+				"$ignoreUnknownInstances": true
+			},
+			"StarterPlayerScripts": {
+				"$className": "StarterPlayerScripts",
+				"$path": "StarterPlayerScripts",
+				"$ignoreUnknownInstances": true
+			}
+		},
+		"TestService": {
+			"$className": "TestService",
+			"Library": {
+				"$path": "TestService"
+			}
+		}
+	}
+}

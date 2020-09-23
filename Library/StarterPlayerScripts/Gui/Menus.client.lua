@@ -249,6 +249,7 @@ do -- About menu
 		q.TextSize = 32
 		q.TextWrapped = true
 		q.TextXAlignment = Enum.TextXAlignment.Left
+		q.TextColor3 = Color3.new(1, 1, 1)
 
 		a.Name = "A"..i
 		a.BackgroundTransparency = 1
@@ -257,6 +258,7 @@ do -- About menu
 		a.TextSize = 24
 		a.TextWrapped = true
 		a.TextXAlignment = Enum.TextXAlignment.Left
+		a.TextColor3 = q.TextColor3
 
 		q.Parent = faqFrame
 		a.Parent = faqFrame
