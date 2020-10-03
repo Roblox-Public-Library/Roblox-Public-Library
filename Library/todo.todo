@@ -1,6 +1,8 @@
  (If you install the Todo+ extension you can toggle a task being done with Alt+d and create a new task with Ctrl+Enter)
 --------------------------
 Maintenace Plugin:
+	Configuration Design:
+		☐ Support
 	Bugs:
 		☐ The "critical" warning occurs when an old id is being removed (can occur after manually fixing it)
 			Don't warn for ids that are being removed

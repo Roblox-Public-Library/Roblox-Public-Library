@@ -37,6 +37,7 @@ end
 ]]
 
 local Players = game:GetService("Players")
+local ServerScriptService = game:GetService("ServerScriptService")
 local ServerStorage = game:GetService("ServerStorage")
 local function isInstalled()
 	return ServerStorage:FindFirstChild("Book Data Storage")
@@ -52,7 +53,6 @@ end
 local function tryRequire(obj)
 	return not failed and require(obj)
 end
-local ServerScriptService = game:GetService("ServerScriptService")
 local BookChildren = tryRequire(get(ServerScriptService, "BookChildren"))
 local Genres = tryRequire(get(ServerScriptService, "Genres"))
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
