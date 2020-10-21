@@ -56,6 +56,7 @@ local Genres = {
 	"Romance",
 	"Science Fiction",
 	"Science",
+	"Secret",
 	"Short Story",
 	"Social",
 	"Sports",

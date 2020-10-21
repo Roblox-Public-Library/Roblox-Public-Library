@@ -57,10 +57,10 @@ getBooks.Parent = ReplicatedStorage
 getBooks.OnServerInvoke = function(player) return books end
 local function convertEmptyToAnonymous(authorNames)
 	for _, name in ipairs(authorNames) do -- Check to see if generating a new list is necessary
-		if name == "" then
+		if name == "" or not name then
 			local new = {}
 			for i, name in ipairs(authorNames) do
-				new[i] = name == "" and "Anonymous" or ""
+				new[i] = (name == "" or not name) and "Anonymous" or name
 			end
 			return new
 		end
@@ -92,7 +92,8 @@ function Books:Register(book, genres, cover, title, customAuthorLine, authorName
 		BookChildren.UpdateGuis(book, title)
 	end
 
-	local authorLine = customAuthorLine or List.ToEnglish(convertEmptyToAnonymous(authorNames))
+	authorNames = convertEmptyToAnonymous(authorNames)
+	local authorLine = customAuthorLine or List.ToEnglish(authorNames)
 
 	-- Register book into system
 

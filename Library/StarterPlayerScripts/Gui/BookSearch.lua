@@ -280,7 +280,7 @@ for i, entry in ipairs(entries) do
 end
 
 local function shouldKeepResult(book)
-	return book.Title ~= "The Secret Book" -- todo make customizable and based on id and make it so that Books doesn't even allow it to return true for any search function
+	return not table.find(book.Genres, "Secret") -- todo make customizable without changing this script
 end
 local desiredResults = 200
 local function titleSearch(value)

@@ -210,10 +210,21 @@ local sourceToBook, dataKeyList, updateBookSource, allFieldsAffected do
 			return new
 		end
 	end
+	local baseGetAuthorNames = genGetListData("authorNames")
 	local dataProps = {
 		Title = genGetData("title"),
 		CustomAuthorLine = getAuthorLine,
-		AuthorNames = genGetListData("authorNames"),
+		AuthorNames = function(source)
+			local authorNames = baseGetAuthorNames(source)
+			if authorNames then
+				for i = 1, #authorNames do
+					if authorNames[i] == "" or not authorNames[i] then
+						authorNames[i] = "Anonymous"
+					end
+				end
+			end
+			return authorNames
+		end,
 		AuthorIds = genGetListData("authorIds"),
 		PublishDate = genGetData("publishDate"),
 		Librarian = genGetData("librarian"),
@@ -418,7 +429,10 @@ local GenLock do
 					end
 				end
 			end)
+			lock.Archivable = true
 			local lockOverride = lock:Clone()
+			lock.Archivable = false
+			lockOverride.Archivable = false
 			lockOverride.Parent = other
 			if not released then
 				releasedEvent = Instance.new("BindableEvent")
@@ -1676,7 +1690,28 @@ function multiShelfBooks.Collect(data, shelfModel, book, shelfToModel)
 	end
 	base(data, table.concat(list))
 end
+
 local unknownShelfGenre = Report.NewListCollector("1 shelf refers to unknown genres:", "%d shelves refer to unknown genres:")
+local getIgnoreShelfGenres do
+	local getRaw = getSetting("Ignore shelving for genres (separated by ';')", "Library Post; Secret; Library Archives")
+	local prevRaw, prevValue
+	function getIgnoreShelfGenres()
+		local raw = getRaw()
+		if prevRaw == raw then
+			return prevValue
+		end
+		local entries = {}
+		for _, genre in ipairs(raw:split(";")) do
+			genre = String.Trim(genre)
+			if #genre > 0 then
+				entries[genre] = true
+			end
+		end
+		prevRaw = raw
+		prevValue = entries
+		return entries
+	end
+end
 local function verifyGenres(report, books)
 	local shelfGenreWarnings = {}
 	local genreFixes = 0
@@ -1723,7 +1758,15 @@ local function verifyGenres(report, books)
 			end
 		end
 		if not genreInput then
-			if not table.find(book.Genres, "Library Post") then -- todo allow customization in settings, perhaps (ex to allow a "Secret" genre that also isn't warned about)
+			local ignoreShelf
+			local ignoreShelfGenres = getIgnoreShelfGenres()
+			for _, genre in ipairs(book.Genres) do
+				if ignoreShelfGenres[genre] then
+					ignoreShelf = true
+					break
+				end
+			end
+			if not ignoreShelf then
 				report(bookNotOnShelf, bookPath(book))
 			end
 		else
