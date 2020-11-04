@@ -75,9 +75,9 @@ TopBar:
 Teleport:
 	✔ When player touches portal, server tells client to inquire about teleporting to the appropriate ID (with RemoteEvent)
 	✔ MessageBox is client only
-	☐ Client side handler of remote knows to teleport
-	☐ Client keeps track of distance
-	☐ When client moves away or presses no/etc, tell the server that they're not interested
+	✔ Client side handler of remote knows to teleport
+	✔ Client keeps track of distance
+	✔ When client moves away or presses no/etc, tell the server that they're not interested
 	✔ Shared teleport code
 	✔ ConfirmationBox module (that doesn't know anything about teleport)
 	✔ Have teleport scripts use shared teleport code
