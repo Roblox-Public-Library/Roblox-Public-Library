@@ -90,6 +90,7 @@ local function sizeChange()
 				end
 			end
 		end
+		kill = false
 		for i,v in pairs(words) do
 ---Line Function---
 			if v == "/next" or v == "/line" then
@@ -477,6 +478,7 @@ script.Parent.BottomFrame.X.Activated:Connect(function()
 		SFX.BookClose:Play()
 		script.Parent.Visible = false
 		if kill then
+			kill = false
 			music:GoCrazy(initialSilenceDuration)
 			specialScreen.Visible = true
 			wait(initialSilenceDuration)

@@ -64,9 +64,9 @@ end)
 return {
 	Setup = function(teleportPart)
 		local parent = teleportPart.Parent
-		local id = parent.ID.Value
+		local id = parent.Id.Value
 		if math.floor(id) ~= id then
-			error(teleportPart:GetFullName() .. "'s ID must be an integer, not " .. tostring(id))
+			error(teleportPart:GetFullName() .. "'s Id must be an integer, not " .. tostring(id))
 		end
 		local textLabel = parent.TextBrick.Front.Frame.TextLabel
 		local placeName = textLabel.Text -- starting default value
