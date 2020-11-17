@@ -63,16 +63,23 @@ local function setupControls()
 		[Enum.KeyCode.ButtonX] = endRun,
 	}
 	-- In case they have (or connect) a keyboard/gamepad:
-	UserInputService.InputBegan:Connect(function(key, processed)
-		if processed then return end
-		local action = beganControls[key.KeyCode]
+	local keyWasProcessed = {}
+	UserInputService.InputBegan:Connect(function(input, processed)
+		if processed then
+			keyWasProcessed[input.KeyCode] = true -- will be Unknown for non-keys
+			return
+		end
+		local action = beganControls[input.KeyCode]
 		if action then
 			action()
 		end
 	end)
-	UserInputService.InputEnded:Connect(function(key, processed)
-		if processed then return end
-		local action = endedControls[key.KeyCode]
+	UserInputService.InputEnded:Connect(function(input, processed)
+		if processed or keyWasProcessed[input.KeyCode] then
+			keyWasProcessed[input.KeyCode] = nil
+			return
+		end
+		local action = endedControls[input.KeyCode]
 		if action then
 			action()
 		end
