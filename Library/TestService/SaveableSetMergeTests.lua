@@ -1,6 +1,6 @@
-local Nexus = require("NexusUnitTesting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SaveableSet = require(ReplicatedStorage.Utilities.SaveableSet)
+return function(tests, t)
 
 local function toList(set)
 	local list = {}
@@ -16,13 +16,13 @@ local function concatSortSet(set)
 end
 
 local function test(name, lastRead, cur, newRead, expected)
-	Nexus:RegisterUnitTest(name, function(t)
+	tests[name] = function()
 		local ss = SaveableSet.FromList(cur)
 		ss:UpdateLastData(lastRead)
 		ss:MergeData(newRead)
 		local output = concatSortSet(ss.Indices)
-		t:AssertEquals(output, expected)
-	end)
+		t.equals(output, expected)
+	end
 end
 test("No contents",	{}, {}, {}, "")
 test("Merge",
@@ -41,4 +41,4 @@ test("Double remove",
 	{2},
 	"2,3")
 
-return true
+end
