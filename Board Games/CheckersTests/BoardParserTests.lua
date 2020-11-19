@@ -1,4 +1,4 @@
-local Nexus = require("NexusUnitTesting")
+return function(tests, t)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Checkers = ReplicatedStorage.Checkers
@@ -15,7 +15,8 @@ r.r.r.r.
 r.r.r.r.
 ]]
 
-Nexus:RegisterUnitTest("BoardParser", function(t)
-	t:AssertEquals(s, BoardParser.ToString(BoardParser.Parse(s)), "ToString of Parse equals original")
-end)
-return true
+function tests.BoardParser()
+	t.equals(BoardParser.ToString(BoardParser.Parse(s)), s, "ToString of Parse equals original")
+end
+
+end

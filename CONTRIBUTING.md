@@ -1,9 +1,9 @@
 # Contributing
 
 * Strive to obey the Coding Style below
-* Try to add (or start with) test code whenever possible. (You can refer to the [template](https://github.com/Roblox-Public-Library/Roblox-Public-Library/wiki/TemplateNexusUnitTesting) for how to work with Nexus Unit Testing.) If you are unfamiliar with testing (or Test Driven Development), consider reviewing some [pros, cons, and tips](https://devqa.io/pros-cons-test-driven-development/). Even if we don't test everything, the more we have, the less we'll have to spend potentially hours tracking down bugs later.
+* Try to add (or start with) test code whenever possible. Documentation is available in the TestRunner script in TestService. If you are unfamiliar with testing (or Test Driven Development), consider reviewing some [pros, cons, and tips](https://devqa.io/pros-cons-test-driven-development/). Even if we don't test everything, the more we have, the less we'll have to spend potentially hours tracking down bugs later.
 
-# Coding Style
+## Coding Style
 
 Please maintain a consistent style throughout the project ([here's why](https://stackoverflow.com/a/1325617)).
 
@@ -20,16 +20,19 @@ Please maintain a consistent style throughout the project ([here's why](https://
 * Indent with tabs, so everyone can use a different tab spacing if they want
   * If you wish to align something (ex in a multiline comment), you may mix tabs (to get in line with the rest of the code) and spaces for the alignment so that it will look the same regardless of tab spacing.
 * Don't line up variables like this:
+
 ```lua
 	local someVar    = 1
 	local anotherVar = 2
 	-- Doing this looks nicer but requires time to create and update them
 ```
+
 * Never use deprecated functions (ex use `:Connect` instead of `:connect`)
 * Group related functions together; they do not need a blank line between them (but put a blank line before/after them).
 * Declare variables that are only used in one block just above that block. A "block" can be one or more related loops, functions, classes, etc.
 
 For other guidelines, refer to <https://roblox.github.io/lua-style-guide/>, but with these changes:
+
 * Allow guard statements on one line. They give the example `if valueIsInvalid then return end`.
 * Allow very short functions on one line, such as getters/setters/simple comparison functions (ex for `table.sort`)
 * No space after `{` for tables. ex, use `local list = {1, 2, 3}`, not `local list = { 1, 2, 3 }`

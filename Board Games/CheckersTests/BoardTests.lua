@@ -1,4 +1,4 @@
-local Nexus = require("NexusUnitTesting")
+return function(tests, t)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Checkers = ReplicatedStorage.Checkers
@@ -16,19 +16,12 @@ r.r.r.r.
 r.r.r.r.
 ]]
 local startBoard = Board.new()
-Nexus:RegisterUnitTest("Board.new", function(t)
-	t:AssertEquals(start, BoardParser.ToString(startBoard), "ToString of Parse equals original")
-end)
+tests["Board.new"] = function()
+	t.equals(BoardParser.ToString(startBoard), start, "ToString of Parse equals original")
+end
 
 local Move = Board.Move
 local v2 = Vector2.new
--- local argsReceived = {}
--- local function testMoves(...) -- collects arguments to eventually be sent to testTryMoves and testGetValidMoves for organization
--- 	argsReceived[#argsReceived + 1] = {...}
--- end
-local tryMoveTest = Nexus.UnitTest.new("Board:TryMove()")
-local getValidTest = Nexus.UnitTest.new("Board:GetValidMoves()")
-
 local function listToString(list)
 	local t = {}
 	for i, coord in ipairs(list) do
@@ -37,13 +30,14 @@ local function listToString(list)
 	return table.concat(t, "; ")
 end
 local coordListToKey = listToString
-local function testMoves(case, board, team, start, valid, invalid, validBoardResults)
-	tryMoveTest:RegisterUnitTest(case, function(test)
+
+local tryMoveTest = {
+	test = function(board, team, start, valid, invalid, validBoardResults)
 		for name, pos in pairs(valid) do
 			local board = board:Clone()
 			local move = Move.new(start, typeof(pos) == "Vector2" and {pos} or pos)
 			local result = board:TryMove(team, move)
-			local success = test:AssertEquals(true, not not result, name .. " - should be legal")
+			local success = t.equals(true, not not result, name .. " - should be legal")
 			if success and validBoardResults and validBoardResults[name] then
 				local expectedBoard = BoardParser.Parse(validBoardResults[name])
 				local allSame = true
@@ -57,7 +51,7 @@ local function testMoves(case, board, team, start, valid, invalid, validBoardRes
 					end
 					if not allSame then break end
 				end
-				if not test:AssertEquals(true, allSame, name .. " - expected board not the same") then
+				if not t.equals(true, allSame, name .. " - expected board not the same") then
 					print("Resulting board:")
 					print(BoardParser.ToString(board))
 					print("Expected board:")
@@ -68,10 +62,13 @@ local function testMoves(case, board, team, start, valid, invalid, validBoardRes
 		for name, pos in pairs(invalid) do
 			local board = board:Clone()
 			local move = Move.new(start, typeof(pos) == "Vector2" and {pos} or pos)
-			test:AssertEquals(false, not not board:TryMove(team, move), name .. " - should be illegal")
+			t.equals(false, not not board:TryMove(team, move), name .. " - should be illegal")
 		end
-	end)
-	getValidTest:RegisterUnitTest(case, function(test)
+	end,
+	argsLists = {},
+}
+local getValidTest = {
+	test = function(board, team, start, valid, invalid, validBoardResults)
 		local unFound = {} -- Dictionary<coordList keys, true>
 		for name, pos in pairs(valid) do
 			unFound[coordListToKey(typeof(pos) == "Vector2" and {pos} or pos)] = true
@@ -83,73 +80,21 @@ local function testMoves(case, board, team, start, valid, invalid, validBoardRes
 				unFound[key] = nil
 				alreadyFound[key] = true
 			elseif alreadyFound[key] then
-				test:Fail("GetValidMoves has duplicate move " .. listToString(unpack(move.coords)))
+				error("GetValidMoves has duplicate move " .. listToString(unpack(move.coords)))
 			else
-				test:Fail("GetValidMoves has incorrect move " .. listToString(unpack(move.coords)))
+				error("GetValidMoves has incorrect move " .. listToString(unpack(move.coords)))
 			end
 		end
-		test:AssertEquals(next(unFound), nil, "GetValidMoves missed valid moves")
-	end)
-end
+		t.equals(next(unFound), nil, "GetValidMoves missed valid moves")
+	end,
+	argsLists = {},
+}
 
--- local function testTryMoves(case, board, team, start, valid, invalid, validBoardResults)
--- 	--	valid/invalid keys are descriptions and values are either position to move to or the list of positions to jump to
--- 	--	validBoardResults may have the same key for each valid test and its value should be a board string
--- 	test:Case(case)(function()
--- 		for name, pos in pairs(valid) do
--- 			local board = board:Clone()
--- 			local move = Move.new(start, typeof(pos) == "Vector2" and {pos} or pos)
--- 			local result = board:TryMove(team, move)
--- 			local success = test:Equals(not not result, true, name, "- should be legal")
--- 			if success and validBoardResults and validBoardResults[name] then
--- 				local expectedBoard = BoardParser.Parse(validBoardResults[name])
--- 				local allSame = true
--- 				for x = 1, 8 do
--- 					for y = 1, 8 do
--- 						local pos = v2(x, y)
--- 						if board:Get(pos) ~= expectedBoard:Get(pos) then
--- 							allSame = false
--- 							break
--- 						end
--- 					end
--- 					if not allSame then break end
--- 				end
--- 				if not test:Equals(allSame, true, name, "- expected board not the same") then
--- 					print("Resulting board:")
--- 					print(BoardParser.ToString(board))
--- 					print("Expected board:")
--- 					print(BoardParser.ToString(expectedBoard))
--- 				end
--- 			end
--- 		end
--- 		for name, pos in pairs(invalid) do
--- 			local board = board:Clone()
--- 			local move = Move.new(start, typeof(pos) == "Vector2" and {pos} or pos)
--- 			test:Equals(not not board:TryMove(team, move), false, name, "- should be illegal")
--- 		end
--- 	end)
--- end
--- local function testGetValidMoves(case, board, team, start, valid, invalid)
--- 	test:Case(case)(function()
--- 		local unFound = {} -- Dictionary<coordList keys, true>
--- 		for name, pos in pairs(valid) do
--- 			unFound[coordListToKey(typeof(pos) == "Vector2" and {pos} or pos)] = true
--- 		end
--- 		local alreadyFound = {}
--- 		for _, move in ipairs(board:GetValidMoves(team, start)) do
--- 			local key = coordListToKey(move.coords)
--- 			if unFound[key] then
--- 				unFound[key] = nil
--- 				alreadyFound[key] = true
--- 			elseif alreadyFound[key] then
--- 				test:Equals(false, true, "GetValidMoves has duplicate move", unpack(move.coords))
--- 			else
--- 				test:Equals(false, true, "GetValidMoves has incorrect move", unpack(move.coords))
--- 			end
--- 		end
--- 		test:Equals(next(unFound), nil, "GetValidMoves missed valid moves")
--- 	end)
--- end
+local function testMoves(caseName, board, team, start, valid, invalid, validBoardResults)
+	local case = {name = caseName, board, team, start, valid, invalid, validBoardResults}
+	table.insert(tryMoveTest.argsLists, case)
+	table.insert(getValidTest.argsLists, case)
+end
 
 local start_normal = [[
 .b.b.b.b
@@ -299,18 +244,7 @@ testMoves("promote while jump", promotionBoard, "Black", v2(1,6),
 	{jumpAndStop=promotionBoard_promoteB})
 
 -- Actually run the tests
-Nexus:RegisterUnitTest(tryMoveTest)
-Nexus:RegisterUnitTest(getValidTest)
+tests["Board:TryMove()"] = tryMoveTest
+tests["Board:GetValidMoves()"] = getValidTest
 
--- test:Set"Board:TryMove()"(function()
--- 	for _, args in ipairs(argsReceived) do
--- 		testTryMoves(unpack(args))
--- 	end
--- end)
--- test:Set"Board:GetValidMoves()"(function()
--- 	for _, args in ipairs(argsReceived) do
--- 		testGetValidMoves(unpack(args))
--- 	end
--- end)
--- return test:Finish()
-return true
+end

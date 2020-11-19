@@ -30,7 +30,7 @@ function DocumentController.new(header, sections)
 		header = header or {}, -- todo assert Header
 		-- book is 1+ sections with 0+ elements
 		sections = sections,
-		pos = Pos(1, 1, 1), -- where the virtual text cursor is. Treat as immutable.
+		pos = Pos.new(1, 1, 1), -- where the virtual text cursor is. Treat as immutable.
 		--selecting:Pos where selection started or false if not selecting
 		--selection:List<{.SectionIndex .ElementIndex .StartIndex .EndIndex}>
 	}, DocumentController)
@@ -51,7 +51,7 @@ end
 
 function DocumentController:NavToFileStart()
 	-- todo this won't work for non-text!
-	self.pos = Pos(1, 1, 1)
+	self.pos = Pos.new(1, 1, 1)
 end
 function DocumentController:GetCurrentElement()
 	return self.sections[self.pos.SectionIndex][self.pos.ElementIndex]
@@ -67,7 +67,7 @@ function DocumentController:NavToFileEnd()
 	local numElements = #elements
 	local element = elements[numElements]
 	-- todo if current element is not text, go backwards until we find one with text or hit the beginning of the section (in which case we create a new one)
-	self.pos = Pos(numSections, numElements, element and element.Text and #element.Text + 1 or 1)
+	self.pos = Pos.new(numSections, numElements, element and element.Text and #element.Text + 1 or 1)
 end
 function DocumentController:modifyFormat(transformFormatting)
 	local elements = self.sections[self.pos.SectionIndex]
@@ -97,13 +97,13 @@ function DocumentController:modifyFormat(transformFormatting)
 			self:insertTextElement(Elements.Text.new("", newFormat), 1)
 		end
 		--pos
-		self.pos = Pos(pos.SectionIndex, pos.ElementIndex + 1, 1)
+		self.pos = Pos.new(pos.SectionIndex, pos.ElementIndex + 1, 1)
 	else -- have to break up the current element
 		local origText = element.Text
 		element.Text = origText:sub(1, pos.Index - 1)
 		self:insertTextElement(Elements.Text.new("", newFormat), 1)
 		self:insertTextElement(Elements.Text.new(origText:sub(pos.Index), element.Format), 2)
-		self.pos = Pos(pos.SectionIndex, pos.ElementIndex + 1, 1)
+		self.pos = Pos.new(pos.SectionIndex, pos.ElementIndex + 1, 1)
 	end
 end
 for _, name in ipairs({"Bold", "Italics", "Underline"}) do -- todo get the rest; is there a list of them somewhere?
@@ -142,6 +142,7 @@ function DocumentController:Left()
 	local newElementIndex = self.pos.ElementIndex
 	if newIndex <= 1 then
 		if newElementIndex == 1 then
+			-- todo try to go to previous section
 			newIndex = 1
 		else
 			newElementIndex = newElementIndex - 1
@@ -149,13 +150,28 @@ function DocumentController:Left()
 			newIndex = #element.Text -- todo handle non-text
 		end
 	end
-	self.pos = Pos(self.pos.SectionIndex, newElementIndex, newIndex)
+	self.pos = Pos.new(self.pos.SectionIndex, newElementIndex, newIndex)
 end
 function DocumentController:Right()
 	-- todo
+	local newIndex = self.pos.Index + 1
+	local newElementIndex = self.pos.ElementIndex
+	local maxIndex = #self.sections[self.pos.SectionIndex][newElementIndex]
+	print("RightA", newIndex, newElementIndex, maxIndex, "|", self.sections[self.pos.SectionIndex][newElementIndex])
+	if newIndex > maxIndex then
+		local maxElementIndex = #self.sections[self.pos.SectionIndex]
+		if newElementIndex >= maxElementIndex then
+			-- todo try to go to next section
+			newIndex = maxIndex
+		else
+			newElementIndex += 1
+			newIndex = 1 -- todo handle non-text
+		end
+	end
+	print("RightB", newIndex, newElementIndex, maxIndex, "|", self.sections[self.pos.SectionIndex][newElementIndex])
+	self.pos = Pos.new(self.pos.SectionIndex, newElementIndex, newIndex)
 end
 function DocumentController:Backspace()
-	-- todo if selection, just call Delete
 	if not self.selection then
 		self:Left()
 	end

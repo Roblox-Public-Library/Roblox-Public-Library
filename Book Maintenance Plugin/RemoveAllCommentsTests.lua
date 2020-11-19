@@ -1,11 +1,12 @@
-local Nexus = require("NexusUnitTesting")
+return function(tests, t)
+
 local ServerStorage = game:GetService("ServerStorage")
 local rac = require(ServerStorage.RemoveAllComments)
 
 local function test(name, input, output)
-	Nexus:RegisterUnitTest(name, function(t)
-		t:AssertEquals(rac(input), output)
-	end)
+	tests[name] = function()
+		t.equals(rac(input), output)
+	end
 end
 
 test("Remove comment full line", "1st\n--2nd\n3rd", "1st\n3rd")
@@ -94,4 +95,4 @@ c]==], [==[
 a
 c]==])
 
-return true
+end
