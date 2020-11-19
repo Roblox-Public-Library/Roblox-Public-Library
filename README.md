@@ -7,6 +7,7 @@ All the major code and plugins in <https://www.roblox.com/games/331780620/ROBLOX
 * [Rojo 0.5.4](https://github.com/rojo-rbx/rojo/releases/tag/v0.5.4)
   * If you ensure that the executable is in your system path, you can simply run any of the `start rojo.bat` files to start Rojo running with the appropriate project. For instance, if its path is `C:\Rojo\rojo.exe`, add `C:\Rojo` [to the system path](https://www.architectryan.com/2018/03/17/add-to-the-path-on-windows-10/).
   * Also install its Roblox Studio [plugin](https://www.roblox.com/library/1997686364/Rojo-0-5-4)
+* [Test Runner Plugin](https://www.roblox.com/library/5875325655/Test-Runner-Plugin) ([GitHub link](https://github.com/chess123mate/TestRunnerPlugin))
 * [GitHub Desktop](https://desktop.github.com/)
 * [Visual Studio Code](https://code.visualstudio.com/), if you wish to collaborate with other team members in real time, with these extensions:
   * [Live Share](https://marketplace.visualstudio.com/items?itemName=MS-vsliveshare.vsliveshare), by Microsoft
@@ -17,8 +18,6 @@ All the major code and plugins in <https://www.roblox.com/games/331780620/ROBLOX
   * [Roblox Lua Autocompletes](https://marketplace.visualstudio.com/items?itemName=Kampfkarren.roblox-lua-autofills) by Kampfkarren
   * [Roblox API Explorer](https://marketplace.visualstudio.com/items?itemName=evaera.roblox-api-explorer) by evaera
   * [Select part of word](https://marketplace.visualstudio.com/items?itemName=mlewand.select-part-of-word) by Marek Lewandowski
-* [Nexus Unit Testing Plugin Async](https://www.roblox.com/library/5056111603/NexusUnitTestingPluginAsync)
-  * You can make it easy to run this in Roblox by going to `FILE` > `Advanced` > `Customize Shortcuts...`, searching by `Run Unit Tests`, and binding the one that shows up that mentions "Nexus" to a convenient hotkey.
 
 ## Making Changes
 
@@ -44,10 +43,11 @@ All the major code and plugins in <https://www.roblox.com/games/331780620/ROBLOX
 
 ## Unit Testing Process
 
-1. Start rojo. If you use the most specific configuration's "start rojo.bat" file in a place without unit tests, you'll avoid having to wait for irrelevant unit tests to run.
+1. Start the rojo server (ex with an appropriate `.bat` file)
 2. Open a Roblox place with any necessary resources (if none are needed, an empty baseplate will do).
-3. Run the place (without a character). Doing this ensures that tests cannot permanently modify the place.
-4. Activate Rojo within Roblox.
-5. Use your shortcut to `Run Unit Tests`. If you can't see the Unit Tests window, (re)select "Unit Tests" in the Plugins bar.
-6. You can now modify scripts and Rojo will update them, even if their location has been moved by an installer script. Save your script(s), alt+tab to Roblox, `Run Unit Tests`, and see the results!
-7. If a bug occurs and a test damages the game, preventing unit tests from functioning properly, simply stop the simulation and repeat steps 3+ when you're ready to test again.
+  If you are in a baseplate, you will need to click the "Install" button in the Test Runner Plugin's toolbar. Automatic installation and updating requires the "Script Injection" permission.
+3. "Connect" Rojo within Roblox
+4. Run the place (without a character). The Test Runner Plugin will run tests automatically and show the results in the Output Window.
+5. Activate Rojo within Roblox again (you must do this every time you run the place).
+6. You can now modify scripts and Rojo will update them, even if their location has been moved by an installer script. Every time you save a script, the Test Runner Plugin will automatically rerun any relevant tests!
+7. If a test accidentally damages the game, simply stop the simulation and restart from step 4.

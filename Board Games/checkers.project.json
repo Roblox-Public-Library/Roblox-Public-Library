@@ -7,6 +7,12 @@
 			"Checkers": {
 				"$path": "Checkers"
 			}
+		},
+		"TestService": {
+			"$className": "TestService",
+			"Checkers": {
+				"$path": "CheckersTests"
+			}
 		}
 	}
 }

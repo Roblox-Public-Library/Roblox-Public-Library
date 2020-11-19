@@ -1,31 +1,32 @@
-local Nexus = require("NexusUnitTesting")
+return function(tests, t)
+
 local ris = require(script.Parent.ReplaceInStrings)
 
 local function test(name, input, replaceFunc, output)
 	--	if output is a number, 'replaceFunc' must run that many times
 	local times = 0
-	Nexus:RegisterUnitTest(name, function(t)
+	tests[name] = function()
 		local result = ris(input, function(a, b) times += 1; return replaceFunc(a, b, t, times) end)
 		if type(output) == "string" then
-			t:AssertEquals(result, output)
+			t.equals(result, output)
 		elseif output then
-			t:AssertEquals(times, output)
+			t.equals(times, output)
 		end
-	end)
+	end
 end
 test("Simple double quote", [=[
 s = "hi"
 ]=], function(s, open, t, times)
-	t:AssertEquals(s, "hi")
-	t:AssertEquals(open, '"')
+	t.equals(s, "hi")
+	t.equals(open, '"')
 end, 1)
 
 test("Two single quotes", [=[
 s = 'hi'
 print('there')
 ]=], function(s, open, t, times)
-	t:AssertEquals(open, "'")
-	t:AssertEquals(s, times == 1 and "hi" or "there")
+	t.equals(open, "'")
+	t.equals(s, times == 1 and "hi" or "there")
 end, 2)
 
 local simple = "s = [[s]]"
@@ -39,8 +40,8 @@ for _, replace in ipairs({"", "'", '"'}) do
 end
 
 test("Not confused by nested blocks", "print([=[x[==[y]]=]", function(s, open, t)
-	t:AssertEquals(s, "x[==[y]")
-	t:AssertEquals(open, "[=[")
+	t.equals(s, "x[==[y]")
+	t.equals(open, "[=[")
 end, 1)
 
 test("All types of strings",
@@ -48,4 +49,4 @@ test("All types of strings",
 	function(_, _, _, n) return tostring(n) end,
 	[==[print("1", '2', "3", [[4]], [=[5]=], "6") --"comment"]==])
 
-return true
+end
