@@ -18,10 +18,6 @@
 				"$path": "../Theme Editor Plugin",
 				"$ignoreUnknownInstances": true
 			},
-			"Commands": {
-				"$path": "ServerStorageCommands",
-				"$ignoreUnknownInstances": true
-			}
 		},
 		"StarterPlayer": {
 			"$className": "StarterPlayer",
