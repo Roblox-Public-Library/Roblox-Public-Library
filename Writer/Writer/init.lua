@@ -1,9 +1,13 @@
 local module = {}
 local children = {
+	"Colors",
 	"DocumentController",
 	"Elements",
+	--"Font",
 	"Format",
-	"Formats",
+	--"Formats",
+	"CustomMarkdown",
+	"RobloxRichText",
 }
 for _, name in ipairs(children) do
 	module[name] = require(script:WaitForChild(name))
