@@ -243,8 +243,8 @@ local sourceToBook, dataKeyList, updateBookSource, allFieldsAffected do
 	local dataProps = {
 		Title = genGetData("title"),
 		CustomAuthorLine = getAuthorLine,
-		AuthorNames = function(source)
-			local authorNames = baseGetAuthorNames(source)
+		AuthorNames = function(source, model)
+			local authorNames = baseGetAuthorNames(source, model)
 			if authorNames then
 				for i = 1, #authorNames do
 					if authorNames[i] == "" or not authorNames[i] then
@@ -1001,7 +1001,9 @@ local authorLock, onMaintenanceFinished do
 	end
 end
 
-local noAuthorName = Report.NewListCollector("%d book%s have an authorId but no corresponding author name:")
+local noAuthorName = Report.NewListCollector(
+	"1 book has an authorId but no corresponding author name:",
+	"%d book%s have an authorId but no corresponding author name:")
 local function updateAuthorInformation(report, books)
 	--[[
 		Read database
