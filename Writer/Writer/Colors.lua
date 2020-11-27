@@ -11,7 +11,7 @@ local function newColors(colors)
 	colors.Hex = hex
 	return colors
 end
-local light = newColors({
+local light = {
 	Red = Color3.fromRGB(255, 0, 0),
 	Orange = Color3.fromRGB(255, 127, 0),
 	Yellow = Color3.fromRGB(255, 255, 0),
@@ -22,7 +22,9 @@ local light = newColors({
 	Pink = Color3.fromRGB(255, 192, 203),
 	Gray = Color3.fromRGB(119, 119, 119),
 	Black = Color3.fromRGB(0, 0, 0),
-})
+}
+light.Default = light.Black
+light = newColors(light)
 return {
 	-- Light and Dark mode
 	Light = light,

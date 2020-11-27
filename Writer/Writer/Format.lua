@@ -7,7 +7,7 @@ function Format.new(t)
 	Underline:bool
 	Strikethrough:bool
 	Face:string that could index Enum.Font or nil for default
-	Size:string that could index Sizes or nil for default
+	Size:string that could index Sizes (ie "Small" or "Large") or nil for default
 	Color:string that could index Colors.Light/Dark or nil for default
 	]]
 	t = t or {}

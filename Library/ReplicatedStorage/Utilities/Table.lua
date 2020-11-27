@@ -51,6 +51,15 @@ function Table.CountKeys(t)
 	for _, _ in pairs(t) do c = c + 1 end
 	return c
 end
+function Table.Equals(t1, t2)
+	for k, v in pairs(t1) do
+		if v ~= t2[k] then return false end
+	end
+	for k, v in pairs(t2) do
+		if v ~= t1[k] then return false end
+	end
+	return true
+end
 
 -- ToString section
 
