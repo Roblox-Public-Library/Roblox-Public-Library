@@ -10,7 +10,7 @@ Additional API:
 If you intend to use Analytics, be sure to use the events above instead of Players.PlayerAdded/PlayerRemoving to ensure that the session id exists.
 ]]
 
-local PRINT_STUDIO_ANALYTICS = true
+local PRINT_STUDIO_ANALYTICS = false
 
 local HttpService = game:GetService("HttpService")
 local function newGuid()
@@ -41,7 +41,7 @@ end)
 local isStudio = game:GetService("RunService"):IsStudio()
 Analytics.Enabled = not isStudio
 local genHandler
-if false and isStudio then
+if isStudio then
 	genHandler = PRINT_STUDIO_ANALYTICS
 		and function(name) return function(...) print("Analytics." .. name, ...) end end
 		or function() return function() end end
