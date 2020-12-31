@@ -1,50 +1,4 @@
---[[
-Objective:
-make brick turn color
-
-For updating theme first time:
-	look inside folder for part names
-	cross reference all parts in library for things with that name
-	change color and material of folder bricks to match library bricks
-
-	if there are differences between library parts:
-		print multiple values for part name "x"
-		don't update color in theme
-
-For plugin, normally:
-	look inside folder for part names
-	cross reference all parts in library for things with that name
-	change color and material to match that of part in folder
-
-PLANNING
-Initialization for any place:
-	Insert a Readme script with instructions command bar snippets for the user to go through
-	(Could have an "Init" feature that searches workspace for things with consistent attributes that share the same name.)
-
-Plugin gui:
-	A dropdown to change which theme you're editing (dropdown is a scrolling frame)
-		When you click the dropdown or select a theme, the theme in ServerStorage should be selected (so you can easily change the name from the properties window if you wish)
-	New Theme button
-	A scrolling frame where each row has: PartName ViewportFrameForThatPart
-		Clicking anywhere on that row selects the part in Explorer so you can edit its properties
-	Apply to Workspace - applies current theme to workspace and updates "CurrentlyAppliedThemeName" (a StringValue in Theme Editor folder in ServerStorage)
-
-Plugin functionality:
-	If a part is added to/removed from/renamed in one theme while the plugin is running, automatically add/remove/remove it to the others
-		If the part is then added externally to the others, remove the duplicate
-	If the plugin activates and there are inconsistencies between themes, warn the user about the list of inconsistencies (but keep functioning). Automatically delete any duplicates IF the duplicates are identical (otherwise add that to the list of things to warn the user about.)
-	Any action taken by the plugin should be undoable
-
-Theme Editor (in ServerStorage) layout:
-	Instructions (disabled script)
-	Current Theme:StringValue
-	(all other themes, as folders, here)
-
-Overlapping themes (optional):
-	Cross reference the different theme folders and if they have the same parts as children they are likely related
-	Print any differences that the related themes have to notify user ?
-]]
-
+local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local ServerStorage = game:GetService("ServerStorage")
 local Selection = game:GetService("Selection")
 
@@ -62,13 +16,13 @@ widget.Name = "Theme Editor"
 widget.Title = "Theme Editor"
 local widgetFrame = script.Parent.Widget:Clone()
 widgetFrame.Parent = widget
-local considerConnections -- defined below
+local considerStartup -- defined below
 
 local toolbar = plugin:CreateToolbar("Theme Editor")
 local themeEditorButton = toolbar:CreateButton("Theme Editor", "Open the theme editor", "")
 themeEditorButton.Click:Connect(function()
 	widget.Enabled = not widget.Enabled
-	considerConnections()
+	considerStartup()
 end)
 
 local function setInstalled(installed)
@@ -78,9 +32,9 @@ local function setInstalled(installed)
 	widgetFrame.PartsFrame.ApplyButton.Visible = installed
 end
 local editor
-local curTheme
+local currentTheme
 local selectedTheme
-local defaultFolder
+local internalSelectedTheme -- current client, not objectvalue
 local function randomThemeColor(parent)
 	local color = Instance.new("Color3Value")
 	color.Name = "Theme Color"
@@ -93,12 +47,25 @@ local function randomThemeColor(parent)
 	return color
 end
 
+local function getDefaultTheme(onCreated)
+	local defaultTheme = editor:FindFirstChild("Default") or editor:FindFirstChildOfClass("Folder")()
+	if not defaultTheme then -- No themes
+		defaultTheme = Instance.new("Folder")
+		defaultTheme.Name = "Default"
+		defaultTheme.Parent = editor
+		randomThemeColor(defaultTheme)
+		if onCreated then
+			onCreated()
+		end
+	end
+	return defaultTheme
+end
 local function installFinish(wasInstalled) -- called when user installs or when plugin starts up in installed place (possibly with widget closed)
-	curTheme = editor:FindFirstChild("Current Theme")
-	if not curTheme then
-		curTheme = Instance.new("ObjectValue")
-		curTheme.Name = "Current Theme"
-		curTheme.Parent = editor
+	currentTheme = editor:FindFirstChild("Current Theme")
+	if not currentTheme then
+		currentTheme = Instance.new("ObjectValue")
+		currentTheme.Name = "Current Theme"
+		currentTheme.Parent = editor
 		if wasInstalled then
 			print("Installed Current Theme object value")
 		end
@@ -112,19 +79,32 @@ local function installFinish(wasInstalled) -- called when user installs or when 
 			print("Installed Selected Theme object value")
 		end
 	end
-	defaultFolder = editor:FindFirstChild("Default") or editor:FindFirstChildOfClass("Folder")
-	if not defaultFolder then -- No themes
-		defaultFolder = Instance.new("Folder")
-		defaultFolder.Name = "Default"
-		defaultFolder.Parent = editor
-		if wasInstalled then
-			print("Added Default theme folder")
-		end
-		randomThemeColor(defaultFolder)
+	if not currentTheme.Value then
+		local onCreated = wasInstalled and function() print("Added Default theme folder") end
+		local defaultTheme = getDefaultTheme(onCreated)
+		currentTheme.Value = defaultTheme
+		selectedTheme.Value = defaultTheme
 	end
-	if not curTheme.Value then
-		curTheme.Value = defaultFolder
+end
+local function getCurrentTheme()
+	--	Returns currentTheme.Value unless it points to a deleted/nil theme in which case it returns nil
+	if currentTheme.Value and not currentTheme.Value.Parent then
+		currentTheme.Value = nil
 	end
+	return currentTheme.Value
+end
+local function getSelectedTheme(onCreated)
+	--	Returns selectedTheme.Value unless it points to a deleted/nil theme in which case it fixes it
+	if not selectedTheme.Value or not selectedTheme.Value.Parent then
+		selectedTheme.Value = getCurrentTheme() or getDefaultTheme(onCreated)
+	end
+	return selectedTheme.Value
+end
+local function getInternalSelectedTheme(onCreated)
+	if not internalSelectedTheme or not internalSelectedTheme.Parent then
+		internalSelectedTheme = nil
+	end
+	return internalSelectedTheme
 end
 
 editor = ServerStorage:FindFirstChild("Theme Editor")
@@ -134,6 +114,7 @@ if editor then
 end
 
 widgetFrame.InstallButton.MouseButton1Click:Connect(function()
+	ChangeHistoryService:SetWaypoint("Before install Theme Editor")
 	editor = Instance.new("Folder")
 	editor.Name = "Theme Editor"
 	editor.Parent = ServerStorage
@@ -142,12 +123,14 @@ widgetFrame.InstallButton.MouseButton1Click:Connect(function()
 	plugin:OpenScript(readme)
 	setInstalled(true)
 	installFinish(false)
-	considerConnections()
+	considerStartup()
+	ChangeHistoryService:SetWaypoint("Install Theme Editor")
 end)
 
 local props = {"Material", "Color", "Transparency", "Reflectance"}
-local function matchWorkspaceToTheme(theme)
+local function matchWorkspaceToTheme(theme, undoWaypointName)
 	--	theme:Folder
+	ChangeHistoryService:SetWaypoint("Before apply " .. theme.Name .. " to workspace")
 	local nameToPart = {}
 	for i, part in ipairs(theme:GetChildren()) do
 		nameToPart[part.Name] = part
@@ -163,16 +146,20 @@ local function matchWorkspaceToTheme(theme)
 			end
 		end
 	end
-	curTheme.Value = theme
+	currentTheme.Value = theme
+	ChangeHistoryService:SetWaypoint("Apply " .. theme.Name .. " to workspace")
 end
---matchWorkspaceToTheme(editor.Default)
 
 local Studio = settings().Studio
 local StudioColor = Enum.StudioStyleGuideColor
 local StudioModifier = Enum.StudioStyleGuideModifier
-local buttonNormalColor = Studio.Theme:GetColor(StudioColor.RibbonButton, StudioModifier.Default)
-local buttonHoverColor = Studio.Theme:GetColor(StudioColor.RibbonButton, StudioModifier.Hover)
---todo Studio.ThemeChanged:Connect
+local buttonNormalColor
+local buttonHoverColor
+local function updateColors()
+	buttonNormalColor = Studio.Theme:GetColor(StudioColor.RibbonButton, StudioModifier.Default)
+	buttonHoverColor = Studio.Theme:GetColor(StudioColor.RibbonButton, StudioModifier.Hover)
+end
+updateColors()
 
 local function disconnectList(list)
 	for _, con in ipairs(list) do
@@ -229,125 +216,229 @@ function PartViewport:Destroy() -- todo make sure if themePart is deleted that P
 	end
 end
 
+local ThemeRow = {}
+ThemeRow.__index = ThemeRow
+function ThemeRow.new(folder)
+	--	folder: the theme folder
+	--	currentViewports: list of all available viewports (can be shared between multiple ThemeRows)
+	local self
+	local row = themeTemplate:Clone()
+	row.Parent = themeScroll
+	local themeName = row.ThemeName
+	local function updateName()
+		row.Name = folder.Name
+		themeName.Text = folder.Name
+	end
+	updateName()
+	local color = folder:FindFirstChild("Theme Color")
+	if not color then
+		color = randomThemeColor(folder)
+	end
+	local function updateColor()
+		row.Color.BackgroundColor3 = color.Value
+	end
+	updateColor()
+	local cons; cons = {
+		folder.Changed:Connect(updateName),
+		color.Changed:Connect(updateColor),
+		folder.AncestryChanged:Connect(function(child, parent)
+			if parent ~= editor then
+				self:Destroy()
+			end
+		end),
+		themeName.MouseButton1Click:Connect(function()
+			Selection:Set({folder})
+			self.onClicked:Fire()
+		end),
+		row.Color.MouseButton1Click:Connect(function()
+			Selection:Set({color})
+		end),
+	}
+	local onClicked = Instance.new("BindableEvent")
+	local onSelected = Instance.new("BindableEvent")
+	local onDestroyed = Instance.new("BindableEvent")
+	self = setmetatable({
+		OnDestroyed = onDestroyed.Event, -- Event (can :Connect to this)
+		onDestroyed = onDestroyed, -- BindableEvent
+		OnClicked = onClicked.Event,
+		onClicked = onClicked,
+		OnSelected = onSelected.Event,
+		onSelected = onSelected,
+		cons = cons,
+		row = row,
+		folder = folder,
+	}, ThemeRow)
+	return self
+end
+function ThemeRow:Destroy()
+	self.onDestroyed:Fire()
+	self.onDestroyed:Destroy()
+	self.onClicked:Destroy()
+	self.onSelected:Destroy()
+	disconnectList(self.cons)
+	self.row:Destroy()
+end
+function ThemeRow:Select()
+	local themeName = self.row.ThemeName
+	themeName.Active = false -- todo this isn't working?
+	themeName.AutoButtonColor = false
+	themeName.BackgroundColor3 = buttonHoverColor
+	self.onSelected:Fire()
+end
+function ThemeRow:Deselect()
+	local themeName = self.row.ThemeName
+	themeName.BackgroundColor3 = buttonNormalColor
+	themeName.Active = true
+	themeName.AutoButtonColor = true
+end
+function ThemeRow:AppliedToWorkspace()
+	local themeName = self.row.ThemeName
+	themeName.Font = Enum.Font.SourceSansBold
+end
+function ThemeRow:NotAppliedToWorkspace()
+	local themeName = self.row.ThemeName
+	themeName.Font = Enum.Font.SourceSans
+end
 
-local function setConnections()
+local folderToRow
+local currentViewports
+local function init()
 	-- Initialize theme list
-	local currentViewports = {}
-	local folderToRow = {}
-	for i, folder in ipairs(editor:GetChildren()) do
-		if folder:IsA("Folder") then
-			local row = themeTemplate:Clone()
-			folderToRow[folder] = row
-			row.Parent = themeScroll
-			local themeName = row.ThemeName
-			local function updateName()
-				themeName.Text = folder.Name
-			end
-			updateName()
-			local color = folder:FindFirstChild("Theme Color")
-			if not color then
-				color = randomThemeColor(folder)
-			end
-			local function updateColor()
-				row.Color.BackgroundColor3 = color.Value
-			end
-			updateColor()
-			local cons; cons = {
-				folder.Changed:Connect(updateName),
-				color.Changed:Connect(updateColor),
-				folder.AncestryChanged:Connect(function(child, parent)
-					row:Destroy()
-					disconnectList(cons)
-				end),
-				themeName.MouseButton1Click:Connect(function()
-					selectedTheme.Value = folder
-					themeName.Active = false -- todo this isn't working?
-					themeName.AutoButtonColor = false
-					themeName.BackgroundColor3 = buttonHoverColor
-					local i = 0
-					for _, themePart in ipairs(folder:GetChildren()) do
-						if themePart:IsA("BasePart") then
-							i = i + 1
-							local viewport = currentViewports[i]
-							if not viewport then
-								viewport = PartViewport.new()
-								currentViewports[i] = viewport
-							end
-							viewport:ChangeThemePart(themePart)
-						end
+	folderToRow = {}
+	currentViewports = {}
+	local function selectTheme(newSelectedTheme)
+		assert(newSelectedTheme, "newSelectedTheme must be provided")
+		if internalSelectedTheme and internalSelectedTheme.Parent then
+			folderToRow[internalSelectedTheme]:Deselect()
+		end
+		folderToRow[newSelectedTheme]:Select()
+		internalSelectedTheme = newSelectedTheme
+		selectedTheme.Value = newSelectedTheme
+	end
+	local function addThemeButton(themeFolder)
+		local row = ThemeRow.new(themeFolder)
+		folderToRow[themeFolder] = row
+		row.OnDestroyed:Connect(function()
+			folderToRow[themeFolder] = nil
+		end)
+		row.OnClicked:Connect(function()
+			selectTheme(themeFolder)
+		end)
+		row.OnSelected:Connect(function()
+			local i = 0
+			for _, themePart in ipairs(themeFolder:GetChildren()) do
+				if themePart:IsA("BasePart") then
+					i = i + 1
+					local viewport = currentViewports[i]
+					if not viewport then
+						viewport = PartViewport.new()
+						currentViewports[i] = viewport
 					end
-					for j = i + 1, #currentViewports do
-						currentViewports[j]:Destroy()
-						currentViewports[j] = nil
-					end
-				end),
-				-- todo disconnect these from disconnectConnections (probably store in table of folder -> connections and remove when needed)
-			}
+					viewport:ChangeThemePart(themePart)
+				end
+			end
+			for j = i + 1, #currentViewports do
+				currentViewports[j]:Destroy()
+				currentViewports[j] = nil
+			end
+		end)
+	end
+	local function onEditorChildAdded(child)
+		if child:IsA("Folder") then
+			addThemeButton(child)
 		end
 	end
-	local pastTheme
-	local function boldCurTheme()
-		if pastTheme then
-			folderToRow[pastTheme].ThemeName.Font = Enum.Font.SourceSans
-		end
-		if curTheme.Value then
-			folderToRow[curTheme.Value].ThemeName.Font = Enum.Font.SourceSansBold
-		end
-		pastTheme = curTheme.Value
+	for i, child in ipairs(editor:GetChildren()) do
+		onEditorChildAdded(child)
 	end
-	boldCurTheme()
-	curTheme.Changed:Connect(boldCurTheme)
+	selectTheme(getSelectedTheme())
+	local pastTheme = getCurrentTheme()
+	local function updateCurrentTheme()
+		if pastTheme and pastTheme.Parent then
+			folderToRow[pastTheme]:NotAppliedToWorkspace()
+		end
+		local curTheme = getCurrentTheme()
+		if curTheme then
+			folderToRow[curTheme]:AppliedToWorkspace()
+		end
+		pastTheme = curTheme
+	end
+	updateCurrentTheme()
+	local function setUIColors()
+		themeTemplate.ThemeName.BackgroundColor3 = buttonNormalColor
+		partTemplate.BackgroundColor3 = buttonNormalColor -- todo this is viewport; update (NOT buttonNormalColor)
+		-- todo update all existing ui
+		-- should we move this below the updateColors function? or move that function here?
+	end
+	setUIColors()
 	cons = {
+		currentTheme.Changed:Connect(function() spawn(updateCurrentTheme) end),
 		widgetFrame.ThemesFrame.NewThemeButton.MouseButton1Click:Connect(function()
 			local newTheme
-			if not curTheme.Value or not curTheme.Value.Parent then -- no cur theme (or was deleted)
-				curTheme.Value = editor:FindFirstChild("Default") or editor:FindFirstChildOfClass("Folder") or nil
-			end
-			if curTheme.Value then
-				newTheme = curTheme.Value:Clone()
-				local _, _, baseName, num = newTheme.Name:find("(.*?) %((%d+)%)")
-				newTheme.Name = ("%s (%d)"):format(baseName or newTheme.Name, (num or 1) + 1)
+			local created
+			local themeToUse = getInternalSelectedTheme() or getSelectedTheme(function() created = true end)
+			if not created then
+				newTheme = themeToUse:Clone()
+				local _, _, baseName, num = newTheme.Name:find("^(.-)%s*%((%d+)%)%s*$")
+				baseName = baseName or newTheme.Name
+				num = num and tonumber(num) or 1
+				for i, theme in ipairs(editor:GetChildren()) do
+					local _, _, num2 = theme.Name:find("^" .. baseName .. " *%((%d+)%) *$")
+					num2 = tonumber(num2)
+					num = num2 and num2 > num and num2 or num
+				end
+				newTheme.Name = ("%s (%d)"):format(baseName, num + 1)
 				local color = newTheme:FindFirstChild("Theme Color")
 				if color then
 					color:Destroy()
 				else
-					randomThemeColor(curTheme)
+					randomThemeColor(currentTheme)
 				end
 				randomThemeColor(newTheme)
 				newTheme.Parent = editor
-			else
-				installFinish(true)
 			end
 		end),
+		editor.ChildAdded:Connect(onEditorChildAdded),
 		widgetFrame.PartsFrame.ApplyButton.MouseButton1Click:Connect(function()
-			-- match workspace to currently selected theme
+			local theme = getInternalSelectedTheme()
+			if theme then
+				matchWorkspaceToTheme(theme)
+			else -- todo disable button when internalSelectedTheme is nil or becomes invalid (deparented)
+				print("Please select a theme to apply!")
+			end
+		end),
+		Studio.ThemeChanged:Connect(function()
+			updateColors()
+			setUIColors()
 		end),
 	}
 end
 
--- current todo:
--- select theme to look at
--- 		on select it should create one viewport for every part located within the relevant folder name
--- ui grid layout will organize them from there :)
--- perhaps store which theme is currently being looked at/modified somewhere?
---	could be stored within script
--- 	if stored within a string (object value?) then on pluginstartup it could display whatever you were looking at last time
-
-local function disconnectConnections()
+local function cleanup()
+	-- delete all children except the uilistlayout
 	for _, con in ipairs(cons) do
 		con:Disconnect()
 	end
 	cons = nil
+	for _, viewport in ipairs(currentViewports) do
+		viewport:Destroy()
+	end
+	currentViewports = nil
+	for _, row in pairs(folderToRow) do
+		row:Destroy()
+	end
+	folderToRow = nil
 end
-function considerConnections()
+function considerStartup()
 	if editor and widget.Enabled then
 		if not cons then
-			setConnections()
+			init()
 		end
 	else
 		if cons then
-			disconnectConnections()
+			cleanup()
 		end
 	end
 end
-considerConnections()
+considerStartup()
+plugin.Unloading:Connect(cleanup)

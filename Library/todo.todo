@@ -6,6 +6,9 @@ Maintenace Plugin:
 	Bugs:
 		☐ The "critical" warning occurs when an old id is being removed (can occur after manually fixing it)
 			Don't warn for ids that are being removed
+		☐ This was in the AuthorDirectory.Pg1 (ServerStoage Book Data Storage):
+			{756932804733960192,0},
+			there is no one with an ID that large and it therefore errored. "0" sounds like anonymous (everywhere else it's "username" followed by date looked up I presume)
 	Features for the future:
 		High Priority:
 			☐ Add exceptions to each rule.
@@ -54,40 +57,6 @@ Book Pouch/Inventory:
 		☐ Optionally, the gui can use ObjectList to maintain a row in the ScrollingFrame for each book in the list
 		☐ The client should notify the server whenever a change is made; the server should verify the request (ex Assert.Integer(id)) and appropriately update the book pouch for that player
 
-Books Need Ids:
-	✔ ServerScriptService.Books must get the id of each book
-	✔ There are IntValues 'Id's stored in each book model
-
-TopBar:
-	✔ Credit https://github.com/1ForeverHD/HDAdmin/tree/master/Projects/Topbar%2B for coords/sizes
-	✔ Transparency of bg image
-	✔ Settings gear (from TopBar+): http://www.roblox.com/asset/?id=2484556379
-	Music:
-		✔ Get musical note icon
-		✔ Create dropdown list
-		✔ Make the gui functional
-	About or FAQ:
-		✔ Get icon (maybe a "?")
-		✔ Should have commands/controls and credits
-	Book Finder:
-		✔ Get magnifying icon
-
-Teleport:
-	✔ When player touches portal, server tells client to inquire about teleporting to the appropriate ID (with RemoteEvent)
-	✔ MessageBox is client only
-	✔ Client side handler of remote knows to teleport
-	✔ Client keeps track of distance
-	✔ When client moves away or presses no/etc, tell the server that they're not interested
-	✔ Shared teleport code
-	✔ ConfirmationBox module (that doesn't know anything about teleport)
-	✔ Have teleport scripts use shared teleport code
-	✔ Automatically fetch place name from id and display it in the model and the confirmation message
-	✔ Ensure message isn't triggered multiple times while the player is idling/moving around
-	✔ Auto-cancel if the player moves away a certain distance
-	✔ If a player declines, don't let the message trigger again until they've moved away at least a bit
-	✘ Can we write any tests for this?
-		> Can't easily test player
-
 New Book Gui:
 	For now we can add on to the existing book gui
 	☐ favoriting a book
@@ -116,14 +85,6 @@ OnEnter:
 	☐ fire profileLoaded for the player (can be created on demand; only fire if it exists)
 	☐ mark when next autosave can occur
 
-User clicks Music Off:
-	✔ gui asks Music
-	✔ Music gets a ref to the current profile and can check :IsMusicEnabled()
-	✔ Music should then react to new value of MusicEnabled
-	✔ ClientProfile uses remote to notify server of change
-	✔ Server records it and marks profile as changed
-	✔ activate autosave routine/queue as needed
-
 User clicks a book:
 	☐ book gui asks ClientProfile for fav/read/etc details
 	☐ book gui asks BookContent module for content (which keeps it only while the book is in your inventory; maybe also the last book you had opened)
@@ -133,10 +94,3 @@ Say we use the most basic table syntax (so it's simple to view/edit). What data 
 ex, Favorites=[1,532,531]
 so if we assume there are 10k books and that each ID is 4 digits long, then we need 5 digits per favourite is ~50,000 characters and the limit is 260,000 characters!
 So we could do that for now
-
-Theme Editor:
-	☐
-	Bugs:
-		☐ Update visual list of themes upon adding or removing
-		☐ Remove existing theme rows when closing plugin/widget
-		☐ Need to add Undo points after installationMc
