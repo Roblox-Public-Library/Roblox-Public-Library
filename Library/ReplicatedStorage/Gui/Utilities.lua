@@ -10,7 +10,7 @@ function Utilities.HandleVerticalScrollingFrame(sf, layout)
 		and Assert.IsA(layout, "UIGridStyleLayout") -- must support AbsoluteContentSize
 		or sf:FindFirstChildWhichIsA("UIGridStyleLayout")
 		or error("No UIGridStyleLayout in " .. tostring(sf))
-	local padding = layout:FindFirstChildWhichIsA("UIPadding")
+	local padding = sf:FindFirstChildWhichIsA("UIPadding")
 	local function update()
 		sf.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + (padding and padding.Top.Offset + padding.Bottom.Offset or 0))
 	end

@@ -23,8 +23,8 @@ Bugs:
 		[chess123mate] I vote it selects the Default theme (and updates the Default if it doesn't exist)
 	✔ If you delete the theme attached to "current theme" then when you reopen theme editor it tries to bold the row attached to the theme (line 317)
 	Auto-update ScrollingFrame height:
-		☐ ThemeScroll
-		☐ PartsScroll
+		✔ ThemeScroll
+		✔ PartsScroll
 
 New Ideas:
 	☐ + beside Parts that has these menu options:
@@ -41,12 +41,11 @@ New Ideas:
 		Rename Part
 		Rename Part in All Themes
 		Rename Part in Workspace
-	☐ When you change the name of a part, buttons appear in the Parts column:
-		☐ Rename {oldPartName} -> {newPartName} Everywhere
-		☐ Rename {oldPartName} -> {newPartName} in All Themes
 	☐ When you change the name of multiple parts (in one theme), button(s) appear in the Parts column: apply name changes [to everywhere]
 	☐ Special menu for when you have inconsistencies in workspace (ex different things with same name) - ie plugin is proposing you change the name of some of them
 		This could show up when we do sanity checks (which can also be checked on startup)
+
+	☐ Add subtle rotation to parts in viewports (maybe on mouse hover or select)?
 
 Other Directions:
 	☐ Could support using tags, which could then be configured more easily to combine effects.
@@ -67,9 +66,9 @@ Overall Objective:
 		☐ ability to change part name (apply to this theme, all themes, and/or workspace, with all three as default)
 
 For updating theme first time:
-	☐ look inside folder for part names
-	☐ cross reference all parts in library for things with that name
-	☐ change color and material of folder bricks to match library bricks
+	✔ look inside folder for part names
+	✔ cross reference all parts in library for things with that name
+	✔ change color and material of folder bricks to match library bricks
 
 	if there are differences between library parts:
 		☐ print multiple values for part name "x"
@@ -87,7 +86,7 @@ Plugin gui:
 	✔ New Theme button
 	✔ A scrolling frame with ViewportFrameForThatPart and PartName overtop of it
 		✔ Clicking on the Viewport selects the part in Explorer so you can edit its properties
-	☐ Apply to Workspace - applies current theme to workspace and updates "CurrentTheme" (an ObjectValue in Theme Editor folder in ServerStorage)
+	✔ Apply to Workspace - applies current theme to workspace and updates "CurrentTheme" (an ObjectValue in Theme Editor folder in ServerStorage)
 
 Plugin functionality:
 	☐ If a part is added to/removed from/renamed in one theme while the plugin is running, automatically add/remove/remove it to the others

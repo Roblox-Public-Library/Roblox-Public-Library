@@ -2,6 +2,19 @@ local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local ServerStorage = game:GetService("ServerStorage")
 local Selection = game:GetService("Selection")
 
+local function handleVerticalScrollingFrame(sf)
+	--	Handles setting the CanvasSize for a vertical ScrollingFrame ('sf')
+	--	Layout is optional, but there must exist a UIGridStyleLayout in ScrollingFrame if it is not provided (ex UIListLayout)
+	--	Returns a the connection that keeps it up to date
+	local layout = sf:FindFirstChildWhichIsA("UIGridStyleLayout") or error("No UIGridStyleLayout in " .. tostring(sf))
+	local padding = sf:FindFirstChildWhichIsA("UIPadding")
+	local function update()
+		sf.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + (padding and padding.Top.Offset + padding.Bottom.Offset or 0))
+	end
+	update()
+	return layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(update)
+end
+
 local widgetInfo = DockWidgetPluginGuiInfo.new(
 	Enum.InitialDockState.Left,
 	true,   -- Initially enabled
@@ -60,6 +73,8 @@ local function getDefaultTheme(onCreated)
 	end
 	return defaultTheme
 end
+local installFinishedObj = Instance.new("BindableEvent")
+local installFinished = installFinishedObj.Event
 local function installFinish(wasInstalled) -- called when user installs or when plugin starts up in installed place (possibly with widget closed)
 	currentTheme = editor:FindFirstChild("Current Theme")
 	if not currentTheme then
@@ -85,6 +100,7 @@ local function installFinish(wasInstalled) -- called when user installs or when 
 		currentTheme.Value = defaultTheme
 		selectedTheme.Value = defaultTheme
 	end
+	installFinishedObj:Fire()
 end
 local function getCurrentTheme()
 	--	Returns currentTheme.Value unless it points to a deleted/nil theme in which case it returns nil
@@ -105,12 +121,6 @@ local function getInternalSelectedTheme(onCreated)
 		internalSelectedTheme = nil
 	end
 	return internalSelectedTheme
-end
-
-editor = ServerStorage:FindFirstChild("Theme Editor")
-setInstalled(editor)
-if editor then
-	installFinish(true)
 end
 
 widgetFrame.InstallButton.MouseButton1Click:Connect(function()
@@ -167,10 +177,56 @@ local function disconnectList(list)
 	end
 end
 
+local ThemeData = {}
+ThemeData.__index = ThemeData
+function ThemeData.new(folder)
+	-- todo continue to work on ThemeData
+	--[[
+		fill nameToPart so that it always points to 1 part
+			ex if they have 2 Parts and they remove/rename either, nameToPart.Part should then refer to the other
+		deal with:
+			add part
+			remove part
+			part renamed
+		offer Destroy function (don't destroy parts just class instance)
+	]]
+	local nameToPart = {}
+	local self = setmetatable({
+		nameToPart = nameToPart,
+		-- todo add con, remove con, child name change con
+	}, ThemeData)
+	for _, part in ipairs(folder:GetChildren()) do
+		self:RegisterPart(part)
+	end
+	return self
+end
+function ThemeData:ContainsPartName(partName)
+	return self.nameToPart[partName]
+end
+function ThemeData:RegisterPart(part)
+	self.nameToPart[part.Name] = part
+end
+function ThemeData:AddPart(part)
+	self:RegisterPart(part)
+	local newPart = part:Clone()
+	newPart.Parent = folder
+end
+function ThemeData:AddPartIfUnique(part)
+	if not self:ContainsPartName(part.Name) then
+		self:AddPart(part)
+	end
+end
+function ThemeData:PartRenamed(part)
+	-- [part.name (old), part] --> [part.name (new), part]
+end
+function ThemeData:Destroy()
+	self.nameToPart:Destroy() -- todo function doesn't exist on tables
+	if self.cons then -- todo if? (self.cons not defined/used in this class)
+		disconnectList(self.cons)
+	end
+end
+
 local cons
-local themeScroll = widgetFrame.ThemesFrame.ThemesScroll
-local themeTemplate = themeScroll.Theme
-themeTemplate.Parent = nil
 local partsScroll = widgetFrame.PartsFrame.PartsScroll
 local partTemplate = partsScroll.Part
 partTemplate.Parent = nil
@@ -193,7 +249,6 @@ end
 function PartViewport:ChangeThemePart(themePart)
 	local viewport = self.viewport
 	local part = viewport.Part
-	part.Orientation = Vector3.new(0, 35, 0)
 	if self.cons then
 		disconnectList(self.cons)
 	end
@@ -215,12 +270,42 @@ function PartViewport:Destroy() -- todo make sure if themePart is deleted that P
 		disconnectList(self.cons)
 	end
 end
+local selectedThemeData = ThemeData.new(getSelectedTheme()) --todo
+local function addPartsToTheme()
+	local parts = Selection:Get()
+	for _, part in ipairs(parts) do
+		selectedThemeData:AddPartIfUnique(part)
+	end
+end
+local function addPartsToAllThemes()
+	local parts = Selection:Get()
+	for _, part in ipairs(parts) do
+		for _, folder in ipairs(editor:GetChildren()) do
+			selectedThemeData:AddPartIfUnique(part) -- todo change later to be correct theme instead of placeholder
+		end
+	end
+end
+
+local addPartsButton = widgetFrame.PartsFrame.AddPartsButton
+local addPartsMenu
+installFinished:Connect(function()
+	addPartsMenu = plugin:CreatePluginMenu(0, "Add Part(s)")
+	local addToThemeAction = plugin:CreatePluginAction(0, "AddToTheme", "Add part(s) to selected theme", "Adds the currently selected part(s) to the selected theme, ignoring duplicates.", "")
+	addToThemeAction.Triggered:Connect(addPartsToTheme)
+	local addToAllThemesAction = plugin:CreatePluginAction(0, "AddToThemes", "Add part(s) to all themes", "Adds the currently selected part(s) to all themes, ignoring duplicates.", "")
+	addToAllThemesAction.Triggered:Connect(addPartsToAllThemes)
+	addPartsMenu:AddAction(addToThemeAction)
+	addPartsMenu:AddAction(addToAllThemesAction)
+end)
+
+local themeScroll = widgetFrame.ThemesFrame.ThemesScroll
+local themeTemplate = themeScroll.Theme
+themeTemplate.Parent = nil
 
 local ThemeRow = {}
 ThemeRow.__index = ThemeRow
 function ThemeRow.new(folder)
 	--	folder: the theme folder
-	--	currentViewports: list of all available viewports (can be shared between multiple ThemeRows)
 	local self
 	local row = themeTemplate:Clone()
 	row.Parent = themeScroll
@@ -372,6 +457,8 @@ local function init()
 	end
 	setUIColors()
 	cons = {
+		handleVerticalScrollingFrame(themeScroll),
+		handleVerticalScrollingFrame(partsScroll),
 		currentTheme.Changed:Connect(function() spawn(updateCurrentTheme) end),
 		widgetFrame.ThemesFrame.NewThemeButton.MouseButton1Click:Connect(function()
 			local newTheme
@@ -429,6 +516,11 @@ local function cleanup()
 	end
 	folderToRow = nil
 end
+plugin.Unloading:Connect(function()
+	if cons then
+		cleanup()
+	end
+end)
 function considerStartup()
 	if editor and widget.Enabled then
 		if not cons then
@@ -440,5 +532,10 @@ function considerStartup()
 		end
 	end
 end
+
+editor = ServerStorage:FindFirstChild("Theme Editor")
+setInstalled(editor)
+if editor then
+	installFinish(true)
+end
 considerStartup()
-plugin.Unloading:Connect(cleanup)
