@@ -191,23 +191,45 @@ function ThemeData.new(folder)
 		offer Destroy function (don't destroy parts just class instance)
 	]]
 	local nameToPart = {}
+	local function registerObjIfPart(obj)
+		if obj:IsA("BasePart") then
+			self:registerPart(obj)
+		end
+	end
 	local self = setmetatable({
-		nameToPart = nameToPart,
-		-- todo add con, remove con, child name change con
+		nameToPart = nameToPart, --[partName][part] = true
+		cons = {
+			folder.DescendantAdded:Connect(registerObjIfPart),
+			folder.DescendantRemoving:Connect(), -- todo
+		},
+
 	}, ThemeData)
-	for _, part in ipairs(folder:GetChildren()) do
-		self:RegisterPart(part)
+	for _, obj in ipairs(folder:GetDescendants()) do
+		registerObjIfPart(obj)
 	end
 	return self
 end
 function ThemeData:ContainsPartName(partName)
 	return self.nameToPart[partName]
 end
-function ThemeData:RegisterPart(part)
-	self.nameToPart[part.Name] = part
+function ThemeData:registerPart(part)
+	local nameToPart, name = self.nameToPart, part.Name
+	if not nameToPart[name] then
+		nameToPart[name] = {}
+	end
+	nameToPart[name][part] = true
+	-- todo child name change con
+	-- 	current: do that and also explain why things need to be destroyed (circular references of events)
+end
+function ThemeData:unregisterPart(part)
+	local nameToPart, name = self.nameToPart, part.Name
+	nameToPart[name][part] = nil
+	if not next(nameToPart[name]) then
+		nameToPart[name] = nil
+	end
 end
 function ThemeData:AddPart(part)
-	self:RegisterPart(part)
+	self:registerPart(part)
 	local newPart = part:Clone()
 	newPart.Parent = folder
 end
@@ -220,10 +242,8 @@ function ThemeData:PartRenamed(part)
 	-- [part.name (old), part] --> [part.name (new), part]
 end
 function ThemeData:Destroy()
-	self.nameToPart:Destroy() -- todo function doesn't exist on tables
-	if self.cons then -- todo if? (self.cons not defined/used in this class)
-		disconnectList(self.cons)
-	end
+	self.nameToPart:Destroy() -- todo function doesn't exist on tables =(
+	disconnectList(self.cons)
 end
 
 local cons
