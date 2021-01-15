@@ -7,24 +7,8 @@ Current:
 	✔ perhaps store which theme is currently being looked at/modified somewhere?
 		✔ could be stored within script
 		✔ on init, read from Selected Theme and set the theme to that
-Bugs:
-	✔ Update visual list of themes upon adding or removing
-		✔ adding
-		✔ removing
-	✔ Remove existing theme rows when closing plugin/widget
-	✔ Need to add Undo points after installation
-	✔ Makes row diff color on all users (without actually showing parts for all users)
-		it should only show what you personally clicked on for your screen
-	✔ Numbering system not working
-		if theres 'default' and 'default (2)', adding a theme should add 'default (3)'
-	✔ new theme should be copy of currently selected, not currently applied
-	✔ If you delete the theme attached to "selected theme" then when you reopen the theme editor it still attempts to select the theme, despite it not existing (line 279)
-		It also still shows the parts that were associated with that theme, maybe it should either select the theme below it or just clear partviewports since no theme is selected
-		[chess123mate] I vote it selects the Default theme (and updates the Default if it doesn't exist)
-	✔ If you delete the theme attached to "current theme" then when you reopen theme editor it tries to bold the row attached to the theme (line 317)
-	Auto-update ScrollingFrame height:
-		✔ ThemeScroll
-		✔ PartsScroll
+	☐ Only show add parts button when you have have parts selected that are in workspace and a theme selected and at least one part selected is not in your selected theme
+		Maybe it enables when you select some parts in workspace? it just checks the other stuff after you select a part or parts
 
 New Ideas:
 	☐ + beside Parts that has these menu options:

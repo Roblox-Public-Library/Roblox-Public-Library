@@ -177,76 +177,84 @@ local function disconnectList(list)
 	end
 end
 
-local ThemeData = {}
-ThemeData.__index = ThemeData
-function ThemeData.new(folder)
-	-- todo continue to work on ThemeData
-	--[[
-		fill nameToPart so that it always points to 1 part
-			ex if they have 2 Parts and they remove/rename either, nameToPart.Part should then refer to the other
-		deal with:
-			add part
-			remove part
-			part renamed
-		offer Destroy function (don't destroy parts just class instance)
-	]]
+local ThemePartsData = {}
+ThemePartsData.__index = ThemePartsData
+function ThemePartsData.new(folder)
+	--	Manages parts within a theme; you can add parts to it with duplicate/non unique (in name) parts not being added
 	local nameToPart = {}
+	local self
 	local function registerObjIfPart(obj)
 		if obj:IsA("BasePart") then
 			self:registerPart(obj)
 		end
 	end
-	local self = setmetatable({
-		nameToPart = nameToPart, --[partName][part] = true
+	local function unregisterObjIfPart(obj)
+		if obj:IsA("BasePart") then
+			self:unregisterPart(obj)
+		end
+	end
+	self = setmetatable({
+		nameToPart = nameToPart, --[partName][part] = connection to part name being changed
+		folder = folder,
 		cons = {
 			folder.DescendantAdded:Connect(registerObjIfPart),
-			folder.DescendantRemoving:Connect(), -- todo
+			folder.DescendantRemoving:Connect(unregisterObjIfPart),
 		},
-
-	}, ThemeData)
+	}, ThemePartsData)
 	for _, obj in ipairs(folder:GetDescendants()) do
 		registerObjIfPart(obj)
 	end
 	return self
 end
-function ThemeData:ContainsPartName(partName)
+function ThemePartsData:ContainsPartName(partName)
 	return self.nameToPart[partName]
 end
-function ThemeData:registerPart(part)
+function ThemePartsData:registerPart(part)
 	local nameToPart, name = self.nameToPart, part.Name
 	if not nameToPart[name] then
 		nameToPart[name] = {}
 	end
-	nameToPart[name][part] = true
-	-- todo child name change con
-	-- 	current: do that and also explain why things need to be destroyed (circular references of events)
+	local con
+	con = part:GetPropertyChangedSignal("Name"):Connect(function()
+		nameToPart[name][part] = nil
+		if not next(nameToPart[name]) then
+			nameToPart[name] = nil
+		end
+		name = part.Name
+		if not nameToPart[name] then
+			nameToPart[name] = {}
+		end
+		nameToPart[name][part] = con
+	end)
+	nameToPart[name][part] = con
 end
-function ThemeData:unregisterPart(part)
+function ThemePartsData:unregisterPart(part)
 	local nameToPart, name = self.nameToPart, part.Name
+	nameToPart[name][part]:Disconnect()
 	nameToPart[name][part] = nil
 	if not next(nameToPart[name]) then
 		nameToPart[name] = nil
 	end
 end
-function ThemeData:AddPart(part)
+function ThemePartsData:AddPart(part)
 	self:registerPart(part)
 	local newPart = part:Clone()
-	newPart.Parent = folder
+	newPart.Parent = self.folder
 end
-function ThemeData:AddPartIfUnique(part)
+function ThemePartsData:AddPartIfUnique(part)
 	if not self:ContainsPartName(part.Name) then
 		self:AddPart(part)
 	end
 end
-function ThemeData:PartRenamed(part)
-	-- [part.name (old), part] --> [part.name (new), part]
-end
-function ThemeData:Destroy()
-	self.nameToPart:Destroy() -- todo function doesn't exist on tables =(
+function ThemePartsData:Destroy()
 	disconnectList(self.cons)
+	for _, partSet in pairs(self.nameToPart) do
+		for _, con in pairs(partSet) do
+			con:Disconnect()
+		end
+	end
 end
 
-local cons
 local partsScroll = widgetFrame.PartsFrame.PartsScroll
 local partTemplate = partsScroll.Part
 partTemplate.Parent = nil
@@ -290,18 +298,21 @@ function PartViewport:Destroy() -- todo make sure if themePart is deleted that P
 		disconnectList(self.cons)
 	end
 end
-local selectedThemeData = ThemeData.new(getSelectedTheme()) --todo
+
+local folderToThemeData
 local function addPartsToTheme()
+	local partsData = folderToThemeData[getSelectedTheme()].PartsData
 	local parts = Selection:Get()
 	for _, part in ipairs(parts) do
-		selectedThemeData:AddPartIfUnique(part)
+		partsData:AddPartIfUnique(part)
 	end
 end
 local function addPartsToAllThemes()
 	local parts = Selection:Get()
-	for _, part in ipairs(parts) do
-		for _, folder in ipairs(editor:GetChildren()) do
-			selectedThemeData:AddPartIfUnique(part) -- todo change later to be correct theme instead of placeholder
+	for _, folder in ipairs(editor:GetChildren()) do
+		local partsData = folderToThemeData[folder].PartsData
+		for _, part in ipairs(parts) do
+			partsData:AddPartIfUnique(part)
 		end
 	end
 end
@@ -309,13 +320,16 @@ end
 local addPartsButton = widgetFrame.PartsFrame.AddPartsButton
 local addPartsMenu
 installFinished:Connect(function()
-	addPartsMenu = plugin:CreatePluginMenu(0, "Add Part(s)")
-	local addToThemeAction = plugin:CreatePluginAction(0, "AddToTheme", "Add part(s) to selected theme", "Adds the currently selected part(s) to the selected theme, ignoring duplicates.", "")
+	addPartsMenu = plugin:CreatePluginMenu("0", "Add Part(s)")
+	local addToThemeAction = plugin:CreatePluginAction("AddToTheme", "Add part(s) to selected theme", "Adds the currently selected part(s) to the selected theme, ignoring duplicates.")
 	addToThemeAction.Triggered:Connect(addPartsToTheme)
-	local addToAllThemesAction = plugin:CreatePluginAction(0, "AddToThemes", "Add part(s) to all themes", "Adds the currently selected part(s) to all themes, ignoring duplicates.", "")
+	local addToAllThemesAction = plugin:CreatePluginAction("AddToThemes", "Add part(s) to all themes", "Adds the currently selected part(s) to all themes, ignoring duplicates.")
 	addToAllThemesAction.Triggered:Connect(addPartsToAllThemes)
 	addPartsMenu:AddAction(addToThemeAction)
 	addPartsMenu:AddAction(addToAllThemesAction)
+	addPartsButton.MouseButton1Click:Connect(function()
+		addPartsMenu:ShowAsync()
+	end)
 end)
 
 local themeScroll = widgetFrame.ThemesFrame.ThemesScroll
@@ -405,26 +419,41 @@ function ThemeRow:NotAppliedToWorkspace()
 	themeName.Font = Enum.Font.SourceSans
 end
 
-local folderToRow
+local ThemeData = {}
+ThemeData.__index = ThemeData
+function ThemeData.new(folder)
+	return setmetatable({
+		folder = folder,
+		Row = ThemeRow.new(folder),
+		PartsData = ThemePartsData.new(folder),
+	}, ThemeData)
+end
+function ThemeData:Destroy()
+	self.Row:Destroy()
+	self.PartsData:Destroy()
+end
+
+local cons
 local currentViewports
 local function init()
 	-- Initialize theme list
-	folderToRow = {}
+	folderToThemeData = {}
 	currentViewports = {}
 	local function selectTheme(newSelectedTheme)
 		assert(newSelectedTheme, "newSelectedTheme must be provided")
 		if internalSelectedTheme and internalSelectedTheme.Parent then
-			folderToRow[internalSelectedTheme]:Deselect()
+			folderToThemeData[internalSelectedTheme].Row:Deselect()
 		end
-		folderToRow[newSelectedTheme]:Select()
+		folderToThemeData[newSelectedTheme].Row:Select()
 		internalSelectedTheme = newSelectedTheme
 		selectedTheme.Value = newSelectedTheme
 	end
 	local function addThemeButton(themeFolder)
-		local row = ThemeRow.new(themeFolder)
-		folderToRow[themeFolder] = row
+		local themeData = ThemeData.new(themeFolder)
+		folderToThemeData[themeFolder] = themeData
+		local row = themeData.Row
 		row.OnDestroyed:Connect(function()
-			folderToRow[themeFolder] = nil
+			folderToThemeData[themeFolder] = nil
 		end)
 		row.OnClicked:Connect(function()
 			selectTheme(themeFolder)
@@ -460,11 +489,11 @@ local function init()
 	local pastTheme = getCurrentTheme()
 	local function updateCurrentTheme()
 		if pastTheme and pastTheme.Parent then
-			folderToRow[pastTheme]:NotAppliedToWorkspace()
+			folderToThemeData[pastTheme].Row:NotAppliedToWorkspace()
 		end
 		local curTheme = getCurrentTheme()
 		if curTheme then
-			folderToRow[curTheme]:AppliedToWorkspace()
+			folderToThemeData[curTheme].Row:AppliedToWorkspace()
 		end
 		pastTheme = curTheme
 	end
@@ -531,10 +560,10 @@ local function cleanup()
 		viewport:Destroy()
 	end
 	currentViewports = nil
-	for _, row in pairs(folderToRow) do
-		row:Destroy()
+	for _, themeData in pairs(folderToThemeData) do
+		themeData:Destroy()
 	end
-	folderToRow = nil
+	folderToThemeData = nil
 end
 plugin.Unloading:Connect(function()
 	if cons then
