@@ -42,7 +42,7 @@ new("WrapRight", function(p)
 	equals(p:PlaceRight(30, 30), w - 30, 0)
 	t.equals(p:GetWidthRemaining(), w - 30)
 	t.equals(p:GetHeightRemaining(), h, "full height available during wrap right")
-	
+
 	equals(p:Place(w - 40, 10), 0, 0, "Can place text on same line as right-wrapped image")
 	t.equals(p:GetWidthRemaining(), 10)
 	equals(p:Place(w - 40, 10), 0, 10)
@@ -74,11 +74,24 @@ new("OutOfSpace", function(p)
 	t.falsy(p:Place(1, 1), "Should therefore not be able to place anything")
 end)
 
+new("RunOutOfSpace", function(p)
+	equals(p:Place(w, h - 10), 0, 0)
+	t.falsy(p:Place(w, 11), "Should run out of room")
+	t.falsy(p:OutOfSpace(), "State should not be changed")
+	equals(p:Place(w, 10), 0, h - 10, "Smaller object should still fit")
+end)
+
+new("RunOutOfSpaceWithImages", function(p)
+
+end)
+
 new("QueueWrapLeft", function(p)
 	equals(p:PlaceLeft(30, 30), 0, 0)
 	equals(p:PlaceLeft(30, 30), 0, 30)
 	equals(p:Place(w - 30, 20), 30, 0)
-	equals(p:Place(w - 30, 20), 30, 20, "Allow text to go past images when more images right after")
+	equals(p:Place(w - 30, 20), 30, 20)
+	equals(p:Place(w - 30, 20), 30, 40, "Queued image respected")
+	equals(p:Place(w - 30, 20), 0, 60, "After queued image works")
 end)
 
 new("CanPlaceRightLast", function(p)

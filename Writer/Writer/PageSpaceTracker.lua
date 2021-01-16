@@ -14,25 +14,45 @@ function PageSpaceTracker.new(width, height)
 		x = 0, -- current X coordinate of next element
 		y = 0, -- current Y coordinate of next element
 		curLineHeight = 0,
-		left = {}, -- queue of regions on the left in the format {.right .top .bottom} -- note that the element is not actually on the 'right' nor 'bottom' pixel
-		right = {}, -- queue of regions on the right (same format except has .left instead of .right)
+		left = {i = 1}, -- list of regions on the left in the format {.right .top .bottom} -- note that the element is not actually on the 'right' nor 'bottom' pixel
+		--	left.i is the index of the region we may not have gotten past yet (so we will check it again in findCurY)
+		right = {i = 1}, -- list of regions on the right (same format except has .left instead of .right)
 		--	These queue elements are dropped once the cursor (x/y) is past them
 	}, PageSpaceTracker)
+end
+function PageSpaceTracker:save() -- save state so it can be restored later (for undoing state changes)
+	--	Note: Doesn't save left/right tables, so be sure not to modify those
+	return {
+		x = self.x,
+		y = self.y,
+		curLineHeight = self.curLineHeight,
+		leftI = self.left.i,
+		rightI = self.right.i,
+	}
+end
+function PageSpaceTracker:restore(state) -- restore a saved state
+	self.x = state.x
+	self.y = state.y
+	self.curLineHeight = state.curLineHeight
+	self.left.i = state.leftI
+	self.right.i = state.rightI
 end
 local function inRegion(region, y)
 	return y >= region.top and y < region.bottom
 end
 local function findCurY(list, y)
-	--	Find the region in the list given the current y coordinate
-	--	Deletes regions that are no longer relevant
+	--	Find the region in the list (with list.i indicating index to search at) given the current y coordinate
+	--	Moves list.i past irrelevant regions
+	local i = list.i
 	while true do
-		local cur = list[1]
+		local cur = list[i]
 		if not cur or y < cur.top then
 			return nil
 		elseif y < cur.bottom then
 			return cur
 		else
-			table.remove(list, 1)
+			i += 1
+			list.i = i
 		end
 	end
 end
@@ -66,7 +86,7 @@ function PageSpaceTracker:moveCursorToValidLocation()
 			end
 		else
 			local curLeft = findCurY(self.left, self.y)
-			if self.x < curLeft.right then
+			if curLeft and self.x < curLeft.right then
 				self.x = curLeft.right
 			else
 				return
@@ -102,8 +122,9 @@ local function traverseY(list, y)
 		end,
 	}
 end
-local function getY(list)
-	--	returns a 'get(y)' function that returns the region at 'y'. Each successive 'y' is expected to be >= the last 'y' used.
+local function genGetRegionAtY(list)
+	--	returns a 'getRegionAtY(y)' function that returns the region at 'y'.
+	--		Each successive 'y' is expected to be >= the last 'y' used.
 	local i = 1
 	local region = list[1]
 	return function(y)
@@ -158,25 +179,29 @@ function PageSpaceTracker:PlaceFullWidth(height)
 	return self:pos(0, y)
 end
 function PageSpaceTracker:Place(width, height)
-	local x, y, curLineHeight = self.x, self.y, self.curLineHeight
-	local getLeft, getRight = getY(self.left), getY(self.right)
-	local getLeft2, getRight2 = getY(self.left), getY(self.right)
-	-- We have getLeft2/getRight2 because getY is increase-only and we need to measure the bottom of a potentially tall element
+	local x, y = self.x, self.y
+	local getRight = genGetRegionAtY(self.right)
+	local getRight2 = genGetRegionAtY(self.right)
+	-- We have getRight2 because genGetRegionAtY is increase-only and we need to measure the bottom of a potentially tall element
 	--	ex if the element is 60 pixels tall and we try positions in increments of 15
-	local function availWidth(left, right)
-		return (right and right.left or self.width) - (left and left.right or 0)
+
+	local function availWidth(x, right)
+		return (right and right.left or self.width) - x
 	end
 	local function widthFits()
-		return width <= availWidth(getLeft(y), getRight(y)) -- width at top of proposed location
-			and width <= availWidth(getLeft(y + height), getRight(y + height)) -- width at bottom of proposed location
+		return width <= availWidth(x, getRight(y)) -- width at top of proposed location
+			and width <= availWidth(x, getRight2(y + height)) -- width at bottom of proposed location
 	end
 	-- local function availHeight(x, y)
 	-- end
+	local state = self:save()
 	while true do
 		if height > self.height - y then -- no room left on page
+			--self:restore(state) -- todo this line is correct, but write a test that fails unless this line is active before uncommenting this one!
 			return nil
 		end
 		-- todo to make PlaceLeft2ndWiderTallText test work requires determining available height
+
 		if widthFits() then
 			self.x += width
 			if height > self.curLineHeight then
@@ -184,10 +209,8 @@ function PageSpaceTracker:Place(width, height)
 			end
 			return self:pos(x, y)
 		end
-		-- TODO I think we need to call :NewLine without actually mutating anything
-		--	since we could still return nil
-		--	however, we also need that moveCursorToValidLocation algorithm!
 		self:NewLine()
+		x, y = self.x, self.y
 	end
 end
 function PageSpaceTracker:GetWidthRemaining()
@@ -213,7 +236,7 @@ if we fail, we need to say 'i need more space, get me the next block'
 -- 	--	since text can't fit in between them
 -- end
 -- function PageSpaceTracker:MoveToNextBlock()
--- 	--	Move down to the next block that has more 
+-- 	--	Move down to the next block that has more
 -- end
 function PageSpaceTracker:OutOfSpace()
 	return self.y >= self.height
