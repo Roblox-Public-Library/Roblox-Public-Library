@@ -172,6 +172,7 @@ local function getDesc(id) -- id can be input from user (but is expected to be a
 	return desc
 end
 function Music:GetDescForId(id)
+	--	returns desc OR false, reasonForUser
 	return getDesc(id)
 end
 
@@ -208,6 +209,7 @@ music.EnabledChanged:Connect(function(enabled)
 end)
 
 function Music:GetCurSongDesc()
+	--	returns desc OR false, reasonForUser
 	return getDesc(curTrackId)
 end
 function Music:GetCurSongIndex() return curTrackIndex end -- index in current playlist
