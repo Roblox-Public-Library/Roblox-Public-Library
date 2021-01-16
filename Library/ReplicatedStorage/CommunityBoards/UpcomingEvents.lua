@@ -2,13 +2,14 @@
 	.Name:string
 	.HostedBy:string
 	.Desc:string
-	.When:UTC Time or nil if CustomWhen exists
+	.When:UTC Time (number) or nil if CustomWhen exists
 	.CustomWhen:string or nil if When exists
-	.Duration:number measured in hours or nil
+	.Duration:number measured in seconds or nil
 This module's list also has .LocalTimeZoneOffset (measured in hours from UTC)
 ]]
 
 local events = require(workspace.CommunityBoards["Upcoming Events"])
+local Events = {}
 
 local localTimeZoneOffset do -- in hours
 	local now = os.time()
@@ -18,11 +19,30 @@ local localTimeZoneOffset do -- in hours
 end
 events.LocalTimeZoneOffset = localTimeZoneOffset
 
+local maxFutureSec = 183 * 24 * 3600 -- 6 months (183 days is 365/2 rounded up). Max seconds away that future events can be and still show up
+local maxPastSec = maxFutureSec -- Max seconds past events can have taken place and still show up
 local secOffset = -localTimeZoneOffset * 3600 -- arbitrary format strings use local time but we're using UTC. To compensate, we subtract the difference to the timestamp in GetTime.
+local defaultDuration = 2 * 3600 -- default duration of events before they won't be shown (in seconds)
 local Event = {}
 Event.__index = Event
+function Event.Wrap(event)
+	event = setmetatable(event, Event)
+	for _, name in ipairs({"Name", "HostedBy", "Desc"}) do
+		event["lower" .. name] = event[name]:lower()
+	end
+	return event
+end
 function Event:GetTime(format, hoursOffset)
 	return self.CustomWhen or os.date(format, self.When + (hoursOffset or localTimeZoneOffset) * 3600 + secOffset)
+end
+function Event:IsExpired(now)
+	return self.When and self.When + (self.Duration or defaultDuration) < (now or os.time())
+end
+function Event:ContainsText(text)
+	--	Does not search the When/CustomWhen fields
+	return self.lowerName:find(text, 1, true)
+		or self.lowerHostedBy:find(text, 1, true)
+		or self.lowerDesc:find(text, 1, true)
 end
 
 -- Convert event.When to UTC timestamp
@@ -32,10 +52,11 @@ local ampmToOffset = {
 	pm = 12,
 }
 local newEvents = {}
-local now = os.time()
-local defaultDuration = 2 * 3600 -- default duration of events before they won't be shown (in seconds)
 local lastTime = 0
+local now = os.time()
+local localNow = now + localTimeZoneOffset * 3600
 for i, event in ipairs(events) do
+	Event.Wrap(event)
 	local month, day, year, hour, min, ampm, offset = event.When:match("(%d+)/(%d+)/(%d+)%s+(%d+):(%d+)(%w*)%s*%+?(%-?[%d%.]*)")
 	if month then
 		hour = tonumber(hour)
@@ -58,7 +79,7 @@ for i, event in ipairs(events) do
 			hour = hour,
 			min = min,
 		})
-		if event.When + (event.Duration or defaultDuration) >= now then -- Only add events that aren't over
+		if event.When >= localNow - maxPastSec and event.When + (event.Duration or defaultDuration) <= localNow + maxFutureSec then -- ignore very old or far into the future events
 			if event.When < lastTime then
 				for i = #newEvents, 1, -1 do
 					if newEvents[i].When and newEvents[i].When < event.When then
@@ -75,10 +96,35 @@ for i, event in ipairs(events) do
 		event.When = nil
 		newEvents[#newEvents + 1] = event
 	end
-	setmetatable(event, Event)
 end
-table.sort(events, function(a, b) return a.When and b.When and a.When < b.When end)
-while events[1] and events[1].When < os.time() do
-	table.remove(events, 1)
+events = newEvents
+local currentEvents
+local n = #events
+for i, event in ipairs(events) do
+	if not event:IsExpired() then
+		currentEvents = table.create(n - i + 1)
+		table.move(events, i, n, 1, currentEvents)
+		break
+	end
 end
-return events
+
+function Events:GetAllEvents()
+	return events
+end
+function Events:GetCurrentEvents()
+	return currentEvents
+end
+function Events:Search(text, includePast, formatTime)
+	--	includePast:bool = false -- if true, include past events
+	--	formatTime:optional function(event) -> time string describing when the event takes place
+	text = text:lower()
+	local filtered = {}
+	for _, event in ipairs(includePast and events or currentEvents) do
+		if event:ContainsText(text) or formatTime and formatTime(event):lower():find(text, 1, true) then
+			filtered[#filtered + 1] = event
+		end
+	end
+	return filtered
+end
+
+return Events

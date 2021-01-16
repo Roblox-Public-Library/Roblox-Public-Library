@@ -1,51 +1,73 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local events = require(ReplicatedStorage.CommunityBoards.UpcomingEvents)
+local Events = require(ReplicatedStorage.CommunityBoards.UpcomingEvents)
+local TimeZoneAbbreviations = require(ReplicatedStorage.TimeZoneAbbreviations)
 
-local timeFormat = "%a %b %d, %Y at %I:%M%p" -- Fri Dec 31, 2020 at 5:30pm
+local timeZoneFull = os.date("%Z", os.time())
+local timeZoneDesc = " " .. (TimeZoneAbbreviations[timeZoneFull] or timeZoneFull:gsub("[a-z ]+", "")) -- gsub performs "Eastern Standard Time" -> "EST"
+
+local function formatTime(event)
+	return event.CustomWhen
+		or event:GetTime("%a %b %d, %Y at %I:%M%p") -- Fri Dec 01, 2020 at 05:30PM
+		:gsub("0(%d,)", "%1") -- 01 -> 1
+		:gsub("0(%d:%d+%w+)", "%1") -- 05:30PM -> 5:30PM
+		:gsub("AM", "am")
+		:gsub("PM", "pm") .. timeZoneDesc
+		-- At this point, it will be "Fri Dec 31, 2020 at 5:30pm EST"
+end
 
 local gui = workspace.CommunityBoards.UpcomingEvents.SurfaceGui
 gui.Adornee = gui.Parent
 gui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
 local sf = gui.Frame.ScrollingFrame
-local eventFrame = sf.Event
-eventFrame.Parent = nil
-local eventFrames = {}
-for i, event in ipairs(events) do
-	local eventFrame = i == 1 and eventFrame or eventFrame:Clone()
-	eventFrame.Parent = sf
-	eventFrame.Title.Text = ("<b>%s</b> - <i>Hosted by</i> %s"):format(event.Name, event.HostedBy)
-	eventFrame.Desc.Text = event.Desc
-	eventFrames[i] = eventFrame
-end
-do -- Note: following unnecessary when Roblox's AutomaticCanvasSize feature goes live
-	local last = eventFrames[#eventFrames]
-	sf.CanvasSize = UDim2.new(0, 0, 0, last.AbsolutePosition.Y + last.AbsoluteSize.Y)
-end
-
-local box = gui.Frame.TimeZone
-local prevValue = "not updated"
-local function descUTC(timeZoneOffset)
-	return "UTC" .. (timeZoneOffset >= 0 and "+" or "") .. timeZoneOffset
-end
-local function updateBoxDescForTime(timeZoneOffset)
-	box.Text = timeZoneOffset and "Timezone: " .. descUTC(timeZoneOffset)
-		or os.date("Timezone: %Z (" .. descUTC(events.LocalTimeZoneOffset) .. ")", os.time())
-end
-local function updateEventTimesLocal(timeZoneOffset)
-	if timeZoneOffset == prevValue then return end
-	prevValue = timeZoneOffset
+local firstEventFrame = sf.Event
+firstEventFrame.Parent = nil
+local eventFrames = {firstEventFrame}
+local descSizeX = firstEventFrame.Desc.Size.X
+local eventToFrame
+local function updateEvents(events)
+	eventToFrame = {}
 	for i, event in ipairs(events) do
-		eventFrames[i].When.Text = event:GetTime(timeFormat, timeZoneOffset)
+		local eventFrame = eventFrames[i]
+		if not eventFrame then
+			eventFrame = firstEventFrame:Clone()
+			eventFrames[i] = eventFrame
+		end
+		eventFrame.When.Text = formatTime(event)
+		eventFrame.Title.Text = ("<b>%s</b> - <i>Hosted by</i> %s"):format(event.Name, event.HostedBy)
+		local descObj = eventFrame.Desc
+		descObj.Text = event.Desc
+		eventFrame.Parent = sf -- Note: must parent before using AbsoluteSize/AbsolutePosition
+		-- Note: Size manipulation based on AbsolutePosition/etc will be unnecessary when Roblox's AutomaticSize feature goes live
+		eventFrame.Size = UDim2.new(descSizeX, UDim.new(0, descObj.AbsolutePosition.Y - eventFrame.AbsolutePosition.Y + descObj.AbsoluteSize.Y + 15))
+	end
+	for i = #events + 1, #eventFrames do
+		eventFrames[i].Parent = nil -- High chance of re-use so won't Destroy (also mustn't destroy the firstEventFrame)
+	end
+	do -- Note: following unnecessary when Roblox's AutomaticCanvasSize feature goes live
+		local last = eventFrames[#eventFrames]
+		sf.CanvasSize = UDim2.new(0, 0, 0, last.AbsolutePosition.Y - sf.AbsolutePosition.Y + last.AbsoluteSize.Y)
 	end
 end
+updateEvents(Events:GetCurrentEvents())
+
+local box = gui.Frame.Search
+local includePastButton = gui.Frame.IncludePast
+local includePastCheckbox = includePastButton.Box
+local function includePast()
+	return includePastCheckbox.Text == "X"
+end
+local function update()
+	if box.Text == "" then
+		updateEvents(includePast() and Events:GetAllEvents() or Events:GetCurrentEvents())
+	else
+		updateEvents(Events:Search(box.Text, includePast(), formatTime))
+	end
+end
+includePastButton.Activated:Connect(function()
+	includePastCheckbox.Text = includePast() and "" or "X"
+	update()
+end)
 box:GetPropertyChangedSignal("Text"):Connect(function()
 	box.Font = box.Text == "" and Enum.Font.SourceSansItalic or Enum.Font.SourceSans
-	updateEventTimesLocal(tonumber(box.Text) or prevValue)
+	update()
 end)
-box.FocusLost:Connect(function(enterPressed)
-	local timeZoneOffset = tonumber(box.Text)
-	updateBoxDescForTime(timeZoneOffset)
-	updateEventTimesLocal(timeZoneOffset)
-end)
-updateBoxDescForTime()
-updateEventTimesLocal()
