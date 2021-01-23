@@ -1,14 +1,22 @@
---[[This module returns a list of events, each with:
+--[[This module returns function(events) -> Events, which has:
+	.LocalTimeZoneOffset:hours from UTC
+	:GetAllEvents() -> events
+	:GetCurrentEvents() -> events
+	:Search(text, includePast, formatTime) -> events
+Each event has:
 	.Name:string
 	.HostedBy:string
 	.Desc:string
 	.When:UTC Time (number) or nil if CustomWhen exists
 	.CustomWhen:string or nil if When exists
 	.Duration:number measured in seconds or nil
-This module's list also has .LocalTimeZoneOffset (measured in hours from UTC)
 ]]
+return function(events)
+--events expected to have the same fields as described above, except When can optionally be a string, either:
+--	"mm/dd/yyyy h:mm {am/pm or blank if 24h time} {timezone offset}"
+--		ex: "12/31/2020 1:30pm -6". This is converted to UTC time automatically.
+--	or any custom string (it will be transferred to CustomWhen)
 
-local events = require(workspace.CommunityBoards["Upcoming Events"])
 local Events = {}
 
 local localTimeZoneOffset do -- in hours
@@ -28,7 +36,7 @@ Event.__index = Event
 function Event.Wrap(event)
 	event = setmetatable(event, Event)
 	for _, name in ipairs({"Name", "HostedBy", "Desc"}) do
-		event["lower" .. name] = event[name]:lower()
+		event["lower" .. name] = event[name] and event[name]:lower() or ""
 	end
 	return event
 end
@@ -55,46 +63,58 @@ local newEvents = {}
 local lastTime = 0
 local now = os.time()
 local localNow = now + localTimeZoneOffset * 3600
+local function eventHasWhen(event)
+	if event.When >= localNow - maxPastSec and event.When + (event.Duration or defaultDuration) <= localNow + maxFutureSec then -- ignore very old or far into the future events
+		if event.When < lastTime then
+			for i = #newEvents, 1, -1 do
+				if newEvents[i].When and newEvents[i].When < event.When then
+					table.insert(newEvents, i + 1, event)
+				end
+			end
+		else
+			lastTime = event.When
+			newEvents[#newEvents + 1] = event
+		end
+	end
+end
+local function eventHasCustomWhen(event)
+	newEvents[#newEvents + 1] = event
+end
 for i, event in ipairs(events) do
 	Event.Wrap(event)
-	local month, day, year, hour, min, ampm, offset = event.When:match("(%d+)/(%d+)/(%d+)%s+(%d+):(%d+)(%w*)%s*%+?(%-?[%d%.]*)")
-	if month then
-		hour = tonumber(hour)
-		if hour == 12 and ampm == "am" then
-			hour = 0
-		end
-		offset = offset == "" and 0
-			or tonumber(offset)
-			or warn(("In event #%d '%s', offset of '%s' is not a number"):format(i, event.Name or "?", offset))
-			or 0
-		local ampmOffset = ampmToOffset[ampm:lower()]
-			or warn(("In event #%d '%s', 'am' or 'pm' or '' expected but got '%s'"):format(i, event.Name or "?", ampm))
-			or 0
-		hour += ampmOffset + offset
-		min = tonumber(min) + (hour % 1) * 60
-		event.When = os.time({
-			year = year,
-			month = month,
-			day = day,
-			hour = hour,
-			min = min,
-		})
-		if event.When >= localNow - maxPastSec and event.When + (event.Duration or defaultDuration) <= localNow + maxFutureSec then -- ignore very old or far into the future events
-			if event.When < lastTime then
-				for i = #newEvents, 1, -1 do
-					if newEvents[i].When and newEvents[i].When < event.When then
-						table.insert(newEvents, i + 1, event)
-					end
-				end
-			else
-				lastTime = event.When
-				newEvents[#newEvents + 1] = event
+	if type(event.When) == "string" then
+		local month, day, year, hour, min, ampm, offset = event.When:match("(%d+)/(%d+)/(%d+)%s+(%d+):(%d+)(%w*)%s*%+?(%-?[%d%.]*)")
+		if month then
+			hour = tonumber(hour)
+			if hour == 12 and ampm == "am" then
+				hour = 0
 			end
+			offset = offset == "" and 0
+				or tonumber(offset)
+				or warn(("In event #%d '%s', offset of '%s' is not a number"):format(i, event.Name or "?", offset))
+				or 0
+			local ampmOffset = ampmToOffset[ampm:lower()]
+				or warn(("In event #%d '%s', 'am' or 'pm' or '' expected but got '%s'"):format(i, event.Name or "?", ampm))
+				or 0
+			hour += ampmOffset + offset
+			min = tonumber(min) + (hour % 1) * 60
+			event.When = os.time({
+				year = year,
+				month = month,
+				day = day,
+				hour = hour,
+				min = min,
+			})
+			eventHasWhen(event)
+		else -- not time-specific
+			event.CustomWhen = event.When
+			event.When = nil
+			eventHasCustomWhen(event)
 		end
-	else -- not time-specific
-		event.CustomWhen = event.When
-		event.When = nil
-		newEvents[#newEvents + 1] = event
+	elseif event.When then
+		eventHasWhen(event)
+	else
+		eventHasCustomWhen(event)
 	end
 end
 events = newEvents
@@ -128,3 +148,4 @@ function Events:Search(text, includePast, formatTime)
 end
 
 return Events
+end

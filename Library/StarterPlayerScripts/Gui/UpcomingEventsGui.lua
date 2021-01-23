@@ -1,5 +1,4 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Events = require(ReplicatedStorage.CommunityBoards.UpcomingEvents)
 local TimeZoneAbbreviations = require(ReplicatedStorage.TimeZoneAbbreviations)
 
 local timeZoneFull = os.date("%Z", os.time())
@@ -7,6 +6,7 @@ local timeZoneDesc = " " .. (TimeZoneAbbreviations[timeZoneFull] or timeZoneFull
 
 local function formatTime(event)
 	return event.CustomWhen
+		or not event.When and ""
 		or event:GetTime("%a %b %d, %Y at %I:%M%p") -- Fri Dec 01, 2020 at 05:30PM
 		:gsub("0(%d,)", "%1") -- 01 -> 1
 		:gsub("0(%d:%d+%w+)", "%1") -- 05:30PM -> 5:30PM
@@ -15,7 +15,7 @@ local function formatTime(event)
 		-- At this point, it will be "Fri Dec 31, 2020 at 5:30pm EST"
 end
 
-local gui = workspace.CommunityBoards.UpcomingEvents.SurfaceGui
+local gui = workspace.CommunityBoards.UpcomingEvents.UpcomingEvents
 gui.Adornee = gui.Parent
 gui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
 local sf = gui.Frame.ScrollingFrame
@@ -33,7 +33,9 @@ local function updateEvents(events)
 			eventFrames[i] = eventFrame
 		end
 		eventFrame.When.Text = formatTime(event)
-		eventFrame.Title.Text = ("<b>%s</b> - <i>Hosted by</i> %s"):format(event.Name, event.HostedBy)
+		eventFrame.Title.Text = event.HostedBy
+			and ("<b>%s</b> - <i>Hosted by</i> %s"):format(event.Name, event.HostedBy)
+			or ("<b>%s</b>"):format(event.Name)
 		local descObj = eventFrame.Desc
 		descObj.Text = event.Desc
 		eventFrame.Parent = sf -- Note: must parent before using AbsoluteSize/AbsolutePosition
@@ -48,26 +50,41 @@ local function updateEvents(events)
 		sf.CanvasSize = UDim2.new(0, 0, 0, last.AbsolutePosition.Y - sf.AbsolutePosition.Y + last.AbsoluteSize.Y)
 	end
 end
-updateEvents(Events:GetCurrentEvents())
 
+local Events
 local box = gui.Frame.Search
 local includePastButton = gui.Frame.IncludePast
 local includePastCheckbox = includePastButton.Box
-local function includePast()
+local function includingPast()
 	return includePastCheckbox.Text == "X"
 end
 local function update()
 	if box.Text == "" then
-		updateEvents(includePast() and Events:GetAllEvents() or Events:GetCurrentEvents())
+		updateEvents(includingPast() and Events:GetAllEvents() or Events:GetCurrentEvents())
 	else
-		updateEvents(Events:Search(box.Text, includePast(), formatTime))
+		updateEvents(Events:Search(box.Text, includingPast(), formatTime))
 	end
 end
-includePastButton.Activated:Connect(function()
-	includePastCheckbox.Text = includePast() and "" or "X"
-	update()
-end)
-box:GetPropertyChangedSignal("Text"):Connect(function()
-	box.Font = box.Text == "" and Enum.Font.SourceSansItalic or Enum.Font.SourceSans
-	update()
-end)
+local Gui = {}
+local status = gui.Frame.Status
+function Gui:SetEventsClass(EventsClass)
+	--	Should only be called once
+	Events = EventsClass
+	updateEvents(Events:GetCurrentEvents())
+	includePastButton.Activated:Connect(function()
+		includePastCheckbox.Text = includingPast() and "" or "X"
+		update()
+	end)
+	box:GetPropertyChangedSignal("Text"):Connect(function()
+		box.Font = box.Text == "" and Enum.Font.SourceSansItalic or Enum.Font.SourceSans
+		update()
+	end)
+	status.Visible = false
+	sf.Visible = true
+	box.Visible = true
+	includePastButton.Visible = true
+end
+function Gui:SetStatus(msg)
+	status.Text = msg
+end
+return Gui
