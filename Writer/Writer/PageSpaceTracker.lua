@@ -73,7 +73,7 @@ function PageSpaceTracker:findRightRegionBesideTextUpdateI()
 	-- In the 'for' loop upper bound, if the region is nil then we shouldn't check self.right[lowerI] - it might exist, but it'll be out of range
 	for i = upperI + 1, region and lowerI or lowerI - 1 do
 		region = right[i]
-		if region and bottom > region.top and top < region.bottom then
+		if region and bottom > region.top and y < region.bottom then
 			return region, i
 		end
 	end
