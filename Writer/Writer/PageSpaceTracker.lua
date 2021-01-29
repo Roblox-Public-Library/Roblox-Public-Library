@@ -1,6 +1,15 @@
 --[[PageSpaceTracker: Tracks the space left over based on placing items at various locations on a page
-Each function returns the UDim2 coordinate that an item should be placed at, or nil if there's no room
-	If nil is returned, the instance's state remains unmodified
+Conceptually:
+	List<object with size & type> -> their positions on a page
+Typical API:
+	.new(width, height)
+	:PlaceLeft(width, height) -> UDim2/nil -- also LeftNoWrap, Right, RightNoWrap, Center, and just Place (for text)
+	:PlaceFullWidth(height) -> UDim2/nil
+	Placement functions return nil in the event that there is no more room on the page
+		If nil is returned, the PageSpaceTracker instance's state remains unmodified
+	:NewLine(textHeight)
+	:PlacementFits(width, height) -> bool -- for text
+	:OutOfSpace() -> bool
 ]]
 local function pos(x, y)
 	return UDim2.new(0, x, 0, y)
@@ -78,17 +87,20 @@ function PageSpaceTracker:findRightRegionBesideTextUpdateI()
 		end
 	end
 end
-function PageSpaceTracker:newLine()
+function PageSpaceTracker:newLine(textHeight)
 	--	Advances to a new line without calling moveCursorToValidLocation
-	if self.curLineHeight == 0 then error("newLine called with no curLineHeight", 2) end
-	self.y += self.curLineHeight
+	if not textHeight or textHeight < self.curLineHeight then
+		textHeight = self.curLineHeight
+	end
+	if textHeight == 0 then error("newLine called with no curLineHeight and no textHeight", 2) end
+	self.y += textHeight
 	self.curLineHeight = 0
 	self.x = 0
 end
-function PageSpaceTracker:NewLine()
-	--	Advances to a valid location on a new line based on curLineHeight, which must be greater than 0
+function PageSpaceTracker:NewLine(textHeight)
+	--	Advances to a valid location on a new line based on curLineHeight, which must be greater than 0 if textHeight is not provided
 	--	Doesn't return anything
-	self:newLine()
+	self:newLine(textHeight)
 	self:moveCursorToValidLocation()
 end
 local function getBottomOfNextObject(list, y)

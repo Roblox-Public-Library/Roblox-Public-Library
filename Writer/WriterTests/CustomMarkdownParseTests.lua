@@ -1,9 +1,9 @@
 return function(tests, t)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Writer = require(ReplicatedStorage.Writer)
-local Format = Writer.Format
-local parse = Writer.CustomMarkdown.ParseText
+local Writer = ReplicatedStorage.Writer
+local Format = require(Writer.Format)
+local parse = require(Writer.CustomMarkdown).ParseText
 
 -- local function assertFont(t, font, expected, desc)
 -- 	t.multi((desc and desc .. " " or "") .. "Font", function(m)
