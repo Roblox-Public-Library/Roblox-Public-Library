@@ -248,7 +248,7 @@ local linePool = ObjectPool.new(function()
 	line.BackgroundColor3 = line.BorderColor3
 	line.BorderSizePixel = 0
 	return line
-end)
+end, 5)
 
 local Render = setmetatable({}, Base)
 Render.__index = Render

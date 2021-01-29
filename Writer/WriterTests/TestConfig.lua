@@ -1,3 +1,3 @@
 return {
-	skip = {"DocumentControllerTests"},
+	skip = {},
 }

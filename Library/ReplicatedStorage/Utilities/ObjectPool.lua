@@ -3,7 +3,7 @@ ObjectPool.__index = ObjectPool
 function ObjectPool.new(generator, max)
 	return setmetatable({
 		generator = generator,
-		max = max,
+		max = max or error("max is mandatory"),
 		n = 0,
 		list = {},
 	}, ObjectPool)
