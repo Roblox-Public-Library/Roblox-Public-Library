@@ -29,7 +29,6 @@ events.LocalTimeZoneOffset = localTimeZoneOffset
 
 local maxFutureSec = 183 * 24 * 3600 -- 6 months (183 days is 365/2 rounded up). Max seconds away that future events can be and still show up
 local maxPastSec = maxFutureSec -- Max seconds past events can have taken place and still show up
-local secOffset = -localTimeZoneOffset * 3600 -- arbitrary format strings use local time but we're using UTC. To compensate, we subtract the difference to the timestamp in GetTime.
 local defaultDuration = 2 * 3600 -- default duration of events before they won't be shown (in seconds)
 local Event = {}
 Event.__index = Event
@@ -40,8 +39,14 @@ function Event.Wrap(event)
 	end
 	return event
 end
+-- GetTime & GetUTCTime note:
+-- 	Arbitrary format strings convert UTC time to local time.
+--	When we want UTC, we compensate by subtracting the localTimeZoneOffset from the hoursOffset.
 function Event:GetTime(format, hoursOffset)
-	return self.CustomWhen or os.date(format, self.When + (hoursOffset or localTimeZoneOffset) * 3600 + secOffset)
+	return self.CustomWhen or os.date(format, self.When + (hoursOffset or 0) * 3600)
+end
+function Event:GetUTCTime(format, hoursOffset)
+	return self.CustomWhen or os.date(format, self.When + ((hoursOffset or 0) - localTimeZoneOffset) * 3600)
 end
 function Event:IsExpired(now)
 	return self.When and self.When + (self.Duration or defaultDuration) < (now or os.time())

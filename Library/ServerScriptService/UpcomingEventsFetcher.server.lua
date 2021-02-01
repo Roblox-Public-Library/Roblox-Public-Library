@@ -47,13 +47,13 @@ local function interpretCustomFields(data)
 	return t
 end
 local function shouldIgnoreName(name)
-	name = name:lower():gsub("[%W]", "")
+	name = name:lower():gsub("[%A]", "") -- remove all non-letters
 	return name == "readme" or name == "instructions" or name == "example"
 end
 local customFieldInterpret = {
 	["Hosted By"] = function(value) return value.text end,
 	["Custom When"] = function(value) return value.text end,
-	["Hours"] = function(value) return tonumber(value.number) end,
+	["Duration"] = function(value) return tonumber(value.number) end,
 	["When"] = function(value)
 		local year, month, day, hour, min = value.date:match("^(%d+)%-(%d+)%-(%d+)T(%d+):(%d+)")
 		if not year then
@@ -86,7 +86,7 @@ local function interpretEvents(data)
 			Desc = entry.desc,
 			HostedBy = fields["Hosted By"],
 			When = fields.When,
-			Duration = fields.Hours,
+			Duration = fields.Duration,
 			CustomWhen = fields["Custom When"],
 		}
 	end
@@ -132,7 +132,6 @@ coroutine.wrap(function()
 		local tryAgainIn
 		if not customFieldIdToName then
 			local success, data, trelloError = tryDecode(customFieldsRequest)
-			print("Result of customFieldsRequest:", success, data, trelloError)
 			if success then
 				customFieldIdToName = interpretCustomFields(data)
 			else
@@ -146,7 +145,6 @@ coroutine.wrap(function()
 		end
 		if customFieldIdToName then
 			local success, data, trelloError = tryDecode(eventsRequest)
-			print("Result of eventsRequest:", success, data, trelloError)
 			if success then
 				upcomingEvents = interpretEvents(data)
 			else

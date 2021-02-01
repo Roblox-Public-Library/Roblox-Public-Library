@@ -4,15 +4,23 @@ local TimeZoneAbbreviations = require(ReplicatedStorage.TimeZoneAbbreviations)
 local timeZoneFull = os.date("%Z", os.time())
 local timeZoneDesc = " " .. (TimeZoneAbbreviations[timeZoneFull] or timeZoneFull:gsub("[a-z ]+", "")) -- gsub performs "Eastern Standard Time" -> "EST"
 
-local function formatTime(event)
-	return event.CustomWhen
-		or not event.When and ""
-		or event:GetTime("%a %b %d, %Y at %I:%M%p") -- Fri Dec 01, 2020 at 05:30PM
-		:gsub("0(%d,)", "%1") -- 01 -> 1
+local dateTimeFormatString = "%a %b %d, %Y at %I:%M%p" -- Fri Dec 01, 2020 at 05:30PM
+local timeFormatString = "%I:%M%p"
+local function formatTimeString(s) -- does not include timeZoneDesc
+	return s:gsub("0(%d,)", "%1") -- 01 -> 1
 		:gsub("0(%d:%d+%w+)", "%1") -- 05:30PM -> 5:30PM
 		:gsub("AM", "am")
-		:gsub("PM", "pm") .. timeZoneDesc
-		-- At this point, it will be "Fri Dec 31, 2020 at 5:30pm EST"
+		:gsub("PM", "pm") -- At this point, it will be "Fri Dec 31, 2020 at 5:30pm"
+end
+
+local function formatEventTime(event)
+	return event.CustomWhen
+		or not event.When and ""
+		or formatTimeString(event:GetTime(dateTimeFormatString))
+			.. (event.Duration
+				and " - " .. formatTimeString(event:GetTime(timeFormatString, event.Duration))
+				or "")
+			.. timeZoneDesc
 end
 
 local gui = workspace.CommunityBoards.UpcomingEvents.UpcomingEvents
@@ -32,7 +40,7 @@ local function updateEvents(events)
 			eventFrame = firstEventFrame:Clone()
 			eventFrames[i] = eventFrame
 		end
-		eventFrame.When.Text = formatTime(event)
+		eventFrame.When.Text = formatEventTime(event)
 		eventFrame.Title.Text = event.HostedBy
 			and ("<b>%s</b> - <i>Hosted by</i> %s"):format(event.Name, event.HostedBy)
 			or ("<b>%s</b>"):format(event.Name)
@@ -62,7 +70,7 @@ local function update()
 	if box.Text == "" then
 		updateEvents(includingPast() and Events:GetAllEvents() or Events:GetCurrentEvents())
 	else
-		updateEvents(Events:Search(box.Text, includingPast(), formatTime))
+		updateEvents(Events:Search(box.Text, includingPast(), formatEventTime))
 	end
 end
 local Gui = {}
