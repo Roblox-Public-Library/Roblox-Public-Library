@@ -289,7 +289,6 @@ local function setSongList(songList)
 	curSongList = songList
 	playNextSong(true)
 end
-local defaultPlaylist -- initialized below
 local customPlaylists = music:GetCustomPlaylists() -- treat as read-only; can be modified through music:SetCustomPlaylistTrack
 local defaultPlaylists = music.DefaultPlaylists -- id -> defaultPlaylist
 local function activePlaylistChanged(playlist)
