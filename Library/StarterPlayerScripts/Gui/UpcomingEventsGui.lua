@@ -45,10 +45,18 @@ local function updateEvents(events)
 			and ("<b>%s</b> - <i>Hosted by</i> %s"):format(event.Name, event.HostedBy)
 			or ("<b>%s</b>"):format(event.Name)
 		local descObj = eventFrame.Desc
-		descObj.Text = event.Desc
+		local descContent = {}
+		if event.Where and event.Where ~= "" then
+			descContent[1] = "<b>Location</b> - " .. event.Where
+		end
+		if event.Desc and event.Desc ~= "" then
+			descContent[#descContent + 1] = event.Desc
+		end
+		descObj.Text = table.concat(descContent, "\n")
 		eventFrame.Parent = sf -- Note: must parent before using AbsoluteSize/AbsolutePosition
 		-- Note: Size manipulation based on AbsolutePosition/etc will be unnecessary when Roblox's AutomaticSize feature goes live
-		eventFrame.Size = UDim2.new(descSizeX, UDim.new(0, descObj.AbsolutePosition.Y - eventFrame.AbsolutePosition.Y + descObj.AbsoluteSize.Y + 15))
+		descObj.Size = UDim2.new(1, 0, 0, descObj.TextBounds.Y)
+		eventFrame.Size = UDim2.new(descSizeX, UDim.new(0, descObj.AbsolutePosition.Y - eventFrame.AbsolutePosition.Y + descObj.AbsoluteSize.Y))
 	end
 	for i = #events + 1, #eventFrames do
 		eventFrames[i].Parent = nil -- High chance of re-use so won't Destroy (also mustn't destroy the firstEventFrame)

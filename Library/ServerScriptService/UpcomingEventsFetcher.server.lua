@@ -46,11 +46,8 @@ local function interpretCustomFields(data)
 	end
 	return t
 end
-local function shouldIgnoreName(name)
-	name = name:lower():gsub("[%A]", "") -- remove all non-letters
-	return name == "readme" or name == "instructions" or name == "example"
-end
 local customFieldInterpret = {
+	-- function(value) -> value, notAnEvent
 	["Hosted By"] = function(value) return value.text end,
 	["Custom When"] = function(value) return value.text end,
 	["Duration"] = function(value) return tonumber(value.number) end,
@@ -67,20 +64,36 @@ local customFieldInterpret = {
 			min = min,
 		})
 	end,
+	["Where"] = function(value) return value.text end,
+	["Not an event"] = function(value)
+		if value.checked == "true" then
+			return nil, true
+		end
+	end,
 }
 local function getCustomFields(items)
+	--	Returns fields or nil if not an event
 	local fields = {}
 	for _, item in ipairs(items) do
 		local name = customFieldIdToName[item.idCustomField]
-		fields[name] = (customFieldInterpret[name] or error("No custom field interpreter for " .. tostring(name)))(item.value)
+		local interpreter = customFieldInterpret[name]
+		if interpreter then
+			local notAnEvent
+			fields[name], notAnEvent = interpreter(item.value)
+			if notAnEvent then
+				return nil
+			end
+		else
+			warn("UpcomingEventsFetcher: No custom field interpreter for " .. tostring(name))
+		end
 	end
 	return fields
 end
 local function interpretEvents(data)
 	local events = {}
 	for _, entry in ipairs(data) do
-		if shouldIgnoreName(entry.name) then continue end
 		local fields = getCustomFields(entry.customFieldItems)
+		if not fields then continue end -- this entry is not an event
 		events[#events + 1] = {
 			Name = entry.name,
 			Desc = entry.desc,
@@ -88,6 +101,7 @@ local function interpretEvents(data)
 			When = fields.When,
 			Duration = fields.Duration,
 			CustomWhen = fields["Custom When"],
+			Where = fields.Where,
 		}
 	end
 	return events

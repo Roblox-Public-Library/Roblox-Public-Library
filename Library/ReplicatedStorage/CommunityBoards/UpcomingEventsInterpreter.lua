@@ -16,7 +16,6 @@ return function(events)
 --	"mm/dd/yyyy h:mm {am/pm or blank if 24h time} {timezone offset}"
 --		ex: "12/31/2020 1:30pm -6". This is converted to UTC time automatically.
 --	or any custom string (it will be transferred to CustomWhen)
-
 local Events = {}
 
 local localTimeZoneOffset do -- in hours
@@ -34,7 +33,7 @@ local Event = {}
 Event.__index = Event
 function Event.Wrap(event)
 	event = setmetatable(event, Event)
-	for _, name in ipairs({"Name", "HostedBy", "Desc"}) do
+	for _, name in ipairs({"Name", "HostedBy", "Desc", "Where"}) do
 		event["lower" .. name] = event[name] and event[name]:lower() or ""
 	end
 	return event
@@ -56,6 +55,7 @@ function Event:ContainsText(text)
 	return self.lowerName:find(text, 1, true)
 		or self.lowerHostedBy:find(text, 1, true)
 		or self.lowerDesc:find(text, 1, true)
+		or self.lowerWhere:find(text, 1, true)
 end
 
 -- Convert event.When to UTC timestamp
@@ -74,8 +74,10 @@ local function eventHasWhen(event)
 			for i = #newEvents, 1, -1 do
 				if newEvents[i].When and newEvents[i].When < event.When then
 					table.insert(newEvents, i + 1, event)
+					return
 				end
 			end
+			table.insert(newEvents, 1, event)
 		else
 			lastTime = event.When
 			newEvents[#newEvents + 1] = event
@@ -88,6 +90,7 @@ end
 for i, event in ipairs(events) do
 	Event.Wrap(event)
 	if type(event.When) == "string" then
+		do error("This code interprets an old format and shouldn't be in use") end
 		local month, day, year, hour, min, ampm, offset = event.When:match("(%d+)/(%d+)/(%d+)%s+(%d+):(%d+)(%w*)%s*%+?(%-?[%d%.]*)")
 		if month then
 			hour = tonumber(hour)
