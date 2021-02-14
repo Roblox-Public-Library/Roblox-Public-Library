@@ -11,7 +11,7 @@ local content = gui.Content
 
 content.Visible = false
 local entries = require(ReplicatedStorage.CommunityBoards.ContributionsInterpreter)(
-	require(ReplicatedStorage["Community Boards"].Contributions))
+	require(ReplicatedStorage["Community Boards Config"].Contributions))
 content.Visible = true
 
 local sf = content.ScrollingFrame
