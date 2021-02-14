@@ -15,6 +15,7 @@ Supported entry input format:
 	.Date:string
 	.Image:string
 	.ImageSize:Vector2/nil - can be any size; will be scaled down
+	.ThumbnailAssetId:number -- alternative to Image and ImageSize, this loads the thumbnail for the given asset id
 	[creditsKey] = person/listOfPeople
 		where each person is {userName[, userId]}
 	Also, synonyms and lower-case are handled.
@@ -79,9 +80,12 @@ end
 
 local synonyms = {
 	building = "Builders",
+	builder = "Builders",
 	scripting = "Scripters",
+	scripter = "Scripters",
 	special = "SpecialThanks",
 	desc = "Description",
+	assetid = "ThumbnailAssetId",
 }
 local knownFields = {
 	Title = "string",
@@ -89,6 +93,7 @@ local knownFields = {
 	Description = "string",
 	Image = "string",
 	ImageSize = "Vector2",
+	ThumbnailAssetId = "number",
 	Builders = "table",
 	Scripters = "table",
 	UI = "table",
@@ -197,7 +202,12 @@ local function handleFields(entry, i)
 					warn(string.format("Contributions Issue: Image field in entry '%s' is expected to be in asset format, got", entry.Title or "(No title!)"), v)
 				elseif newKey == "Date" then
 					newEntry.Date, newEntry.LayoutOrder = handleDate(v, entry.Title)
-				else
+				elseif newKey == "ThumbnailAssetId" then
+					if entry.Image or entry.ImageSize then
+						warn(string.format("Contributions Issue: ThumbnailAssetId should not co-exist with Image nor ImageSize fields (in entry '%s')", entry.Title or "(No title!)"))
+					end
+					newEntry.Image = "rbxthumb://type=Asset&w=420&h=420&id=" .. entry.ThumbnailAssetId
+				elseif not ((newKey == "Image" or newKey == "ImageSize") and entry.ThumbnailAssetId) then -- ignore Image/ImageSize when ThumbnailAssetId is provided (a warning is given when ThumbnailAssetId is encountered)
 					newEntry[newKey] = v
 				end
 			else

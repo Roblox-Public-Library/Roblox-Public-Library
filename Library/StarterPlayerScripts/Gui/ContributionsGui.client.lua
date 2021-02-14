@@ -24,11 +24,6 @@ local function genGetTextSizeY(textSize, font, space)
 		return TextService:GetTextSize(text, textSize, font, space).Y
 	end
 end
-local function genGetTextSizeY(textSize, font)
-	return function(text, imageSizeX)
-		return TextService:GetTextSize(text, textSize, font, Vector2.new(maxXSpace - (imageSizeX or 0), 9999)).Y
-	end
-end
 local descTemplate = template.NonImage.Description
 descTemplate.Parent = nil
 local getDescSizeYNoImage = genGetTextSizeY(descTemplate.TextSize, descTemplate.Font, Vector2.new(maxXSpace + paddingOffset, 9999))

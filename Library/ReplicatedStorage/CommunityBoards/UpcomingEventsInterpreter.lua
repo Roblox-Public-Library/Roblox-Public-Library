@@ -90,7 +90,7 @@ end
 for i, event in ipairs(events) do
 	Event.Wrap(event)
 	if type(event.When) == "string" then
-		do error("This code interprets an old format and shouldn't be in use") end
+		if true then error("This code interprets an old format and shouldn't be in use") end
 		local month, day, year, hour, min, ampm, offset = event.When:match("(%d+)/(%d+)/(%d+)%s+(%d+):(%d+)(%w*)%s*%+?(%-?[%d%.]*)")
 		if month then
 			hour = tonumber(hour)
