@@ -3,7 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GuiUtils = require(ReplicatedStorage.Gui.Utilities)
 local TextService = game:GetService("TextService")
 
-local gui = workspace.CommunityBoards.ContributionsBoard.ContributionsBoard
+local gui = workspace.Reception.CommunityBoards.ContributionsBoard.ContributionsBoard
 gui.Adornee = gui.Parent
 gui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
 

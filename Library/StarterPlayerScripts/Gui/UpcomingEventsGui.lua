@@ -23,7 +23,7 @@ local function formatEventTime(event)
 			.. timeZoneDesc
 end
 
-local gui = workspace.CommunityBoards.UpcomingEvents.UpcomingEvents
+local gui = workspace.Reception.CommunityBoards.UpcomingEvents.UpcomingEvents
 gui.Adornee = gui.Parent
 gui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
 local sf = gui.Frame.ScrollingFrame
