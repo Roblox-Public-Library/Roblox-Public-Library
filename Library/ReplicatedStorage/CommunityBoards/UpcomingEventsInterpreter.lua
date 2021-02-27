@@ -64,7 +64,7 @@ local ampmToOffset = {
 	am = 0,
 	pm = 12,
 }
-local newEvents = {}
+local newEvents = {} -- new list of events (of both past and future events)
 local lastTime = 0
 local now = os.time()
 local localNow = now + localTimeZoneOffset * 3600
@@ -135,6 +135,7 @@ for i, event in ipairs(events) do
 		break
 	end
 end
+currentEvents = currentEvents or {}
 
 function Events:GetAllEvents()
 	return events

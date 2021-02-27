@@ -1,4 +1,3 @@
--- Todo use AutomaticSize & AutomaticCanvasSize when Roblox releases it
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GuiUtils = require(ReplicatedStorage.Gui.Utilities)
 local TextService = game:GetService("TextService")

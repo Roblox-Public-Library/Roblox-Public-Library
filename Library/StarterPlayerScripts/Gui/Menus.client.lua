@@ -281,7 +281,9 @@ do -- About menu
 			a.Position = UDim2.new(0, 0, 0, offset)
 			offset += height + 25
 		end
-		faqFrame.CanvasSize = UDim2.new(0, 0, 0, offset - 25 + padding.PaddingBottom.Offset + padding.PaddingTop.Offset)
+		local y = offset - 25 + padding.PaddingBottom.Offset + padding.PaddingTop.Offset
+		faqFrame.CanvasSize = UDim2.new(0, 0, 0, y)
+		faqFrame.ScrollingEnabled = y > faqFrame.AbsoluteSize.Y
 	end
 	calcOffsets()
 	faqFrame:GetPropertyChangedSignal("AbsoluteWindowSize"):Connect(calcOffsets)
