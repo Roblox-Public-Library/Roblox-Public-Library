@@ -1,4 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local GuiUtils = require(ReplicatedStorage.Gui.Utilities)
 local TimeZoneAbbreviations = require(ReplicatedStorage.TimeZoneAbbreviations)
 
 local timeZoneFull = os.date("%Z", os.time())
@@ -26,13 +27,15 @@ end
 local gui = workspace.Reception.CommunityBoards.UpcomingEvents.UpcomingEvents
 gui.Adornee = gui.Parent
 gui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+local status = gui.Frame.Status
 local sf = gui.Frame.ScrollingFrame
 local firstEventFrame = sf.Event
 firstEventFrame.Parent = nil
+GuiUtils.HandleVerticalScrollingFrame(sf)
 local eventFrames = {firstEventFrame}
 local descSizeX = firstEventFrame.Desc.Size.X
 local eventToFrame
-local function updateEvents(events)
+local function updateEvents(events, noEventsDesc)
 	eventToFrame = {}
 	for i, event in ipairs(events) do
 		local eventFrame = eventFrames[i]
@@ -61,9 +64,11 @@ local function updateEvents(events)
 	for i = #events + 1, #eventFrames do
 		eventFrames[i].Parent = nil -- High chance of re-use so won't Destroy (also mustn't destroy the firstEventFrame)
 	end
-	do -- Note: following unnecessary when Roblox's AutomaticCanvasSize feature goes live
-		local last = eventFrames[#eventFrames]
-		sf.CanvasSize = UDim2.new(0, 0, 0, last.AbsolutePosition.Y - sf.AbsolutePosition.Y + last.AbsoluteSize.Y)
+	if #events > 0 then
+		status.Visible = false
+	else
+		status.Text = noEventsDesc
+		status.Visible = true
 	end
 end
 
@@ -75,18 +80,18 @@ local function includingPast()
 	return includePastCheckbox.Text == "X"
 end
 local function update()
+	local noEventsDesc = includingPast() and "No events" or "No upcoming events"
 	if box.Text == "" then
-		updateEvents(includingPast() and Events:GetAllEvents() or Events:GetCurrentEvents())
+		updateEvents(includingPast() and Events:GetAllEvents() or Events:GetCurrentEvents(), noEventsDesc)
 	else
-		updateEvents(Events:Search(box.Text, includingPast(), formatEventTime))
+		updateEvents(Events:Search(box.Text, includingPast(), formatEventTime), noEventsDesc)
 	end
 end
 local Gui = {}
-local status = gui.Frame.Status
 function Gui:SetEventsClass(EventsClass)
 	--	Should only be called once
 	Events = EventsClass
-	updateEvents(Events:GetCurrentEvents())
+	updateEvents(Events:GetCurrentEvents(), "No upcoming events")
 	includePastButton.Activated:Connect(function()
 		includePastCheckbox.Text = includingPast() and "" or "X"
 		update()
@@ -95,7 +100,8 @@ function Gui:SetEventsClass(EventsClass)
 		box.Font = box.Text == "" and Enum.Font.SourceSansItalic or Enum.Font.SourceSans
 		update()
 	end)
-	status.Visible = false
+	status.UITextSizeConstraint.MaxTextSize = 80
+	status.Position = UDim2.new(0, 0, 0.07, 0)
 	sf.Visible = true
 	box.Visible = true
 	includePastButton.Visible = true
