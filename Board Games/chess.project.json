@@ -4,29 +4,29 @@
 		"$className": "DataModel",
 		"ReplicatedStorage": {
 			"$className": "ReplicatedStorage",
-			"Checkers": {
-				"$path": "Checkers/ReplicatedStorage/Checkers"
+			"Chess": {
+				"$path": "Chess/ReplicatedStorage/Chess"
 			}
 		},
 		"ServerScriptService": {
 			"$className": "ServerScriptService",
-			"Checkers": {
-				"$path": "Checkers/ServerScriptService/Checkers"
+			"Chess": {
+				"$path": "Chess/ServerScriptService/Chess"
 			}
 		},
 		"StarterPlayer": {
 			"$className": "StarterPlayer",
 			"StarterPlayerScripts": {
 				"$className": "StarterPlayerScripts",
-				"Checkers": {
-					"$path": "Checkers/StarterPlayerScripts/Checkers"
+				"Chess": {
+					"$path": "Chess/StarterPlayerScripts/Chess"
 				}
 			}
 		},
 		"TestService": {
 			"$className": "TestService",
-			"Checkers": {
-				"$path": "Checkers/TestService/Checkers"
+			"Chess": {
+				"$path": "Chess/TestService/Chess"
 			}
 		}
 	}

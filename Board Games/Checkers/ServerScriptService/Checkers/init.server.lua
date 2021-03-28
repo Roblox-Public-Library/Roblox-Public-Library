@@ -3,13 +3,13 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Setup remotes
-local function create(parent, type, name)
+local function create(parent, name, type)
 	local obj = Instance.new(type)
-	if name then obj.Name = name end
+	obj.Name = name
 	obj.Parent = parent
 	return obj
 end
-local remotes = ReplicatedStorage.Remotes.Checkers
+local remotes = create(ReplicatedStorage.Remotes, "Checkers", "Folder")
 for _, name in ipairs({
 	"NewGame", --(checkersModel, redOnTop)
 	"StartTurn", --(checkersModel, team)
@@ -18,12 +18,12 @@ for _, name in ipairs({
 	-- Client->Server
 	"TryMove", --(checkersModel, move)
 }) do
-	create(remotes, "RemoteEvent", name)
+	create(remotes, name, "RemoteEvent")
 end
 for _, name in ipairs({
 	"GetGames" --():List<{checkersModel, game}>
 }) do
-	create(remotes, "RemoteFunction", name)
+	create(remotes, name, "RemoteFunction")
 end
 
 local Checkers = ReplicatedStorage.Checkers
@@ -82,7 +82,7 @@ remotes.TryMove.OnServerEvent:Connect(function(player, checkersModel, move)
 	game:Fire("MoveMade", eventList)
 end)
 
-create(script, "BindableFunction", "Add").OnInvoke = function(model)
+create(script, "Add", "BindableFunction").OnInvoke = function(model)
 	checkersModelToGame[model] = Game.new(model)
 end
 remotes.GetGames.OnServerInvoke = function(player)
