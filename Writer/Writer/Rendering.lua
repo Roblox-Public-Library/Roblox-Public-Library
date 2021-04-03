@@ -1,8 +1,8 @@
---[[Cursors deal with (pre)rendering Elements (using Roblox's RichText format where appropriate)
-Cursor(availSpace, config) - keeps track of where the next element can be placed
-	:AtStartOfFullLine and other common functionality
-	abstract :Handle___(element)
-PreRender:Cursor - (List<element> for a book) -> List<List<element> on a page>
+--[[
+PreRender: List<element for a book> -> pages:List<page:List<element>>
+Render: List<element for a page>, pageInstance -> renders elements to pageInstance
+
+PreRender.new(pageSize, config)
 	NOTE Will probably need more complexity in return value to handle navigation support
 	:FinishAndGetPages()
 Render(..., pageInstance):Cursor - (List<element> for one page) are rendered onto the specified page
@@ -31,20 +31,16 @@ image: left/right lanes & center or nowrap means nothing to either side
 box: text with a border around it
 quote: more margin/padding in addition to potentially a different font
 text
-
-b / i /face/chars (32->126) * sizes * super/sub/normal
-2 * 2 * 36 * 95 * 3 * 3 = 123120
-except may need any possible size, so say we need ~50 sizes instead of 3
-	then total is 2052000
-	except that isn't helpful to do because server needs standard size
-	SO we can just use TextScaled and accept a few TextSize points difference between lines
-
 ]]
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Utilities = ReplicatedStorage.Utilities
 local ObjectPool = require(Utilities.ObjectPool)
-
+local Writer = ReplicatedStorage.Writer
+local PageSpaceTracker = require(Writer.PageSpaceTracker)
 local Format = require(script.Parent.Format)
+
+local Rendering = {}
+
 local startTag = "<%s>"
 local startTagArgs = "<%s %s>"
 local endTag = "</%s>"
@@ -134,7 +130,6 @@ local function generateFormatStringForFormatting(config, format)
 end
 
 local lineHeight = 15 -- (TODO) temporary variable for line height
-local Cursor = {}
 
 local Base = {}
 Base.__index = Base
@@ -162,17 +157,26 @@ function Base:EnsureAtStartOfFullLine()
 	end
 end
 
-local PreRender = setmetatable({}, Base)
-Cursor.PreRender = PreRender
+local PreRender = {}
 PreRender.__index = PreRender
-local base = PreRender.new
-function PreRender.new(pageSpace, config)
-	local self = setmetatable(base(pageSpace:Clone(), config), PreRender)
-	self.pageSpace = pageSpace
-	self.curPage = {} -- List of elements for the current page
-	self.nElements = 0 -- on current page
-	self.pages = {} -- List of pages so far
-	self.nPages = 0
+Rendering.PreRender = PreRender
+function PreRender.All(elements, pageSize, config)
+	local self = PreRender.new(pageSize, config)
+	for _, element in ipairs(elements) do
+		element:Handle(self)
+	end
+	return self:FinishAndGetPages()
+end
+function PreRender.new(pageSize, config)
+	local self = setmetatable({
+		pageSize = pageSize,
+		config = config,
+		tracker = PageSpaceTracker.new(pageSize.X, pageSize.Y),
+		curPage = {}, -- List of elements for the current page
+		nElements = 0, -- on current page
+		pages = {}, -- List of pages so far
+		nPages = 0,
+	}, PreRender)
 	return self
 end
 function PreRender:addPageToPages()
@@ -260,7 +264,7 @@ end, 5)
 
 local Render = setmetatable({}, Base)
 Render.__index = Render
-Cursor.Render = Render
+Rendering.Render = Render
 local base = Render.new
 function Render.new(availSpace, config, pageInstance) -- todo might need offset if render can be for part of a page
 	local self = setmetatable(base(availSpace, config), Render)
@@ -317,4 +321,4 @@ function Render:Finish()
 	self:finishCurrentLabel()
 end
 
-return Cursor
+return Rendering
