@@ -1,7 +1,13 @@
+--[[Elements represent various book-related concepts
+These includes things that can be displayed (ex Text, Image) or modify what is to be displayed (Alignment, Page, Turn)
+]]
+
 local Format = require(script.Parent.Format)
+
+local Elements = {}
 -- Element:Handle implementations should not consider/reference pages, only lines
 --	Some PreRender specific ones (like Page and Turn) will need to and that's fine since they aren't to be passed to Render
-local Elements = {}
+
 local function new(name)
 	local class = {}
 	class.__index = class
@@ -33,7 +39,7 @@ end
 local HLine = new("HLine")
 function HLine.new(char)
 	return setmetatable({
-		Char = char,
+		Line = char or true, -- true indicates solid line
 	}, HLine)
 end
 function HLine:Handle(cursor)

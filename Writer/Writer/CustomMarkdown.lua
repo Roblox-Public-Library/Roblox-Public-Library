@@ -1,14 +1,21 @@
+--[[Converts List<Element> to CustomMarkdown text or vice versa
+.ConvertElements(elements) -> CustomMarkdown text
+.ParseText(customMarkdownText) -> elements
+]]
+
 local Format = require(script.Parent.Format)
 local Colors = require(script.Parent.Colors)
 local Elements = require(script.Parent.Elements)
 local Sizes = require(script.Parent.Sizes)
 
-local CustomMarkdown = {} -- Incrementally converts from elements to text and supports parsing from text into elements.
-CustomMarkdown.__index = CustomMarkdown
-function CustomMarkdown.new()
+local CustomMarkdown = {}
+
+local Converter = {}
+Converter.__index = Converter
+function Converter.new()
 	return setmetatable({
 		prevFormat = {},
-	}, CustomMarkdown)
+	}, Converter)
 end
 local formatSymbols = {
 	{"Bold", "**"},
@@ -16,7 +23,7 @@ local formatSymbols = {
 	{"Underline", "__"},
 	{"Strikethrough", "~~"},
 }
-function CustomMarkdown:HandleText(element)
+function Converter:HandleText(element)
 	local s = {}
 	for _, obj in ipairs(formatSymbols) do
 		local key, symbol = obj[1], obj[2]
@@ -28,7 +35,7 @@ function CustomMarkdown:HandleText(element)
 	self.prevFormat = element.Format
 	return table.concat(s)
 end
-function CustomMarkdown:Finish()
+function Converter:Finish()
 	if not self.prevFormat then return "" end
 	local s = {}
 	for _, obj in ipairs(formatSymbols) do
@@ -39,8 +46,19 @@ function CustomMarkdown:Finish()
 	end
 	return table.concat(s)
 end
+function CustomMarkdown.ConvertElements(elements)
+	local converter = Converter.new()
+	local all = {}
+	for i, element in ipairs(elements) do
+		all[i] = converter:HandleText(element)
+	end
+	all[#all + 1] = converter:Finish()
+	return table.concat(all)
+end
+
 
 -- Parsing
+
 local toggleItalics = function(formatting)
 	formatting.Italics = not formatting.Italics
 end
@@ -57,36 +75,9 @@ end
 local function toggleBold(formatting) formatting.Bold = not formatting.Bold end
 local function toggleUnderline(formatting) formatting.Underline = not formatting.Underline end
 local function toggleStrikethrough(formatting) formatting.Strikethrough = not formatting.Strikethrough end
--- local symbols = {
--- 	-- {Text = "___", Action = function(formatting)
--- 	-- 	formatting.Underline = not formatting.Underline
--- 	-- 	formatting.Italics = not formatting.Italics
--- 	-- end},
--- 	{Text = "__", Action = toggleUnderline},
--- 	{Text = "**", Action = toggleBold},
--- 	{Text = "*", Action = toggleItalics},
--- 	{Text = "_", Action = toggleItalics},
--- 	{Text = "~~", Action = toggleStrikethrough},
--- }
--- local function getNextSymbol(text, startI)
--- 	while true do
--- 		local smallestI, nearestSymbol
--- 		for _, symbol in ipairs(symbols) do
--- 			local i = text:find(symbol.Text, startI, true)
--- 			if i and (not smallestI or i < smallestI) then
--- 				smallestI = i
--- 				nearestSymbol = symbol
--- 			end
--- 		end
--- 		if not smallestI or not isEscaped(text, smallestI) then
--- 			return smallestI, nearestSymbol
--- 		end
--- 		startI = smallestI + 1
--- 	end
--- end
 
 local Parser = {}
--- Parser.__index = function(self, key)
+-- Parser.__index = function(self, key) -- This block is useful for debugging the parser
 -- 	local v = Parser[key]
 -- 	return type(v) == "function"
 -- 		and function(self, ...)
@@ -140,6 +131,10 @@ function Parser:SetFontSize(size)
 	self:FinishTextElement()
 	self.formatting.Size = size
 end
+function Parser:AddHLine(char)
+	self:FinishTextElement()
+	table.insert(self.elements, Elements.HLine.new(char))
+end
 function Parser:GetElements()
 	self:FinishTextElement()
 	return self.elements
@@ -185,7 +180,16 @@ tags.normal = {
 	open = close,
 	close = close,
 }
+tags.line = {
+	open = function(parser, args)
+		if #args > 1 then
+			error("only one argument for hline") -- todo improve (be more helpful - user needs location, what the arguments are, etc)
+		end
+		parser:AddHLine(args[1])
+	end,
+}
 
+-- todo warn instead of error (except for programmer errors) in this file (try to keep going with the parse)
 local actions = {
 	["\\"] = function(parser) -- escape next character no matter what it is
 		local nextIndex = parser.index + 1
@@ -223,8 +227,8 @@ local actions = {
 			-- index is at the first character of the tag (or the '/')
 			local firstIndex = text:find("[^ ]", index)
 			if not firstIndex then
-				print(index, text:sub(1, 20))
-				error("No non-space found at beginning of tag")
+				print(index, text:sub(index, index + 20))
+				error("No non-space found after beginning of tag")
 			end
 			index = firstIndex
 			local closing = text:sub(index, index) == "/"
@@ -232,24 +236,32 @@ local actions = {
 			local tagContentsStart = closing and index + 1 or index
 			local tagContentsEnd, tagContentsEndChar
 			local args
-			repeat -- collect args
+			repeat -- identify the tag name and collect args
 				tagContentsEnd = text:find("[>,;/]", tagContentsStart) -- note: end includes delimiter character (unlike start)
 				if not tagContentsEnd then
 					print(index, text:sub(index, index + 20))
 					error("No end tag detected")
 				end
 				local tagContents = text:sub(tagContentsStart, tagContentsEnd - 1):gsub(" ", ""):lower()
-				local args
 				if args then
+					if closing then
+						print(index, text:sub(index, index + 20))
+						error("Arguments not allowed on tag close")
+					end
 					args[#args + 1] = tagContents
 				else
 					args = {}
 					tagName = tagContents
 				end
 				tagContentsEndChar = text:sub(tagContentsEnd, tagContentsEnd)
+				tagContentsStart = tagContentsEnd + 1 -- this is now the start of the next argument (if tagContentsEndChar is a ';')
 			until tagContentsEndChar ~= ";"
 			parser.index = index
-			;(tags[tagName] or error("No tag with name " .. tostring(tagName)))[closing and "close" or "open"](parser, args)
+			local tag = tags[tagName] or error("No tag with name " .. tostring(tagName))
+			local action = closing
+				and (tag.close or error(("Tag '%s' does not support being closed"):format(tagName)))
+				or (tag.open or error(("Tag '%s' does not have .open defined"):format(tagName)))
+			action(parser, args)
 			if tagContentsEndChar == ">" then
 				index = tagContentsEnd + 1
 				if precedingSpace and text:sub(index, index) == " " then

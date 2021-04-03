@@ -27,7 +27,7 @@ local function assertFormatting(t, formatting, expected, i)
 	end)
 end
 local emptyTable = {}
-local function assertResult(t, result, contentList, formatList)
+local function assertTextResult(t, result, contentList, formatList)
 	t.equals(#result, #contentList, "# elements")
 	formatList = formatList or emptyTable
 	for i, content in ipairs(contentList) do
@@ -36,55 +36,64 @@ local function assertResult(t, result, contentList, formatList)
 		assertFormatting(t, result[i].Format, format, i)
 	end
 end
-local function performTest(name, text, contentList, formatList)
+local function textTest(name, text, contentList, formatList)
 	tests[name] = function()
-		assertResult(t, parse(text), contentList, formatList)
+		assertTextResult(t, parse(text), contentList, formatList)
 	end
 end
-performTest("Format free parse", "text", {"text"})
-performTest("Contains bold", "text **is** here",
+
+textTest("Format free parse", "text", {"text"})
+textTest("Contains bold", "text **is** here",
 	{"text ", "is", " here"},
 	{nil, {Bold = true}, nil})
-performTest("Contains overlapping bold and italics", "text **i_s** here_",
+textTest("Contains overlapping bold and italics", "text **i_s** here_",
 	{"text ", "i", "s", " here"},
 	{nil, {Bold = true}, {Bold = true, Italics = true}, {Italics = true}})
-performTest("all underlined", "__underline__",
+textTest("all underlined", "__underline__",
 	{"underline"},
 	{{Underline = true}})
-performTest("Ignore escaped", "a \\*b\\* c", {"a *b* c"})
-performTest("Ignore multiplication", "x * y * z", {"x * y * z"})
+textTest("Ignore escaped", "a \\*b\\* c", {"a *b* c"})
+textTest("Ignore multiplication", "x * y * z", {"x * y * z"})
 local arial = {Face = "Arial"}
 local red = {Color = "Red"}
 local arialRed = {Face = "Arial", Color = "Red"}
-performTest("Font name", "normal <Arial>arial",
+textTest("Font name", "normal <Arial>arial",
 	{"normal ", "arial"},
 	{nil, arial})
-performTest("Closing arial tag", "<Arial>arial</arial> normal",
+textTest("Closing arial tag", "<Arial>arial</arial> normal",
 	{"arial", " normal"},
 	{arial, nil})
-performTest("Tags condense spaces", "a <Arial> b",
+textTest("Tags condense spaces", "a <Arial> b",
 	{"a ", "b"},
 	{nil, arial})
-performTest("Color", "<red>red text",
+textTest("Color", "<red>red text",
 	{"red text"},
 	{red})
-performTest("Color then add font", "<red>red <arial>arial",
+textTest("Color then add font", "<red>red <arial>arial",
 	{"red ", "arial"},
 	{red, arialRed})
-performTest("Color and font immediately", "<red><arial>red arial",
+textTest("Color and font immediately", "<red><arial>red arial",
 	{"red arial"},
 	{arialRed})
-performTest("Color and font same tag", "<red,arial>red arial",
+textTest("Color and font same tag", "<red,arial>red arial",
 	{"red arial"},
 	{arialRed})
-performTest("End arial not red", "<red,arial>arial</arial> just red",
+textTest("End arial not red", "<red,arial>arial</arial> just red",
 	{"arial", " just red"},
 	{arialRed, red})
-performTest("Change color keep arial", "<red,arial>red <green>still arial",
+textTest("Change color keep arial", "<red,arial>red <green>still arial",
 	{"red ", "still arial"},
 	{arialRed, {Face = "Arial", Color = "Green"}})
-performTest("Font sizes", "<small>small<normal>normal<large>large</large>normal",
-	{"small", "normal", "large", "normal"},
-	{{Size = "Small"}, nil, {Size = "Large"}, nil})
+textTest("Font sizes", "<normal>normal<small>small<large>large</large>normal",
+	{"normal", "small", "large", "normal"},
+	{nil, {Size = "Small"}, {Size = "Large"}, nil})
+tests["Horizontal line"] = function()
+	local result = parse("<line>")
+	t.tablesEqualRecursive(result, {{Line = true}})
+end
+tests["Horizontal line of +s"] = function()
+	local result = parse("<line;+>")
+	t.tablesEqualRecursive(result, {{Line = "+"}})
+end
 
 end
