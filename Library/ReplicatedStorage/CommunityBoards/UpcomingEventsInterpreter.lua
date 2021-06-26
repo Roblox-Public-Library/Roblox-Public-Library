@@ -65,6 +65,7 @@ local ampmToOffset = {
 	pm = 12,
 }
 local newEvents = {} -- new list of events (of both past and future events)
+local customWhenEvents = {} -- newEvents does not contain these at first so that the rest can be sorted by date
 local lastTime = 0
 local now = os.time()
 local localNow = now + localTimeZoneOffset * 3600
@@ -72,7 +73,7 @@ local function eventHasWhen(event)
 	if event.When >= localNow - maxPastSec and event.When + (event.Duration or defaultDuration) <= localNow + maxFutureSec then -- ignore very old or far into the future events
 		if event.When < lastTime then
 			for i = #newEvents, 1, -1 do
-				if newEvents[i].When and newEvents[i].When < event.When then
+				if newEvents[i].When < event.When then
 					table.insert(newEvents, i + 1, event)
 					return
 				end
@@ -80,12 +81,12 @@ local function eventHasWhen(event)
 			table.insert(newEvents, 1, event)
 		else
 			lastTime = event.When
-			newEvents[#newEvents + 1] = event
+			table.insert(newEvents, event)
 		end
 	end
 end
 local function eventHasCustomWhen(event)
-	newEvents[#newEvents + 1] = event
+	table.insert(customWhenEvents, event)
 end
 for i, event in ipairs(events) do
 	Event.Wrap(event)
@@ -125,17 +126,24 @@ for i, event in ipairs(events) do
 		eventHasCustomWhen(event)
 	end
 end
-events = newEvents
 local currentEvents
-local n = #events
-for i, event in ipairs(events) do
+local n = #newEvents
+local numCustomWhen = #customWhenEvents
+for i, event in ipairs(newEvents) do
 	if not event:IsExpired() then
-		currentEvents = table.create(n - i + 1)
-		table.move(events, i, n, 1, currentEvents)
+		currentEvents = table.create(n - i + 1 + numCustomWhen)
+		if numCustomWhen > 0 then
+			table.move(customWhenEvents, 1, numCustomWhen, 1, currentEvents)
+		end
+		table.move(newEvents, i, n, numCustomWhen + 1, currentEvents)
 		break
 	end
 end
-currentEvents = currentEvents or {}
+currentEvents = currentEvents or customWhenEvents
+-- 'events' now becomes "all events", but only newEvents has a sorted order - we want custom when events at the top
+events = table.create(n + numCustomWhen)
+table.move(customWhenEvents, 1, numCustomWhen, 1, events)
+table.move(newEvents, 1, n, numCustomWhen + 1, events)
 
 function Events:GetAllEvents()
 	return events
@@ -150,7 +158,7 @@ function Events:Search(text, includePast, formatTime)
 	local filtered = {}
 	for _, event in ipairs(includePast and events or currentEvents) do
 		if event:ContainsText(text) or formatTime and formatTime(event):lower():find(text, 1, true) then
-			filtered[#filtered + 1] = event
+			table.insert(filtered, event)
 		end
 	end
 	return filtered

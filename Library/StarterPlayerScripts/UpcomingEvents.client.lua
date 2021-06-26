@@ -1,4 +1,4 @@
-local gui = require(script.Parent.Gui.UpcomingEventsGui)
+local gui = require(script.Parent:WaitForChild("Gui"):WaitForChild("UpcomingEventsGui"))
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local remote = ReplicatedStorage.Remotes:WaitForChild("UpcomingEvents")
 local countdown -- in seconds
