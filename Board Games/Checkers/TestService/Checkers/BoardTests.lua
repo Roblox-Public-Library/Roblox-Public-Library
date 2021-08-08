@@ -108,7 +108,7 @@ r.r.r.r.
 ]]
 testMoves("start", startBoard, "Red", v2(1,6),
 	{normal=v2(2,5)},
-	{straightUp=v2(1,5), farRight=v2(4,5), upRightJumpOverNothing=v2(3,3)},
+	{straightUp=v2(1,5), farRight=v2(4,5), upRightJumpOverNothing=v2(3,4)},
 	{normal=start_normal})
 testMoves("no moves", startBoard, "Red", v2(2,7),
 	{},

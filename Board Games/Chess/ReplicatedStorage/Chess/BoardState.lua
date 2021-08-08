@@ -1,9 +1,6 @@
 local v2 = Vector2.new
 local PieceTypes = require(script.Parent.PieceTypes)
-local BoardState = {
-	WhiteKingSquare = v2(5, 1), -- todo remove the need for these
-	BlackKingSquare = v2(5, 8),
-}
+local BoardState = {}
 BoardState.__index = BoardState
 -- BoardState indexing constants
 local lastMove = 9
