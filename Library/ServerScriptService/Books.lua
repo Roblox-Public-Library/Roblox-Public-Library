@@ -67,6 +67,39 @@ local function convertEmptyToAnonymous(authorNames)
 	end
 	return authorNames
 end
+local lineBreakCommands = {
+	["/line"] = true,
+	["/dline"] = true,
+	["/page"] = true,
+	["/turn"] = true,
+}
+local alphaNumeric = {}
+for i = 48, 57 do alphaNumeric[string.char(i)] = true end
+for i = 65, 90 do alphaNumeric[string.char(i)] = true end
+for i = 97, 122 do alphaNumeric[string.char(i)] = true end
+local function processWords(words)
+	local new = {}
+	local secondPrevWasLineBreak = true
+	local prevWasLineBreak = true
+	local prevRepeatedChar
+	for _, v in ipairs(words) do
+		if v == "" then continue end
+		for word in string.gmatch(v, "%S+") do
+			local isLineBreak = lineBreakCommands[word]
+			local firstChar = string.sub(word, 1, 1)
+			local repeatedChar = #word >= 5 and string.match(word, (alphaNumeric[firstChar] and "^" or "^%") .. firstChar .. "+$") and firstChar
+			if prevRepeatedChar and isLineBreak and secondPrevWasLineBreak then
+				new[#new] = "/hline" .. prevRepeatedChar
+			end
+			table.insert(new, word)
+			secondPrevWasLineBreak, prevWasLineBreak, prevRepeatedChar = prevWasLineBreak, isLineBreak, repeatedChar
+		end
+	end
+	if prevRepeatedChar and secondPrevWasLineBreak then -- last word is a repeated character
+		words[#words] = "/hline" .. prevRepeatedChar
+	end
+	return new
+end
 function Books:Register(book, genres, cover, title, customAuthorLine, authorNames, authorIds, authorsNote, publishDate, words, librarian)
 	BookChildren.AddTo(book)
 
@@ -122,7 +155,7 @@ function Books:Register(book, genres, cover, title, customAuthorLine, authorName
 			idToBook[id] = bookData
 		end
 		books[#books + 1] = bookData
-		bookModelToContent[book] = {cover, authorsNote, words}
+		bookModelToContent[book] = {cover, authorsNote, processWords(words)}
 	end
 end
 function Books:GetCount() return #books end

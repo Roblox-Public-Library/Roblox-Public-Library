@@ -1,4 +1,6 @@
+local ContentProvider = game:GetService("ContentProvider")
 local TextService = game:GetService("TextService")
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Books = require(ReplicatedStorage.BooksClient)
 local musicClientScript = ReplicatedStorage:FindFirstChild("MusicClient")
@@ -18,105 +20,108 @@ else -- workshop support
 end
 
 local UnlimitedTextSpace = Vector2.new(32767, 32767)
-local function getFittingString(text, textSize, font, textWidth, availableTextWidth)
-	--	Returns the index of the character to keep
-	--[[Algorithm considerations:
-	- Don't measure sections of characters repeatedly if possible
-	- Ideally, don't use "..." in the middle of a word (ie don't separate a-Z characters; all others OK)
-	- At minimum should show the ellipsis and no other text (ex if only 1 pixel to work with)
-	]]
+local function getFittingString(text, textSize, font, textWidth, availableTextWidth, minFittingChars, minFittingCharsWidth)
+	--	Returns textThatFits, remainingText (if any)
+	--		Note that at least one character will always be returned, even if it doesn't fit
+	--	textSize: as in label.TextSize
+	--	textWidth: how many pixels wide `text` is
+	--	availableTextWidth: in pixels
+	--	minFittingChars: optional number of characters that are known to fit (defaults to 0, the minimum characters returned)
+	--	minFittingCharsWidth: if minFittingChars is provided, must be the width of minFittingChars
+	if textWidth <= availableTextWidth then return text end
 	--[[Algorithm:
-	1. Get estimate based on math.floor(truncatedLength / size * availableTextWidth)
-	2. If too high (doesn't fit), max possible error of estimate is +- (1/(min char width) - 1/(max char width))*availableTextWidth
-		so subtract that value from estimate to get lower bound
-	3. If original estimate is within bounds, it is the lower bound and the upper bound is min(#text, estimate + maxError) [note: maxError removed]
-	4. Now that we have upper/lower bounds, use bisection method (split search space in half) until we get perfect width.
-	5. Do not return a truncation in the middle of a word. Find the nearest non-letter-character <= index and return that instead (but abandon this if you need to skip more than 8 characters)
+	1. Get estimate of what fits and measure it
+	2. Lower the search area based on the estimate width until we get perfect width
+	3. Backtrack if needed so we don't split up the middle of a word, unless no non-letter-character is within 8 characters
 	]]
-	local estimate = math.floor(#text / textWidth * availableTextWidth) --ex, if text = "12345", textWidth = 20, textWidth = 15, estimate is floor(5/20*15)=floor(3.75)
-	local lower, upper -- bounds of search space in terms of # characters to display. 'lower' must fit, 'upper' must not fit
-	local lowerWidth -- width of text:sub(1, lower)
-	local estimateText = text:sub(1, estimate) -- note: this variable is not always the full estimate text
-	local estimateWidth = TextService:GetTextSize(estimateText, textSize, font, UnlimitedTextSpace).X
-	if estimateWidth > availableTextWidth then
-		lower = estimate
-		lower = lower < 0 and 0 or lower
-		lowerWidth = TextService:GetTextSize(text:sub(1, lower), textSize, font, UnlimitedTextSpace).X
-		upper = estimate
-	elseif estimateWidth < availableTextWidth then
-		lower = estimate
-		lowerWidth = estimateWidth
-		upper = estimate
-		upper = upper > #text and #text or upper
-	else -- estimate is correct
-		lower = estimate
-		upper = estimate + 1
+	local lower, upper -- the minimum/maximum number of characters that might fit
+	local smallChars, smallWidth -- smallest # of chars for which we have a measurement (but as close to 'lower' as possible)
+	local largeChars, largeWidth -- same idea
+	local numChars = #text
+	if minFittingChars then
+		lower, smallChars, smallWidth = minFittingChars < 1 and 1 or minFittingChars, minFittingChars, minFittingCharsWidth or error("minFittingCharsWidth is not optional if minFittingChars is provided", 2)
+	else
+		lower, smallChars, smallWidth = 1, 0, 0
 	end
-	-- Bisect until no gap between lower and upper (ie lower + 1 == upper)
-	while lower + 1 < upper do
-		estimate = lower + math.ceil((upper - lower) ^ 0.5) -- empirically found to be the most efficient algorithm considering how expense with GetTextSize works
-		estimate = estimate == upper and upper - 1 or estimate -- make sure it's progressing
-		estimateText = text:sub(lower + 1, estimate)
-		estimateWidth = lowerWidth + TextService:GetTextSize(estimateText, textSize, font, UnlimitedTextSpace).X
-		if estimateWidth < availableTextWidth then
-			lower, lowerWidth = estimate, estimateWidth
-		elseif estimateWidth > availableTextWidth then
-			upper = estimate
-		else
-			lower = estimate
+	upper = numChars - 1
+	largeChars, largeWidth = numChars, textWidth
+	while lower < upper do
+		local widthAvailable = availableTextWidth - smallWidth
+		local estimate = lower + math.floor(widthAvailable / (largeWidth - smallWidth) * (largeChars - smallChars))
+		-- we want estimate to be within the valid values but never to retest a measurement
+		estimate = estimate <= lower and (lower == smallChars and lower + 1 or lower)
+			or estimate >= upper and (upper == largeChars and upper - 1 or upper)
+			or estimate
+		-- Note: original estimate calculation code was `estimate = math.clamp(lower + math.ceil((upper - lower) ^ 0.5), lower, upper) -- empirically found to be the most efficient algorithm considering how expense with GetTextSize works` - but note that in the original algorithm it calculates the potential error based on the specific font used and other details
+		-- 	Therefore, it may be more efficient to always subtract one from the estimate before clamping, or even to lower it by a fraction (but Roblox improved efficiency in many areas since that original testing was done)
+		local estimateWidth = TextService:GetTextSize(text:sub(lower + 1, lower + estimate), textSize, font, UnlimitedTextSpace).X
+		if estimateWidth > availableTextWidth then
+			upper, largeChars, largeWidth = estimate - 1, estimate, estimateWidth
+		elseif estimateWidth < availableTextWidth then
+			if estimate == upper then
+				lower = estimate
+				break
+			end
+			lower, smallChars, smallWidth = estimate + 1, estimate, estimateWidth
+		else -- Estimate was the perfect width
+			lower += estimate
 			break
 		end
 	end
-	-- This part disabled since this will only be called for whole words:
-	-- --look for non-letter-characters (don't split in the middle of a word); only try for 8 characters
-	-- for i = lower, lower - 8 >= 1 and lower - 8 or 1, -1 do
-	-- 	if not text:sub(i, i):match("%w") then
-	-- 		lower = i
-	-- 		break
-	-- 	end
-	-- end
+	lower = text:sub(math.max(lower - 20, 1), lower):find("%W%w+$") or lower -- if the final letter is a word character, don't break up the word unless it's a really long word
 	return text:sub(1, lower), text:sub(lower + 1)
+end
+local function fitStringToLabel(text, label)
+	--	If the current line already has content, appends text to it with a space between
+	--	Returns the text that didn't fit (if any)
+	local prevText = label.Text
+	local prevBounds = label.TextBounds
+	label.Text = prevText == "" and text or prevText .. " " .. text
+	if label.TextFits then return end
+	label.Text, text = getFittingString(label.Text, label.TextSize, label.Font, label.TextBounds.X, label.AbsoluteSize.X, #prevText, prevBounds.X)
+	return text
 end
 
 local mainFrame = script.Parent
-local specialScreen = mainFrame.Parent:WaitForChild("SpecialScreen")
-local bottomFrame = mainFrame:WaitForChild("BottomFrame")
+-- Wait for all descendants to be added so no need for WaitForChild
+local target = #game.StarterGui.BookGui.MainFrame:GetDescendants()
+while #mainFrame:GetDescendants() < target do wait() end
+
+local specialScreen = mainFrame.Parent.SpecialScreen
+local bottomFrame = mainFrame.BottomFrame
 
 local SFX = ReplicatedStorage.SFX
 local initialSilenceDuration = 5 -- for GoCrazy
 
-local pagePair = 1
-local numPagePairs = 1
-local page = 3 -- The current frame index while editing; becomes the maximum frame count for a book once it's been processed
-local line = 1
-local words = {}
-local numWords
-local lastWord
-local kill = false
-local leftPage, rightPage -- The frame/page that is visible on the left/right side
 local fontSize
 local frames = {}
 for i = 1, 4 do
-	frames[i] = mainFrame:WaitForChild("Pg" .. i)
+	frames[i] = mainFrame["Pg" .. i]
 end
-local target = #game.StarterGui.BookGui.MainFrame:GetDescendants()
-while #mainFrame:GetDescendants() < target do wait() end
 local leftPageTemplate = frames[3]:Clone()
-leftPageTemplate.Visible = false
+leftPageTemplate.Visible = true
 local rightPageTemplate = frames[4]:Clone()
-rightPageTemplate.Visible = false
+rightPageTemplate.Visible = true
+local page = #frames -- The current frame index while processing a book, otherwise it equals #pages
+local line = 1 -- Only used while processing a book
+local kill = false
+local pagePair = 1
+local numPagePairs = 1
+local leftPage, rightPage -- The frame/page that is visible on the left/right side
 local function getFrame(page)
 	local frame = frames[page]
 	if not frame then
-		frame = (page % 2 == 1 and leftPageTemplate or rightPageTemplate):Clone()
-		frame.Name = "Pg" .. page
-		for _, v in ipairs(frame:GetChildren()) do
-			if v:IsA("TextLabel") then
-				v.TextSize = fontSize
+		for framePage = #frames + 1, page do -- Sometimes commands skip over pages and leave them empty, but the rest of the script assumes we have a continuous list of frames with no gaps, so ensure we generate all the pages we need
+			frame = (framePage % 2 == 1 and leftPageTemplate or rightPageTemplate):Clone()
+			frame.Name = "Pg" .. framePage
+			for _, v in ipairs(frame:GetChildren()) do
+				if v:IsA("TextLabel") then
+					v.TextSize = fontSize
+				end
 			end
+			frame.Parent = mainFrame
+			frames[framePage] = frame
 		end
-		frame.Parent = mainFrame
-		frames[page] = frame
 	end
 	return frame
 end
@@ -178,32 +183,105 @@ local function advanceLine(amount)
 	end
 end
 local function onEmptyPage()
-	return line == 1 and getFrame(page)["1"].Text == ""
+	return line == 1 and (not frames[page] or frames[page]["1"].Text == "")
+end
+local function onEmptyLine()
+	return not frames[page] or frames[page][tostring(line)].Text == ""
+end
+local function onLeftPage()
+	return page % 2 == 1
+end
+local function imageFitsOnPage(imageLength)
+	return line == 1 or (onEmptyLine() and line or line + 1) + imageLength - 1 <= 20
+end
+local function canPutImageOnRightWithoutTurningPage(imageLength) -- returns true if can place an image on the right page without requiring the reader to turn past a blank page
+	return onLeftPage() or imageFitsOnPage(imageLength)
+end
+local loadedImages = {} -- [image] = success (so can be false)
+local loadingImageWaitingThreads = {} -- for each image, the list of threads to resume when it's done loading (but it's nil if the image isn't being loaded)
+local errMsg = Instance.new("TextLabel") do
+	errMsg.Text = "Image failed to load"
+	errMsg.Size = UDim2.new(1, 0, 1, 0)
+	errMsg.TextScaled = true
+	errMsg.BackgroundTransparency = 1
+	errMsg.TextColor3 = Color3.fromRGB(106, 0, 0)
+	errMsg.ZIndex = 5
+	local constraint = Instance.new("UITextSizeConstraint")
+	constraint.MaxTextSize = 20
+	constraint.Parent = errMsg
+end
+local function preloadImageOnLabelAsync(image, label)
+	label.BackgroundTransparency = 0.8
+	local function imageLabelLoaded(success)
+		if success then
+			label.BackgroundTransparency = 1
+			label.Image = image
+		else
+			errMsg:Clone().Parent = label
+		end
+	end
+	if loadedImages[image] ~= nil then
+		imageLabelLoaded(loadedImages[image])
+		return
+	end
+	if loadingImageWaitingThreads[image] then
+		table.insert(loadingImageWaitingThreads[image], coroutine.running())
+		imageLabelLoaded(coroutine.yield())
+	else
+		local list = {}
+		loadingImageWaitingThreads[image] = list
+		ContentProvider:PreloadAsync({image}, function(_, status)
+			loadingImageWaitingThreads[image] = nil
+			local success = status == Enum.AssetFetchStatus.Success
+			loadedImages[image] = success
+			imageLabelLoaded(success)
+			for _, thread in ipairs(list) do
+				coroutine.resume(thread, success)
+			end
+		end)
+	end
 end
 local function displayImage(imageLength, image)
 	--	Does not position the image or handle page/line counts
 	local label = Instance.new("ImageLabel")
 	label.Size = UDim2.new(1, 0, 0.05 * imageLength, 0)
-	label.Image = image
 	label.ZIndex = 5
-	label.BackgroundTransparency = 1
 	label.BorderSizePixel = 0
+	task.spawn(preloadImageOnLabelAsync, image, label)
 	label.Parent = getFrame(page)
 	return label
 end
 local function displayImageOnLine(imageLength, image)
-	if getFrame(page)[tostring(line)].Text ~= "" then
+	if not onEmptyLine() then
 		advanceLine()
 	end
-	if line > 1 and line + imageLength - 1 > 20 then
+	if not imageFitsOnPage(imageLength) then
 		advancePage()
 	end
 	local label = displayImage(imageLength, image)
 	label.Position = UDim2.new(0, 0, 0.05 * line - 0.05, 0)
-	if not lastWord then
-		advanceLine(imageLength)
-	end
+	advanceLine(imageLength)
 	return label
+end
+local function fitStringToLine(text)
+	--	If the current line already has content, appends text to it with a space between
+	--	Returns the text that didn't fit or nil if it all fit
+	return fitStringToLabel(text, getFrame(page)[tostring(line)])
+end
+local function fitStringToLineAllOrNothing(text)
+	--	If the current line already has content, appends text to it with a space between, but only if all of text fits
+	--	If the current line is empty, acts like fitStringToLine
+	--	In either case, text not added will be returned (if there is any)
+	local frame = getFrame(page)
+	local label = frame[tostring(line)]
+	if label.Text == "" then
+		return fitStringToLabel(text, label)
+	end
+	local prevText = label.Text
+	label.Text = prevText .. " " .. text
+	if label.TextFits then return end
+	label.Text = prevText
+	return text
 end
 
 local ratio = 8.5 / 11
@@ -211,11 +289,60 @@ local function sizeMainFrame()
 	mainFrame.Size = UDim2.new(UDim.new(0, mainFrame.AbsoluteSize.Y * ratio * 2 + 32), mainFrame.Size.Y) -- * 2 because there are 2 pages and + 12 due to space between pages in middle of screen and + 20 due to page margins (5 on each side * 2 pages)
 end
 
-local function processBook()
-	page = 3
-	line = 1
-	kill = false
+local function colorsSimilar(a, b)
+	return math.abs(a.R - b.R) < 0.2
+		and math.abs(a.G - b.G) < 0.2
+		and math.abs(a.B - b.B) < 0.2
+end
+local black = Color3.new()
+local white = Color3.new(1, 1, 1)
+local function oppositeBlackWhite(c)
+	return (c.R > 0.5 or c.G > 0.5 or c.B > 0.5) and black or white
+end
+local function handleStrokeColor(textColor, strokeColor)
+	return colorsSimilar(textColor, strokeColor)
+		and oppositeBlackWhite(textColor)
+		or strokeColor
+end
+
+local originalMainFramePosition = mainFrame.Position
+local function getWordsFromBookWords(bookWords)
+	local words = {}
+	for _, v in ipairs(bookWords) do
+		if v ~= "" then
+			for word in string.gmatch(v, "%S+") do
+				table.insert(words, word)
+			end
+		end
+	end
+	return words
+end
+
+local open = Instance.new("BindableFunction")
+open.Name = "OpenBook"
+open.Parent = ReplicatedStorage
+local invokeNum = 0
+open.OnInvoke = function(model, cover, authorsNote, bookWords)
+	SFX.BookOpen:Play()
+	local book = Books:FromObj(model)
+	local titleTextColor = model.TitleColor.Value
+	local titleStrokeColor = handleStrokeColor(titleTextColor, model.TitleOutlineColor.Value)
+	events.bookOpened:Fire()
+	mainFrame.Position = UDim2.new(-2, 0, 0, 0) -- Put it off screen while we load it
 	sizeMainFrame()
+	mainFrame.Visible = true
+	mainFrame.Pg1.Cover.Image = cover
+	mainFrame.Pg1.BackgroundColor3 = model.Color
+	mainFrame.Pg2.Title.Text = book.Title
+	mainFrame.Pg2.Title.TextColor3 = titleTextColor
+	mainFrame.Pg2.Title.TextStrokeColor3 = titleStrokeColor
+	mainFrame.Pg2.Author.Text = "By: " .. book.AuthorLine
+	mainFrame.Pg2.Author.TextColor3 = titleTextColor
+	mainFrame.Pg2.Author.TextStrokeColor3 = titleStrokeColor
+	mainFrame.Pg2.PublishedOn.Text = "Published On: " .. book.PublishDate
+	mainFrame.Pg2.Librarian.Text = "Librarian: " .. book.Librarian
+	mainFrame.Pg2.AuthorsNote.Text = authorsNote
+
 	fontSize = (mainFrame.AbsoluteSize.Y / 20) * 0.6
 	for i = 3, #frames do
 		for _, w in ipairs(frames[i]:GetChildren()) do
@@ -228,85 +355,100 @@ local function processBook()
 		end
 		frames[i].Visible = true -- Ensure sizes are updated
 	end
+	local words = getWordsFromBookWords(bookWords)
+	local numWords = #words
+	page = 3
+	line = 1
+	kill = false
 	for i, v in ipairs(words) do
-		lastWord = i == numWords
-		if v == "/next" or v == "/line" then
-			advanceLine()
-		elseif v == "/dline" then
-			advanceLine(2)
-		elseif v == "/page" then
-			advancePage()
-		elseif v == "/kill" then
-			kill = true
-		elseif v == "/turn" then
-			advancePage(page % 2 == 0 and 1 or 2)
-		elseif string.sub(v, 1, 10) == "/fillImage" then -- Image Turn Function
-			if page % 2 == 1 or onEmptyPage() then
-				if page % 2 == 1 then
-					advancePage()
-				end
-				local imageLength = tonumber(string.sub(v, 11, 12))
-				local image = string.sub(v, 13)
-				displayImage(imageLength, image)
-			end
-			if not lastWord then
+		local isText
+		if string.sub(v, 1, 1) == "/" then
+			-- Note: In the if/elseif branches below, related commands are grouped together and otherwise sorted based on approximate usage frequency (but with quick-to-check commands like "/line" first, except for "/kill", which is put last as that's only used in one book).
+			if v == "/line" then
+				advanceLine()
+			elseif v == "/dline" then
+				advanceLine(2)
+			elseif v == "/page" then
 				advancePage()
-			end
-		elseif string.sub(v, 1, 9) == "/endImage" then
-			if lastWord and (page % 2 == 1 or onEmptyPage()) then
-				if page % 2 == 1 then
-					advancePage()
-				end
-				local imageLength = tonumber(string.sub(v, 10, 11))
-				local image = string.sub(v, 12)
-				displayImage(imageLength, image)
-			end
-		elseif string.sub(v, 1, 6) == "/image" then
-			local imageLength = math.min(20, tonumber(string.sub(v, 7, 8)))
-			local image = string.sub(v, 9)
-			displayImageOnLine(imageLength, image)
-		elseif string.sub(v, 1, 12) == "/retainImage" then
-			local imageLength = math.min(15, tonumber(string.sub(v, 13, 14)))
-			local image = string.sub(v, 15)
-			local label = displayImageOnLine(imageLength, image)
-			local sizeY = label.AbsoluteSize.Y
-			label.Size = UDim2.new(0, sizeY, 0.05 * imageLength, 0)
-			label.Position = UDim2.new(0.5, -sizeY / 2, 0.05 * line - 0.05, 0)
-		else -- Text
-			local textLeft = v
-			while true do
-				local frame = getFrame(page)
-				local label = frame[tostring(line)]
-				local prevText = label.Text
-				if prevText == "" then
-					label.Text = textLeft
-					if label.TextFits then
-						break
-					else
-						label.Text, textLeft = getFittingString(textLeft, label.TextSize, label.Font, label.TextBounds.X, label.AbsoluteSize.X)
-						textLeft = textLeft:match("^ *(.+)")
-						if not textLeft then
-							break
+			elseif v == "/turn" then
+				advancePage(onLeftPage() and 2 or 1)
+			elseif string.sub(v, 1, 6) == "/image" then
+				local imageLength = math.min(20, tonumber(string.sub(v, 7, 8)))
+				local image = string.sub(v, 9)
+				displayImageOnLine(imageLength, image)
+			elseif string.sub(v, 1, 12) == "/retainImage" then
+				local imageLength = math.min(15, tonumber(string.sub(v, 13, 14)))
+				local image = string.sub(v, 15)
+				local startLine = line
+				local label = displayImageOnLine(imageLength, image)
+				local sizeY = label.AbsoluteSize.Y
+				label.Size = UDim2.new(0, sizeY, 0.05 * imageLength, 0)
+				label.Position = UDim2.new(0.5, -sizeY / 2, 0.05 * startLine - 0.05, 0)
+			elseif string.sub(v, 1, 9) == "/endImage" then
+				if i == numWords then
+					local imageLength = tonumber(string.sub(v, 10, 11))
+					if canPutImageOnRightWithoutTurningPage(imageLength) then
+						if onLeftPage() then
+							advancePage()
 						end
-					end
-				else
-					label.Text = prevText .. " " .. textLeft
-					if label.TextFits then
-						break
-					else
-						label.Text = prevText
-						advanceLine()
+						local image = string.sub(v, 12)
+						displayImage(imageLength, image)
 					end
 				end
+			elseif string.sub(v, 1, 10) == "/fillImage" then
+				local imageLength = tonumber(string.sub(v, 11, 12))
+				if canPutImageOnRightWithoutTurningPage(imageLength) then
+					if onLeftPage() then
+						advancePage()
+					end
+					local image = string.sub(v, 13)
+					displayImage(imageLength, image)
+				end
+				advancePage()
+			elseif string.sub(v, 1, 6) == "/hline" then
+				if not onEmptyLine() then
+					advanceLine()
+				end
+				fitStringToLine(string.rep(string.sub(v, 7, 7), 120))
+			elseif v == "/kill" then
+				kill = true
+			else
+				isText = true
+			end
+		else
+			isText = true
+		end
+		if isText then
+			local textLeft = fitStringToLineAllOrNothing(v)
+			while textLeft do
+				advanceLine()
+				textLeft = fitStringToLine(textLeft)
 			end
 		end
 	end
-	numPagePairs = math.ceil(page / 2)
-	for i = 3, #frames do
-		frames[i].Visible = false
+	if onEmptyPage() then
+		page -= 1
 	end
-	leftPage, rightPage = nil, nil
-	setPagePair(1)
+	numPagePairs = math.ceil(page / 2)
+
+	-- Force update of frame positions/sizes (Roblox bug workaround)
+	local correctSize = mainFrame.Size
+	mainFrame.Size = UDim2.new(UDim.new(0, correctSize.X.Offset - 1), correctSize.Y)
+
+	-- if we've started processing another book, don't restore the gui (using invokeNum to keep track)
+	invokeNum += 1
+	local num = invokeNum
+	task.spawn(function() -- This is a work-around for how Roblox doesn't position/size things correctly sometimes
+		wait() -- Note: Heartbeat:Wait() is not long enough
+		if num ~= invokeNum then return end
+		mainFrame.Size = correctSize
+		for i = 3, #frames do
+			frames[i].Visible = false
+		end
+		leftPage, rightPage = nil, nil
+		setPagePair(1)
+		mainFrame.Position = originalMainFramePosition -- Restore it to correct position now that everything has the correct size
+	end)
 end
 
 bottomFrame.Minus.Activated:Connect(function()
@@ -323,10 +465,9 @@ bottomFrame.Plus.Activated:Connect(function()
 end)
 
 bottomFrame.X.Activated:Connect(function()
-	page = 1
-	line = 1
+	SFX.BookClose:Play()
 	mainFrame.Visible = false
-	for i = 3, #frames do
+	for i = 3, page do
 		for _, w in ipairs(frames[i]:GetChildren()) do
 			if w:IsA("ImageLabel") then
 				w:Destroy()
@@ -335,8 +476,9 @@ bottomFrame.X.Activated:Connect(function()
 			end
 		end
 	end
+	page = 1
+	line = 1
 	events.bookClosed:Fire()
-	SFX.BookClose:Play()
 	if kill then
 		kill = false
 		music:GoCrazy(initialSilenceDuration)
@@ -358,62 +500,8 @@ bottomFrame.X.Activated:Connect(function()
 	end
 end)
 
-local function colorsSimilar(a, b)
-	return math.abs(a.R - b.R) < 0.2
-		and math.abs(a.G - b.G) < 0.2
-		and math.abs(a.B - b.B) < 0.2
-end
-local black = Color3.new()
-local white = Color3.new(1, 1, 1)
-local function oppositeBlackWhite(c)
-	return (c.R > 0.5 or c.G > 0.5 or c.B > 0.5) and black or white
-end
-local function handleStrokeColor(textColor, strokeColor)
-	return colorsSimilar(textColor, strokeColor)
-		and oppositeBlackWhite(textColor)
-		or strokeColor
-end
-
-local open = Instance.new("BindableFunction")
-open.Name = "OpenBook"
-open.Parent = ReplicatedStorage
-open.OnInvoke = function(model, cover, authorsNote, bookWords)
-	local book = Books:FromObj(model)
-	local titleTextColor = model.TitleColor.Value
-	local titleStrokeColor = handleStrokeColor(titleTextColor, model.TitleOutlineColor.Value)
-	events.bookOpened:Fire()
-	words = {}
-	for _, v in ipairs(bookWords) do
-		if v ~= "" then
-			for word in string.gmatch(v, "%S+") do
-				table.insert(words, word)
-			end
-		end
-	end
-	numWords = #words
-	mainFrame.Pg1.Cover.Image = cover
-	mainFrame.Pg1.BackgroundColor3 = model.Color
-	mainFrame.Pg2.Title.Text = book.Title
-	mainFrame.Pg2.Title.TextColor3 = titleTextColor
-	mainFrame.Pg2.Title.TextStrokeColor3 = titleStrokeColor
-	mainFrame.Pg2.Author.Text = "By: "..book.AuthorLine
-	mainFrame.Pg2.Author.TextColor3 = titleTextColor
-	mainFrame.Pg2.Author.TextStrokeColor3 = titleStrokeColor
-	mainFrame.Pg2.PublishedOn.Text = "Published On: "..book.PublishDate
-	mainFrame.Pg2.Librarian.Text = "Librarian: "..book.Librarian
-	mainFrame.Pg2.AuthorsNote.Text = authorsNote
-	SFX.BookOpen:Play()
-	mainFrame.Visible = true
-	processBook()
-	-- Force update of frame sizes (Roblox bug workaround)
-	local correctSize = mainFrame.Size
-	mainFrame.Size = UDim2.new(UDim.new(0, correctSize.X.Offset - 1), correctSize.Y)
-	wait() -- Note: Heartbeat:Wait() is not long enough
-	mainFrame.Size = correctSize
-end
-
 sizeMainFrame()
 mainFrame.Visible = false
-mainFrame:WaitForChild("BGL").Visible = true
-mainFrame:WaitForChild("BGR").Visible = true
-mainFrame:WaitForChild("BottomFrame").Visible = true
+mainFrame.BGL.Visible = true
+mainFrame.BGR.Visible = true
+mainFrame.BottomFrame.Visible = true
