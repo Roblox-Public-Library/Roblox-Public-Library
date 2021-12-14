@@ -1,6 +1,17 @@
+local parent = script.Parent
+local ThemePartsData = require(parent.ThemePartsData)
+local MenuOption = require(parent.PluginUtility.MenuOption)
+
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local ServerStorage = game:GetService("ServerStorage")
 local Selection = game:GetService("Selection")
+
+local function undoable(desc, fn)
+	game:GetService("ChangeHistoryService"):SetWaypoint("Before " .. desc)
+	local success, msg = xpcall(fn, function(msg) return debug.traceback(msg, 2) end)
+	game:GetService("ChangeHistoryService"):SetWaypoint(desc)
+	if not success then error(msg) end
+end
 
 local function handleVerticalScrollingFrame(sf)
 	--	Handles setting the CanvasSize for a vertical ScrollingFrame ('sf')
@@ -9,7 +20,7 @@ local function handleVerticalScrollingFrame(sf)
 	local layout = sf:FindFirstChildWhichIsA("UIGridStyleLayout") or error("No UIGridStyleLayout in " .. tostring(sf))
 	local padding = sf:FindFirstChildWhichIsA("UIPadding")
 	local function update()
-		sf.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + (padding and padding.Top.Offset + padding.Bottom.Offset or 0))
+		sf.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + (padding and padding.PaddingTop.Offset + padding.PaddingBottom.Offset or 0))
 	end
 	update()
 	return layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(update)
@@ -27,7 +38,7 @@ local widgetInfo = DockWidgetPluginGuiInfo.new(
 local widget = plugin:CreateDockWidgetPluginGui("Main", widgetInfo)
 widget.Name = "Theme Editor"
 widget.Title = "Theme Editor"
-local widgetFrame = script.Parent.Widget:Clone()
+local widgetFrame = parent.Widget:Clone()
 widgetFrame.Parent = widget
 local considerStartup -- defined below
 
@@ -48,25 +59,31 @@ local editor
 local currentTheme
 local selectedTheme
 local internalSelectedTheme -- current client, not objectvalue
-local function randomThemeColor(parent)
-	local color = Instance.new("Color3Value")
-	color.Name = "Theme Color"
+local function getRandomThemeColor()
 	local v
 	repeat
 		v = Color3.new(math.random(), math.random(), math.random())
 	until v.R + v.G + v.B > 0.4
-	color.Value = v
+	return v
+end
+local function createThemeColor(color, parent)
+	local color = Instance.new("Color3Value")
+	color.Name = "Theme Color"
+	color.Value = color
 	color.Parent = parent
 	return color
 end
+local function createRandomThemeColor(parent)
+	return createThemeColor(getRandomThemeColor(), parent)
+end
 
-local function getDefaultTheme(onCreated)
+local function getDefaultTheme(onCreated) : Folder
 	local defaultTheme = editor:FindFirstChild("Default") or editor:FindFirstChildOfClass("Folder")()
 	if not defaultTheme then -- No themes
 		defaultTheme = Instance.new("Folder")
 		defaultTheme.Name = "Default"
 		defaultTheme.Parent = editor
-		randomThemeColor(defaultTheme)
+		createRandomThemeColor(defaultTheme)
 		if onCreated then
 			onCreated()
 		end
@@ -102,21 +119,21 @@ local function installFinish(wasInstalled) -- called when user installs or when 
 	end
 	installFinishedObj:Fire()
 end
-local function getCurrentTheme()
+local function getCurrentTheme() : Folder?
 	--	Returns currentTheme.Value unless it points to a deleted/nil theme in which case it returns nil
 	if currentTheme.Value and not currentTheme.Value.Parent then
 		currentTheme.Value = nil
 	end
 	return currentTheme.Value
 end
-local function getSelectedTheme(onCreated)
+local function getSelectedTheme(onCreated) : Folder
 	--	Returns selectedTheme.Value unless it points to a deleted/nil theme in which case it fixes it
 	if not selectedTheme.Value or not selectedTheme.Value.Parent then
 		selectedTheme.Value = getCurrentTheme() or getDefaultTheme(onCreated)
 	end
 	return selectedTheme.Value
 end
-local function getInternalSelectedTheme(onCreated)
+local function getInternalSelectedTheme() : Folder?
 	if not internalSelectedTheme or not internalSelectedTheme.Parent then
 		internalSelectedTheme = nil
 	end
@@ -128,7 +145,7 @@ widgetFrame.InstallButton.MouseButton1Click:Connect(function()
 	editor = Instance.new("Folder")
 	editor.Name = "Theme Editor"
 	editor.Parent = ServerStorage
-	local readme = script.Parent.Instructions:Clone()
+	local readme = parent.Instructions:Clone()
 	readme.Parent = editor
 	plugin:OpenScript(readme)
 	setInstalled(true)
@@ -138,26 +155,26 @@ widgetFrame.InstallButton.MouseButton1Click:Connect(function()
 end)
 
 local props = {"Material", "Color", "Transparency", "Reflectance"}
-local function matchWorkspaceToTheme(theme, undoWaypointName)
+local function matchWorkspaceToTheme(theme)
 	--	theme:Folder
-	ChangeHistoryService:SetWaypoint("Before apply " .. theme.Name .. " to workspace")
-	local nameToPart = {}
-	for i, part in ipairs(theme:GetChildren()) do
-		nameToPart[part.Name] = part
-	end
+	undoable("Apply " .. theme.Name .. " to workspace", function()
+		local nameToPart = {}
+		for i, part in ipairs(theme:GetChildren()) do
+			nameToPart[part.Name] = part
+		end
 
-	for i, child in ipairs(workspace:GetDescendants()) do
-		if child:IsA("BasePart") then
-			local part = nameToPart[child.Name]
-			if part then
-				for _, prop in ipairs(props) do
-					child[prop] = part[prop]
+		for i, child in ipairs(workspace:GetDescendants()) do
+			if child:IsA("BasePart") then
+				local part = nameToPart[child.Name]
+				if part then
+					for _, prop in ipairs(props) do
+						child[prop] = part[prop]
+					end
 				end
 			end
 		end
-	end
-	currentTheme.Value = theme
-	ChangeHistoryService:SetWaypoint("Apply " .. theme.Name .. " to workspace")
+		currentTheme.Value = theme
+	end)
 end
 
 local Studio = settings().Studio
@@ -177,87 +194,12 @@ local function disconnectList(list)
 	end
 end
 
-local ThemePartsData = {}
-ThemePartsData.__index = ThemePartsData
-function ThemePartsData.new(folder)
-	--	Manages parts within a theme; you can add parts to it with duplicate/non unique (in name) parts not being added
-	local nameToPart = {}
-	local self
-	local function registerObjIfPart(obj)
-		if obj:IsA("BasePart") then
-			self:registerPart(obj)
-		end
-	end
-	local function unregisterObjIfPart(obj)
-		if obj:IsA("BasePart") then
-			self:unregisterPart(obj)
-		end
-	end
-	self = setmetatable({
-		nameToPart = nameToPart, --[partName][part] = connection to part name being changed
-		folder = folder,
-		cons = {
-			folder.DescendantAdded:Connect(registerObjIfPart),
-			folder.DescendantRemoving:Connect(unregisterObjIfPart),
-		},
-	}, ThemePartsData)
-	for _, obj in ipairs(folder:GetDescendants()) do
-		registerObjIfPart(obj)
-	end
-	return self
-end
-function ThemePartsData:ContainsPartName(partName)
-	return self.nameToPart[partName]
-end
-function ThemePartsData:registerPart(part)
-	local nameToPart, name = self.nameToPart, part.Name
-	if not nameToPart[name] then
-		nameToPart[name] = {}
-	end
-	local con
-	con = part:GetPropertyChangedSignal("Name"):Connect(function()
-		nameToPart[name][part] = nil
-		if not next(nameToPart[name]) then
-			nameToPart[name] = nil
-		end
-		name = part.Name
-		if not nameToPart[name] then
-			nameToPart[name] = {}
-		end
-		nameToPart[name][part] = con
-	end)
-	nameToPart[name][part] = con
-end
-function ThemePartsData:unregisterPart(part)
-	local nameToPart, name = self.nameToPart, part.Name
-	nameToPart[name][part]:Disconnect()
-	nameToPart[name][part] = nil
-	if not next(nameToPart[name]) then
-		nameToPart[name] = nil
-	end
-end
-function ThemePartsData:AddPart(part)
-	self:registerPart(part)
-	local newPart = part:Clone()
-	newPart.Parent = self.folder
-end
-function ThemePartsData:AddPartIfUnique(part)
-	if not self:ContainsPartName(part.Name) then
-		self:AddPart(part)
-	end
-end
-function ThemePartsData:Destroy()
-	disconnectList(self.cons)
-	for _, partSet in pairs(self.nameToPart) do
-		for _, con in pairs(partSet) do
-			con:Disconnect()
-		end
-	end
-end
-
 local partsScroll = widgetFrame.PartsFrame.PartsScroll
 local partTemplate = partsScroll.Part
 partTemplate.Parent = nil
+
+local renamePartMenu
+local renameTarget -- the theme part from which the rename menu was activated
 
 local PartViewport = {}
 PartViewport.__index = PartViewport
@@ -266,8 +208,12 @@ function PartViewport.new()
 	local viewport = partTemplate:Clone()
 	viewport.Parent = partsScroll
 	viewport.InputBegan:Connect(function(input)
-		if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
-		Selection:Set({self.themePart})
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			Selection:Set({self.themePart})
+		elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+			renameTarget = self.themePart
+			renamePartMenu:ShowAsync()
+		end
 	end)
 	self = setmetatable({
 		viewport = viewport,
@@ -299,37 +245,147 @@ function PartViewport:Destroy() -- todo make sure if themePart is deleted that P
 	end
 end
 
+local function log(...)
+	print(parent.Name .. ":", ...)
+end
+
 local folderToThemeData
+local function forEachThemePartsData(fn)
+	for _, folder in ipairs(editor:GetChildren()) do
+		if fn(folderToThemeData[folder].PartsData) then return end
+	end
+end
+
 local function addPartsToTheme()
 	local partsData = folderToThemeData[getSelectedTheme()].PartsData
 	local parts = Selection:Get()
+	local notUnique = {}
 	for _, part in ipairs(parts) do
-		partsData:AddPartIfUnique(part)
+		if not partsData:AddPartIfUnique(part) then
+			table.insert(notUnique, part.Name)
+		end
+	end
+	if #parts == 0 then
+		log("No parts selected")
+	elseif #notUnique == #parts then
+		log("All selected parts are already in " .. getSelectedTheme().Name)
+	elseif #notUnique ~= 0 then
+		log("Parts " .. table.concat(notUnique, ", ") .. " are already in " .. getSelectedTheme().Name)
 	end
 end
 local function addPartsToAllThemes()
 	local parts = Selection:Get()
-	for _, folder in ipairs(editor:GetChildren()) do
-		local partsData = folderToThemeData[folder].PartsData
+	forEachThemePartsData(function(partsData)
 		for _, part in ipairs(parts) do
 			partsData:AddPartIfUnique(part)
 		end
+	end)
+end
+
+local function renamePartInAllThemesBase(callback)
+	if not renameTarget then
+		local list = game.Selection:Get()
+		if #list == 1 then
+			renameTarget = list[1]
+		elseif #list == 0 then
+			log("Cannot rename part: no part selected")
+			return
+		else
+			log("Cannot rename part: multiple parts selected")
+			return
+		end
+	else
+		game.Selection:Set({renameTarget})
 	end
+	local oldName = renameTarget.Name
+	local partsData = folderToThemeData[getSelectedTheme()].PartsData
+	local con1, con2
+	local function cleanup()
+		con1:Disconnect()
+		con2:Disconnect()
+	end
+	con1 = game.Selection.SelectionChanged:Connect(function()
+		log("Rename cancelled")
+		cleanup()
+	end)
+	con2 = renameTarget:GetPropertyChangedSignal("Name"):Connect(function()
+		cleanup()
+		local newName = renameTarget.Name
+		local numChanges = 1 -- it's automatically renamed in the selected theme
+		task.defer(function()
+			forEachThemePartsData(function(partsData)
+				if partsData:PartExists(oldName) then
+					partsData:RenamePart(oldName, newName)
+					numChanges += 1
+				end
+			end)
+			callback(oldName, newName)
+		end)
+	end)
+end
+local function renamePartInAllThemes()
+	renamePartInAllThemesBase(function(oldName, newName, numThemesChanged)
+		log("'" .. oldName .. "' renamed to '" .. newName .. "' in " .. numThemesChanged .. " themes.")
+	end)
+end
+
+local function renamePartInWorkspace()
+	renamePartInAllThemesBase(function(oldName, newName, numThemesChanged)
+		local numWorkspaceChanged = 0
+		for i, child in ipairs(workspace:GetDescendants()) do
+			if child:IsA("BasePart") then
+				if child.Name == oldName then
+					child.Name = newName
+					numWorkspaceChanged += 1
+				end
+			end
+		end
+		log("'" .. oldName .. "' renamed to '" .. newName .. "' in " .. numThemesChanged .. " themes and " .. numWorkspaceChanged .. " places in workspace.")
+	end)
 end
 
 local addPartsButton = widgetFrame.PartsFrame.AddPartsButton
+-- local addPartsButtonEnabled = false
+-- local enabledColor = Color3.fromRGB(217, 217, 217)
+-- local disabledColor = Color3.fromRGB(175, 175, 175)
+-- local function setPartsButtonEnabled(enabled)
+-- 	addPartsButtonEnabled = enabled
+-- 	addPartsButton.Font = if enabled then Enum.Font.SourceSans else Enum.Font.Arial
+-- 	addPartsButton.Text = if enabled then "+" else "<i>+</i>"
+-- 	addPartsButton.TextColor3 = if enabled then enabledColor else disabledColor
+-- end
+
 local addPartsMenu
+local addToThemeOption
+local addToAllThemesOption
+local function prepareAddPartsMenu()
+	addPartsMenu:Clear()
+	addToThemeOption:AddToMenu(addPartsMenu)
+	addToAllThemesOption:AddToMenu(addPartsMenu)
+end
+
 installFinished:Connect(function()
 	addPartsMenu = plugin:CreatePluginMenu("0", "Add Part(s)")
 	local addToThemeAction = plugin:CreatePluginAction("AddToTheme", "Add part(s) to selected theme", "Adds the currently selected part(s) to the selected theme, ignoring duplicates.")
 	addToThemeAction.Triggered:Connect(addPartsToTheme)
+	addToThemeOption = MenuOption.new(addToThemeAction)
 	local addToAllThemesAction = plugin:CreatePluginAction("AddToThemes", "Add part(s) to all themes", "Adds the currently selected part(s) to all themes, ignoring duplicates.")
 	addToAllThemesAction.Triggered:Connect(addPartsToAllThemes)
-	addPartsMenu:AddAction(addToThemeAction)
-	addPartsMenu:AddAction(addToAllThemesAction)
+	addToAllThemesOption = MenuOption.new(addToAllThemesAction)
+	prepareAddPartsMenu()
 	addPartsButton.MouseButton1Click:Connect(function()
 		addPartsMenu:ShowAsync()
 	end)
+
+	renamePartMenu = plugin:CreatePluginMenu("1", "Rename Part")
+	local renamePartAllThemesAction = plugin:CreatePluginAction("RenamePartAllThemes", "Renames this part in all themes.")
+	renamePartAllThemesAction.Triggered:Connect() --TODO
+	local renamePartInWorkspace = plugin:CreatePluginAction("RenamePartInWorkspace", "Renames this part in workspace and all themes.")
+	renamePartInWorkspace.Triggered:Connect() --TODO
+	renamePartMenu:AddAction(renamePartInAllThemes)
+	renamePartMenu:AddAction(renamePartInWorkspace)
+	renamePartMenu:AddSeparator()
+	renamePartMenu:AddAction(addToAllThemesAction)
 end)
 
 local themeScroll = widgetFrame.ThemesFrame.ThemesScroll
@@ -351,7 +407,7 @@ function ThemeRow.new(folder)
 	updateName()
 	local color = folder:FindFirstChild("Theme Color")
 	if not color then
-		color = randomThemeColor(folder)
+		color = createRandomThemeColor(folder)
 	end
 	local function updateColor()
 		row.Color.BackgroundColor3 = color.Value
@@ -505,10 +561,11 @@ local function init()
 		-- should we move this below the updateColors function? or move that function here?
 	end
 	setUIColors()
+	local selectionChangedRecently
 	cons = {
 		handleVerticalScrollingFrame(themeScroll),
 		handleVerticalScrollingFrame(partsScroll),
-		currentTheme.Changed:Connect(function() spawn(updateCurrentTheme) end),
+		currentTheme.Changed:Connect(function() task.spawn(updateCurrentTheme) end),
 		widgetFrame.ThemesFrame.NewThemeButton.MouseButton1Click:Connect(function()
 			local newTheme
 			local created
@@ -525,12 +582,11 @@ local function init()
 				end
 				newTheme.Name = ("%s (%d)"):format(baseName, num + 1)
 				local color = newTheme:FindFirstChild("Theme Color")
-				if color then
-					color:Destroy()
-				else
-					randomThemeColor(currentTheme)
+				if not color then
+					local rndColor = getRandomThemeColor()
+					createThemeColor(rndColor, currentTheme) -- old theme needs to have a theme color
+					createThemeColor(rndColor, newTheme)
 				end
-				randomThemeColor(newTheme)
 				newTheme.Parent = editor
 			end
 		end),
@@ -547,6 +603,20 @@ local function init()
 			updateColors()
 			setUIColors()
 		end),
+		game.Selection.SelectionChanged:Connect(function()
+			if selectionChangedRecently then return end
+			selectionChangedRecently = true
+			-- conditions we care about:
+			-- a theme must be selected
+			-- 1+ part selected not in selected theme that is in the workspace
+			-- 
+			task.defer(function()
+				selectionChangedRecently = false
+				for _, v in ipairs(game.Selection:Get()) do
+					-- conditions
+				end
+			end)
+		end)
 	}
 end
 

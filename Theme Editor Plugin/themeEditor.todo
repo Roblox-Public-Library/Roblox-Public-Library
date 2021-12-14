@@ -7,26 +7,26 @@ Current:
 	✔ perhaps store which theme is currently being looked at/modified somewhere?
 		✔ could be stored within script
 		✔ on init, read from Selected Theme and set the theme to that
-	☐ Only show add parts button when you have have parts selected that are in workspace and a theme selected and at least one part selected is not in your selected theme
+	✘ Only show add parts button when {you have have parts selected that are in workspace} and {a theme selected} and {at least one part selected that is not in your selected theme}
 		Maybe it enables when you select some parts in workspace? it just checks the other stuff after you select a part or parts
 
 New Ideas:
-	☐ + beside Parts that has these menu options:
-		☐ Add selected parts to theme [disabled if parts are already in this theme]
-		☐ Add selected parts to all themes that don't have them [disabled if parts are already in all *other* themes]
+	✔ + beside Parts that has these menu options:
+		✔ Add selected parts to theme [disabled if parts are already in this theme]
+		✔ Add selected parts to all themes that don't have them [does not add to themes which already contain the part]
 
 	CreatePluginMenu can be used for context menus that pop up at mouse cursor!
-	✘ When you rename a part in a theme, a context menu appears to ask:
+	☐ When you rename a part in a theme, a context menu appears to ask:
+		TODO: decide if we want to do this still
 		Rename Part in Current Theme (default)
 		Rename Part in All Themes [could be default if all themes have 1 part of the old name]
 		Rename Part Everywhere
-	☐ When you right-click a Parts Viewport you open a menu with:
-		[the rename options open a TextBox]
-		Rename Part
+	✔ When you right-click a Parts Viewport you open a menu with: 
 		Rename Part in All Themes
 		Rename Part in Workspace
+		☐ Test/debug if needed
 	☐ When you change the name of multiple parts (in one theme), button(s) appear in the Parts column: apply name changes [to everywhere]
-	☐ Special menu for when you have inconsistencies in workspace (ex different things with same name) - ie plugin is proposing you change the name of some of them
+	☐ Special menu for when you have inconsistencies in workspace (ex same name but diff appearance) - ie plugin is proposing you change the name of some of them
 		This could show up when we do sanity checks (which can also be checked on startup)
 
 	☐ Add subtle rotation to parts in viewports (maybe on mouse hover or select)?
@@ -47,15 +47,17 @@ Overall Objective:
 	these could show up as right-click options:
 		☐ individual options per brick (transparency, color, mat, reflectance) - ex, can configure so you only change transparency and color, or only material
 			uses default of true for all, but if a part has a bool child with associated name, then use the boolvalue
-		☐ ability to change part name (apply to this theme, all themes, and/or workspace, with all three as default)
+		✔ ability to change part name (apply to this theme, all themes, and/or workspace, with all three as default)
 
+TODO figure out when this is supposed to be accomplished ("updating theme first time"?)
 For updating theme first time:
 	✔ look inside folder for part names
-	✔ cross reference all parts in library for things with that name
-	✔ change color and material of folder bricks to match library bricks
+	✔ cross reference all parts in game for things with that name
+	✔ change color and material of folder bricks to match game bricks
 
-	if there are differences between library parts:
-		☐ print multiple values for part name "x"
+	if there are differences between parts with same name:
+		☐ print different values for part name
+			ex 500 parts "wood" are brown but 2 are black
 		☐ don't update color in theme
 
 PLANNING:
@@ -73,10 +75,16 @@ Plugin gui:
 	✔ Apply to Workspace - applies current theme to workspace and updates "CurrentTheme" (an ObjectValue in Theme Editor folder in ServerStorage)
 
 Plugin functionality:
-	☐ If a part is added to/removed from/renamed in one theme while the plugin is running, automatically add/remove/remove it to the others
-		☐ If the part is then added externally to the others, remove the duplicate
-	☐ If the plugin activates and there are inconsistencies between themes, warn the user about the list of inconsistencies (but keep functioning). Automatically delete any duplicates IF the duplicates are identical (otherwise add that to the list of things to warn the user about.)
+	✘ If a part is added to/removed from/renamed in one theme while the plugin is running, automatically add/remove/remove it to the others
+		✘ If the part is then added externally to the others, remove the duplicate
+	✘ If the plugin activates and there are inconsistencies between themes, warn the user about the list of inconsistencies (but keep functioning). 
+	☐ Automatically delete any duplicates within a theme IF the duplicates are identical 
+		If not identical warn user
+		Log when duplicates are removed
 	☐ Any action taken by the plugin should be undoable
+		Use 'undoable' function
+		☐ Rename operations
+		☐ Adding parts operations
 		Roblox will undo in reverse order the changes happened. Consider what happens on deletion of objects:
 			ex if you verify an ObjectValue pointing to a folder and you listen to folder.AncestryChanged, then when an undo happens the ObjectValue's value changes before the folder comes back which may mess up verification!
 			✔ CurrentTheme.Changed updating
