@@ -27,6 +27,7 @@ function ThemePartsData.new(folder)
 			folder.DescendantAdded:Connect(registerObjIfPart),
 			folder.DescendantRemoving:Connect(unregisterObjIfPart),
 		},
+		-- suppressNameChange = false,
 	}, ThemePartsData)
 	for _, obj in ipairs(folder:GetDescendants()) do
 		registerObjIfPart(obj)
@@ -43,6 +44,10 @@ function ThemePartsData:registerPart(part)
 	end
 	local con
 	con = part:GetPropertyChangedSignal("Name"):Connect(function()
+		if self.suppressNameChange then
+			name = part.Name
+			return
+		end
 		nameToPart[name][part] = nil
 		if not next(nameToPart[name]) then
 			nameToPart[name] = nil
@@ -71,6 +76,20 @@ end
 function ThemePartsData:AddPartIfUnique(part)
 	if not self:ContainsPartName(part.Name) then
 		self:AddPart(part)
+		return true
+	end
+end
+function ThemePartsData:RenamePart(oldName, newName)
+	if self:ContainsPartName(oldName) then
+		local nameToPart = self.nameToPart
+		local parts = nameToPart[oldName]
+		nameToPart[newName] = parts
+		nameToPart[oldName] = nil
+		self.suppressNameChange = true
+		for part in pairs(parts) do
+			part.Name = newName
+		end
+		self.suppressNameChange = false
 		return true
 	end
 end
