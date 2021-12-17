@@ -6,8 +6,9 @@ local Config = require(parent.Config)
 local props = Config.Props
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
-local ServerStorage = game:GetService("ServerStorage")
+local Lighting = game:GetService("Lighting")
 local Selection = game:GetService("Selection")
+local ServerStorage = game:GetService("ServerStorage")
 
 local function log(...)
 	print(parent.Name .. ":", ...)
@@ -213,11 +214,13 @@ partTemplate.Parent = nil
 local renamePartMenu
 local renameTarget -- the theme part from which the rename menu was activated
 
+local viewports = {[partTemplate] = true} -- Set of viewports whose Ambient should be kept up-to-date
 local PartViewport = {}
 PartViewport.__index = PartViewport
 function PartViewport.new()
 	local self
 	local viewport = partTemplate:Clone()
+	viewports[viewport] = true
 	viewport.Parent = partsScroll
 	viewport.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -253,11 +256,18 @@ function PartViewport:ChangeThemePart(themePart)
 	self.cons = cons
 end
 function PartViewport:Destroy() -- todo make sure if themePart is deleted that PartViewport is destroyed
+	viewports[self.viewport] = true
 	self.viewport:Destroy()
 	if self.cons then
 		disconnectList(self.cons)
 	end
 end
+Lighting:GetPropertyChangedSignal("Ambient"):Connect(function()
+	local ambient = Lighting.Ambient
+	for viewport in pairs(viewports)
+		viewport.Ambient = ambient
+	end
+end)
 
 local folderToThemeData
 local function forEachThemePartsData(fn)
@@ -698,7 +708,7 @@ local function init()
 		-- 	-- conditions we care about:
 		-- 	-- a theme must be selected
 		-- 	-- 1+ part selected not in selected theme that is in the workspace
-		-- 	-- 
+		-- 	--
 		-- 	task.defer(function()
 		-- 		selectionChangedRecently = false
 		-- 		for _, v in ipairs(Selection:Get()) do

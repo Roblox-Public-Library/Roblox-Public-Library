@@ -16,13 +16,13 @@ New Ideas:
 		✔ Add selected parts to all themes that don't have them [does not add to themes which already contain the part]
 
 	CreatePluginMenu can be used for context menus that pop up at mouse cursor!
-	✔ When you right-click a Parts Viewport you open a menu with: 
+	✔ When you right-click a Parts Viewport you open a menu with:
 		Rename Part in All Themes
 		Rename Part in Workspace
 		✔ Test/debug if needed
 		✔ Make it obvious when rename is active or cancelled
 	✘ When you change the name of multiple parts (in one theme), button(s) appear in the Parts column: apply name changes [to everywhere]
-	☐ Add subtle rotation to parts in viewports (maybe on mouse hover or select)? 
+	☐ Add subtle rotation to parts in viewports (maybe on mouse hover or select)?
 		Or some other way to show which one you have selected
 		☐ Or make background slightly lighter/darker when selected
 		☐ and/or modify lighting in viewportframe (if possible)?
@@ -49,7 +49,7 @@ Idea for Inconsistencies Detected:
 		[ (no name)    ] Transparency: 0.5   [Select All (52)]
 		[              ] etc (only include things that vary across blocks)
 		[Select next] [Select all] Determine placing of select buttons based on style (prefer third column)
-		[ViewportFrame2] [Select Next] [Select All (52)] 
+		[ViewportFrame2] [Select Next] [Select All (52)]
 		etc
 		---------seperator between different part names---------
 		PartName2:
@@ -62,14 +62,14 @@ Bug:
 	✔ Rename part in themes: doesn't rename part in ViewportFrame until you reselect part
 
 Polish:
-	☐ when you change lighting ambient, also change the ambient of all viewport frames (and for partTemplate to affect future viewport frames)
+	✔ when you change lighting ambient, also change the ambient of all viewport frames (and for partTemplate to affect future viewport frames)
 		and run this on startup
 	✔ Currently applied theme should say "Reapply to Workspace"
 	☐ When you rename a part in a theme, a context menu appears to ask:
 		Rename Part in Current Theme (default)
 		Rename Part in All Themes [could be default if all themes have 1 part of the old name]
 		Rename Part Everywhere
-	
+
 	☐ [Only add this if we find that it could actually be useful] Could support using tags, which could then be configured more easily to combine effects.
 		ex, one tag could be "wall" (affecting material and color), another "windowGlass", etc, and you could configure each individually just like Parts now.
 		There could even be complex rules, like "apply this effect for 'wall's that aren't tagged with 'special'", which might be as simple as naming like so...
@@ -86,8 +86,8 @@ Plugin functionality:
 	✔ ability to change part name (apply to this theme, all themes, and/or workspace, with all three as default)
 	✘ If a part is added to/removed from/renamed in one theme while the plugin is running, automatically add/remove/remove it to the others
 		✘ If the part is then added externally to the others, remove the duplicate
-	✘ If the plugin activates and there are inconsistencies between themes, warn the user about the list of inconsistencies (but keep functioning). 
-	✔ Automatically delete any duplicates within a theme IF the duplicates are identical 
+	✘ If the plugin activates and there are inconsistencies between themes, warn the user about the list of inconsistencies (but keep functioning).
+	✔ Automatically delete any duplicates within a theme IF the duplicates are identical
 		☐ Log when duplicates are removed?
 		☐ If not identical warn user
 	☐ Any action taken by the plugin should be undoable
@@ -108,7 +108,7 @@ Plugin functionality:
 		☐ Do we need to have a different option for "Scan Workspace (add to theme)" vs "Scan Workspace (add to all themes)"
 		☐ similar to "Inconsistencies detected" UI
 			have a scrollingframe with all the 100% consistent unique names, sorted by # of occurrences
-			[viewport frame] [Select Next]		
+			[viewport frame] [Select Next]
 			[  part name   ] [Select All (100)]
 			[              ] [Add] [Remove]
 
@@ -118,7 +118,7 @@ Plugin functionality:
 	☐ AddPartsToTheme(s) buttons:
 		☐ Show UI if there are inconsistencies between parts with the same name
 		☐ [Polish] Show UI to confirm the addition of eligible descendant parts that aren't explicitly selected
-			
+
 
 	Theme Categories as Exclusive Things (Idea):
 		For instance, you might maintain a set of themes to deal with windows and another set for furniture, etc.
