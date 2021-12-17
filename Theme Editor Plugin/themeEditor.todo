@@ -59,10 +59,8 @@ Idea for Inconsistencies Detected:
 		☐ auto-update as names changes (or other property changes) are made
 	
 	Select Next behavior:
-		☐ track next and current ('current' is what is selected)
-		☐ if 'current' not in set
-
-		
+		☐ use linked list to track
+			☐ create linked list		
 
 Bug:
 	✔ Rename part in themes: doesn't rename part in ViewportFrame until you reselect part
