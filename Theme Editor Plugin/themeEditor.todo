@@ -141,7 +141,14 @@ Plugin functionality:
 
 Initialization for any place:
 	✔ Insert a Readme script with instructions (command bar snippets for the user to go through?)
+		☐ Final init should not force user to run anything in command bar, only text instructions (if even - ideally should be easy to use)
 	☐ Writeup a Readme script with instructions
+	☐ On init it expects the default folder to already be there - should just make one automatically
+	☐ Init should do the workspace scan thing and ask to add stuff to default folder
+	☐ Add theme button doesn't seem to work when no themes (at least not at first)
+	☐ Adding a folder after startup doesn't update themesrow - works properly after there's at least one proper theme though
+	☐ Themeparts doesn't update dynamically after adding/deleting parts
+		☐ Should also remove any children of an added part, convert types that are parts to the correct size/shape/etc, and delete any non-parts (maybe a popup?)
 
 Plugin gui:
 	✔ A list to change which theme you're editing (dropdown is a scrolling frame)
