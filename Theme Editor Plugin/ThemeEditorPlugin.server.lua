@@ -1,6 +1,9 @@
+local workspace = workspace.ThemeEditorTesting
 local parent = script.Parent
 local ThemePartsData = require(parent.ThemePartsData)
 local MenuOption = require(parent.PluginUtility.MenuOption)
+local Config = require(parent.Config)
+local props = Config.Props
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local ServerStorage = game:GetService("ServerStorage")
@@ -11,9 +14,9 @@ local function log(...)
 end
 
 local function undoable(desc, fn)
-	game:GetService("ChangeHistoryService"):SetWaypoint("Before " .. desc)
+	ChangeHistoryService:SetWaypoint("Before " .. desc)
 	local success, msg = xpcall(fn, function(msg) return debug.traceback(msg, 2) end)
-	game:GetService("ChangeHistoryService"):SetWaypoint(desc)
+	ChangeHistoryService:SetWaypoint(desc)
 	if not success then error(msg) end
 end
 
@@ -151,20 +154,19 @@ local function getInternalSelectedTheme() : Folder?
 end
 
 widgetFrame.InstallButton.MouseButton1Click:Connect(function()
-	ChangeHistoryService:SetWaypoint("Before install Theme Editor")
-	editor = Instance.new("Folder")
-	editor.Name = "Theme Editor"
-	editor.Parent = ServerStorage
-	local readme = parent.Instructions:Clone()
-	readme.Parent = editor
-	plugin:OpenScript(readme)
-	setInstalled(true)
-	installFinish(false)
-	considerStartup()
-	ChangeHistoryService:SetWaypoint("Install Theme Editor")
+	undoable("Install Theme Editor", function()
+		editor = Instance.new("Folder")
+		editor.Name = "Theme Editor"
+		editor.Parent = ServerStorage
+		local readme = parent.Instructions:Clone()
+		readme.Parent = editor
+		plugin:OpenScript(readme)
+		setInstalled(true)
+		installFinish(false)
+		considerStartup()
+	end)
 end)
 
-local props = {"Material", "Color", "Transparency", "Reflectance"}
 local function matchWorkspaceToTheme(theme)
 	--	theme:Folder
 	undoable("Apply " .. theme.Name .. " to workspace", function()
@@ -266,33 +268,92 @@ end
 
 local function addPartsToTheme()
 	local partsData = folderToThemeData[getSelectedTheme()].PartsData
-	local parts = Selection:Get()
-	local notUnique = {}
-	for _, part in ipairs(parts) do
-		if not partsData:AddPartIfUnique(part) then
-			table.insert(notUnique, part.Name)
+	local seenBefore = {} -- [Instance] = true if we've already analyzed it (protects against if user has a model and some of its descendants selected simultaneously)
+	local alreadyWasInTheme = {} -- List and set of part names
+	local inconsistentNames = {} -- List and set of part names with inconsistent properties
+	local uniqueSoFar = {} -- [name] = part if it's unique (ignoring duplicates with identical properties)
+	local partsSelected = 0
+	local partsAdded = 0
+	local function check(list)
+		for _, instance in ipairs(list) do
+			if seenBefore[instance] then continue end
+			seenBefore[instance] = true
+			check(instance:GetChildren())
+			if instance:IsA("BasePart") then
+				partsSelected += 1
+				local name = instance.Name
+				local other = uniqueSoFar[name]
+				if other then
+					-- make sure it's got the identical properties, otherwise it's inconsistent
+					if not Config.ArePartPropsDuplicate(instance, other) then
+						table.insert(inconsistentNames, name)
+						inconsistentNames[name] = true
+						uniqueSoFar[name] = nil
+					end -- otherwise nothing to be done
+				elseif inconsistentNames[name] or alreadyWasInTheme[name] then
+					continue
+				else -- haven't seen it before in this operation
+					if partsData:ContainsPartName(instance.Name) then
+						table.insert(alreadyWasInTheme, name)
+						alreadyWasInTheme[name] = true
+					else
+						uniqueSoFar[name] = instance
+					end
+				end
+			end
 		end
 	end
-	if #parts == 0 then
-		log("No parts selected")
-	elseif #notUnique == #parts then
-		log("All selected parts are already in " .. getSelectedTheme().Name)
-	elseif #notUnique ~= 0 then
-		log("Parts " .. table.concat(notUnique, ", ") .. " are already in " .. getSelectedTheme().Name)
+	--[[
+		options for parts:
+		in theme already (alreadyWasInTheme) <-- warn if nothing to be added OR could always report
+		inconsistent in selection (inconsistentNames) <-- always warn
+		good to be added [or is a duplicate of one to be added] (uniqueSoFar)
+	]]
+	check(Selection:Get())
+	if next(uniqueSoFar) then
+		undoable("Add selected parts to selected theme", function()
+			for part in ipairs(uniqueSoFar) do
+				partsAdded += 1
+				partsData:AddPart(part)
+			end
+		end)
 	end
+	
+	if partsSelected == 0 then
+		log("No parts selected")
+	else
+
+		log([[Add Selected Parts to Theme Report
+	3 parts added: List [but only show ': List' if <= 6?]
+	5 parts already in theme [list max length 6?]
+	10 parts with inconsistent properties: list parts [max length 20?]
+]])
+	end
+	--[[TODO
+	Finish converting log plan above into code (merge below commented out as desired)
+	Figure out how much is desired for "add to all themes" case
+		Extract common code & call
+	]]
+	-- elseif #alreadyWasInTheme == partsSelected then
+	-- 	log("All selected parts are already in " .. getSelectedTheme().Name)
+	-- elseif #alreadyWasInTheme ~= 0 then
+	-- 	log("Parts " .. table.concat(alreadyWasInTheme, ", ") .. " are already in " .. getSelectedTheme().Name)
+	-- end
 end
 local function addPartsToAllThemes()
 	local parts = Selection:Get()
-	forEachThemePartsData(function(partsData)
-		for _, part in ipairs(parts) do
-			partsData:AddPartIfUnique(part)
-		end
+	undoable("Add selected parts to all themes", function()
+		forEachThemePartsData(function(partsData)
+			for _, part in ipairs(parts) do
+				partsData:AddPartIfUnique(part)
+			end
+		end)
 	end)
 end
 
 local function renamePartInAllThemesBase(desc, callback)
 	if not renameTarget then
-		local list = game.Selection:Get()
+		local list = Selection:Get()
 		if #list == 1 then
 			renameTarget = list[1]
 		elseif #list == 0 then
@@ -303,7 +364,7 @@ local function renamePartInAllThemesBase(desc, callback)
 			return
 		end
 	else
-		game.Selection:Set({renameTarget})
+		Selection:Set({renameTarget})
 	end
 	local oldName = renameTarget.Name
 	-- local partsData = folderToThemeData[getSelectedTheme()].PartsData
@@ -313,7 +374,7 @@ local function renamePartInAllThemesBase(desc, callback)
 		con2:Disconnect()
 	end
 	log("Rename the selected part to rename it in ", desc)
-	con1 = game.Selection.SelectionChanged:Connect(function()
+	con1 = Selection.SelectionChanged:Connect(function()
 		log("Rename cancelled")
 		cleanup()
 	end)
@@ -322,12 +383,14 @@ local function renamePartInAllThemesBase(desc, callback)
 		local newName = renameTarget.Name
 		local numThemesChanged = 1 -- it's automatically renamed in the selected theme
 		task.defer(function()
-			forEachThemePartsData(function(partsData)
-				if partsData:RenamePart(oldName, newName) then
-					numThemesChanged += 1
-				end
+			undoable("Rename " .. desc, function()
+				forEachThemePartsData(function(partsData)
+					if partsData:RenamePart(oldName, newName) then
+						numThemesChanged += 1
+					end
+				end)
+				callback(oldName, newName, numThemesChanged)
 			end)
-			callback(oldName, newName, numThemesChanged)
 		end)
 	end)
 end
@@ -591,28 +654,30 @@ local function init()
 		handleVerticalScrollingFrame(partsScroll),
 		currentTheme.Changed:Connect(function() task.spawn(updateCurrentTheme) end),
 		widgetFrame.ThemesFrame.NewThemeButton.MouseButton1Click:Connect(function()
-			local newTheme
-			local created
-			local themeToUse = getInternalSelectedTheme() or getSelectedTheme(function() created = true end)
-			if not created then
-				newTheme = themeToUse:Clone()
-				local _, _, baseName, num = newTheme.Name:find("^(.-)%s*%((%d+)%)%s*$")
-				baseName = baseName or newTheme.Name
-				num = num and tonumber(num) or 1
-				for _, theme in ipairs(editor:GetChildren()) do
-					local _, _, num2 = theme.Name:find("^" .. baseName .. " *%((%d+)%) *$")
-					num2 = tonumber(num2)
-					num = num2 and num2 > num and num2 or num
+			undoable("New Theme", function()
+				local newTheme
+				local created
+				local themeToUse = getInternalSelectedTheme() or getSelectedTheme(function() created = true end)
+				if not created then
+					newTheme = themeToUse:Clone()
+					local _, _, baseName, num = newTheme.Name:find("^(.-)%s*%((%d+)%)%s*$")
+					baseName = baseName or newTheme.Name
+					num = num and tonumber(num) or 1
+					for _, theme in ipairs(editor:GetChildren()) do
+						local _, _, num2 = theme.Name:find("^" .. baseName .. " *%((%d+)%) *$")
+						num2 = tonumber(num2)
+						num = num2 and num2 > num and num2 or num
+					end
+					newTheme.Name = ("%s (%d)"):format(baseName, num + 1)
+					local color = newTheme:FindFirstChild("Theme Color")
+					if not color then
+						local rndColor = getRandomThemeColor()
+						createThemeColor(rndColor, currentTheme) -- old theme needs to have a theme color
+						createThemeColor(rndColor, newTheme)
+					end
+					newTheme.Parent = editor
 				end
-				newTheme.Name = ("%s (%d)"):format(baseName, num + 1)
-				local color = newTheme:FindFirstChild("Theme Color")
-				if not color then
-					local rndColor = getRandomThemeColor()
-					createThemeColor(rndColor, currentTheme) -- old theme needs to have a theme color
-					createThemeColor(rndColor, newTheme)
-				end
-				newTheme.Parent = editor
-			end
+			end)
 		end),
 		editor.ChildAdded:Connect(onEditorChildAdded),
 		applyButton.MouseButton1Click:Connect(function()
@@ -627,7 +692,7 @@ local function init()
 			updateColors()
 			setUIColors()
 		end),
-		-- game.Selection.SelectionChanged:Connect(function()
+		-- Selection.SelectionChanged:Connect(function()
 		-- 	if selectionChangedRecently then return end
 		-- 	selectionChangedRecently = true
 		-- 	-- conditions we care about:
@@ -636,7 +701,7 @@ local function init()
 		-- 	-- 
 		-- 	task.defer(function()
 		-- 		selectionChangedRecently = false
-		-- 		for _, v in ipairs(game.Selection:Get()) do
+		-- 		for _, v in ipairs(Selection:Get()) do
 		-- 			-- conditions
 		-- 		end
 		-- 	end)

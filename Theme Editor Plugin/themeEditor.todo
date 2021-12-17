@@ -31,7 +31,7 @@ New Ideas:
 		dir of -0.5, -0.5, -2 ?
 
 Idea for Inconsistencies Detected:
-	on apply to workspace and on startup:
+	on apply to workspace, startup, and add parts to theme:
 		analyze
 		start waypoint
 		transfer properties to parts
@@ -87,13 +87,14 @@ Plugin functionality:
 	✘ If a part is added to/removed from/renamed in one theme while the plugin is running, automatically add/remove/remove it to the others
 		✘ If the part is then added externally to the others, remove the duplicate
 	✘ If the plugin activates and there are inconsistencies between themes, warn the user about the list of inconsistencies (but keep functioning). 
-	☐ Automatically delete any duplicates within a theme IF the duplicates are identical 
-		If not identical warn user
-		Log when duplicates are removed
+	✔ Automatically delete any duplicates within a theme IF the duplicates are identical 
+		☐ Log when duplicates are removed?
+		☐ If not identical warn user
 	☐ Any action taken by the plugin should be undoable
 		Use 'undoable' function
-		☐ Rename operations
-		☐ Adding parts operations
+		✔ Rename operations
+		✔ Create theme
+		✔ Adding parts operations
 		Roblox will undo in reverse order the changes happened. Consider what happens on deletion of objects:
 			ex if you verify an ObjectValue pointing to a folder and you listen to folder.AncestryChanged, then when an undo happens the ObjectValue's value changes before the folder comes back which may mess up verification!
 			✔ CurrentTheme.Changed updating
@@ -114,6 +115,10 @@ Plugin functionality:
 			[Add all of above] <-- this would be for all the consistent ones
 			----- major separator, then 2nd scrollingframe with the inconsistent ones -----
 
+	☐ AddPartsToTheme(s) buttons:
+		☐ Show UI if there are inconsistencies between parts with the same name
+		☐ [Polish] Show UI to confirm the addition of eligible descendant parts that aren't explicitly selected
+			
 
 	Theme Categories as Exclusive Things (Idea):
 		For instance, you might maintain a set of themes to deal with windows and another set for furniture, etc.

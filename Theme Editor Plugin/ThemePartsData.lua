@@ -1,3 +1,5 @@
+local parent = script.Parent
+local Config = require(parent.Config)
 local function disconnectList(list)
 	for _, con in ipairs(list) do
 		con:Disconnect()
@@ -29,8 +31,24 @@ function ThemePartsData.new(folder)
 		},
 		-- suppressNameChange = false,
 	}, ThemePartsData)
+	local function isDuplicateToExisting(obj)
+		local list = nameToPart[obj.Name]
+		if list then
+			for _, other in ipairs(list) do
+				if Config.ArePartPropsDuplicate(obj, other) then
+					return true
+				end
+			end
+		end
+	end
 	for _, obj in ipairs(folder:GetDescendants()) do
-		registerObjIfPart(obj)
+		if obj:IsA("BasePart") then
+			if isDuplicateToExisting(obj) then
+				obj.Parent = nil
+			else
+				self:registerPart(obj)
+			end
+		end
 	end
 	return self
 end
