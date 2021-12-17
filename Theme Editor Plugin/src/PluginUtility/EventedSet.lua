@@ -1,3 +1,4 @@
+local Event = require(script.Parent.Event)
 local EventedSet = {}
 EventedSet.__index = EventedSet
 function EventedSet.new()

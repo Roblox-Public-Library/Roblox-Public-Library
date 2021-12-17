@@ -57,6 +57,12 @@ Idea for Inconsistencies Detected:
 		(end of scrolling frame)
 		[Cancel] [Override - Apply to All]
 		☐ auto-update as names changes (or other property changes) are made
+	
+	Select Next behavior:
+		☐ track next and current ('current' is what is selected)
+		☐ if 'current' not in set
+
+		
 
 Bug:
 	✔ Rename part in themes: doesn't rename part in ViewportFrame until you reselect part
@@ -75,6 +81,8 @@ Polish:
 		There could even be complex rules, like "apply this effect for 'wall's that aren't tagged with 'special'", which might be as simple as naming like so...
 			wall !special	-> any part that has wall tag but not special tag
 			wall special	-> any part that has both tags
+	
+	☐ Update code to use Roblox's Theme colours everywhere
 
 Sanity Checks:
 	☐ TODO figure these out (some are below)

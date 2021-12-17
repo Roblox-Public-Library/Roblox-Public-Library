@@ -1,3 +1,4 @@
+local parent = script.Parent
 local PropsSerializer = require(parent.PluginUtility.PropsSerializer)
 local props = require(parent.Config).Props
 local Event = require(parent.PluginUtility.Event)
@@ -84,7 +85,7 @@ function PartTracker:Add(part)
 	-- Setup cons
 	local cons = {}
 	for i, prop in ipairs(props) do
-		c[i] = part:GetPropertyChangedSignal(prop):Connect(function()
+		cons[i] = part:GetPropertyChangedSignal(prop):Connect(function()
 			self:remove(name, num, part)
 			num = PropsSerializer.PartToNum(part)
 			self:add(name, num, part)
@@ -96,7 +97,7 @@ function PartTracker:Add(part)
 		self:add(name, num, part)
 	end))
 	table.insert(cons, part.AncestryChanged:Connect(function(child, parent)
-		if parent then continue end
+		if parent then return end
 		self:remove(name, num, part)
 		for _, c in ipairs(cons) do
 			c:Disconnect()

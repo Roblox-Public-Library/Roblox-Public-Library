@@ -12,7 +12,7 @@
 		"TestService": {
 			"$className": "TestService",
 			"ThemeEditorPlugin": {
-				"$path": "Tests",
+				"$path": "Tests"
 			}
 		}
 	}

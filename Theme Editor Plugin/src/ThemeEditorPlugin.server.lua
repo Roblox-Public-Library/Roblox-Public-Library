@@ -264,7 +264,7 @@ function PartViewport:Destroy() -- todo make sure if themePart is deleted that P
 end
 Lighting:GetPropertyChangedSignal("Ambient"):Connect(function()
 	local ambient = Lighting.Ambient
-	for viewport in pairs(viewports)
+	for viewport in pairs(viewports) do
 		viewport.Ambient = ambient
 	end
 end)
@@ -480,6 +480,31 @@ local themeScroll = widgetFrame.ThemesFrame.ThemesScroll
 local themeTemplate = themeScroll.Theme
 themeTemplate.Parent = nil
 
+local allThemeRows = {}
+local function parseName(name)
+	local baseName, num = name:match("^(.-)%s*%((%d+)%)%s*$")
+	if baseName then
+		num = tonumber(num)
+		if num then
+			return baseName, num
+		end
+	end
+	return name, 1
+end
+local function themeRowSort(a, b)
+	-- return a < b
+	-- Default		<-- "Default" (1)
+	-- Default (2)  <-- "Default" (2)
+	local aName, aNum = parseName(a.row.Name)
+	local bName, bNum = parseName(b.row.Name)
+	return aName < bName or (aName == bName and aNum < bNum)
+end
+local function sortThemeRows()
+	table.sort(allThemeRows, themeRowSort)
+	for i, themeRow in ipairs(allThemeRows) do
+		themeRow.row.LayoutOrder = i
+	end
+end
 local ThemeRow = {}
 ThemeRow.__index = ThemeRow
 function ThemeRow.new(folder)
@@ -505,10 +530,13 @@ function ThemeRow.new(folder)
 		themeName = themeName,
 		folder = folder,
 	}, ThemeRow)
+	table.insert(allThemeRows, self)
+	sortThemeRows()
 	self.cons = {
-		connectCall(folder.Changed, function()
+		connectCall(folder:GetPropertyChangedSignal("Name"), function()
 			row.Name = folder.Name
 			self:updateName()
+			sortThemeRows()
 		end),
 		connectCall(color.Changed, function()
 			row.Color.BackgroundColor3 = color.Value
@@ -662,7 +690,7 @@ local function init()
 	cons = {
 		handleVerticalScrollingFrame(themeScroll),
 		handleVerticalScrollingFrame(partsScroll),
-		currentTheme.Changed:Connect(function() task.spawn(updateCurrentTheme) end),
+		currentTheme.Changed:Connect(updateCurrentTheme),
 		widgetFrame.ThemesFrame.NewThemeButton.MouseButton1Click:Connect(function()
 			undoable("New Theme", function()
 				local newTheme
@@ -670,26 +698,37 @@ local function init()
 				local themeToUse = getInternalSelectedTheme() or getSelectedTheme(function() created = true end)
 				if not created then
 					newTheme = themeToUse:Clone()
-					local _, _, baseName, num = newTheme.Name:find("^(.-)%s*%((%d+)%)%s*$")
+					local baseName, num = parseName(newTheme.Name)
 					baseName = baseName or newTheme.Name
 					num = num and tonumber(num) or 1
+					local latestColor
 					for _, theme in ipairs(editor:GetChildren()) do
 						local _, _, num2 = theme.Name:find("^" .. baseName .. " *%((%d+)%) *$")
 						num2 = tonumber(num2)
-						num = num2 and num2 > num and num2 or num
+						if num2 and num2 > num then
+							num = num2
+							local colorObj = theme:FindFirstChild("Theme Color")
+							if colorObj then
+								latestColor = colorObj.Value
+							end
+						end
 					end
 					newTheme.Name = ("%s (%d)"):format(baseName, num + 1)
-					local color = newTheme:FindFirstChild("Theme Color")
-					if not color then
+					local colorObj = newTheme:FindFirstChild("Theme Color")
+					if not colorObj then
 						local rndColor = getRandomThemeColor()
 						createThemeColor(rndColor, currentTheme) -- old theme needs to have a theme color
-						createThemeColor(rndColor, newTheme)
+						colorObj = createThemeColor(rndColor, newTheme)
 					end
+					local h, s, v = (latestColor or colorObj.Value):ToHSV()
+					h += 15 / 360
+					if h > 1 then h -= 1 end
+					colorObj.Value = Color3.fromHSV(h, s, v)
 					newTheme.Parent = editor
 				end
 			end)
 		end),
-		editor.ChildAdded:Connect(onEditorChildAdded),
+		editor.ChildAdded:Connect(function(child) task.defer(onEditorChildAdded, child) end), -- must defer because if someone else initiated a Clone, children may not all be added just yet (leading to extra themecolors)
 		applyButton.MouseButton1Click:Connect(function()
 			local theme = getInternalSelectedTheme()
 			if theme then
