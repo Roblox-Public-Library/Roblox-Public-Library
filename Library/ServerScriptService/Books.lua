@@ -51,10 +51,16 @@ getData.OnServerInvoke = function(player, bookModel)
 	local response = bookModelToContent[bookModel] or error(tostring(bookModel:GetFullName()) .. " has no data")
 	return response[1], response[2], response[3] -- cover, authorsNote, words
 end
+local booksReadyEvent = Instance.new("BindableEvent") -- set to nil when books have finished registering (Roblox only resumes a finite number of threads per frame when returning from most Async functions, including WaitForChild)
 local getBooks = Instance.new("RemoteFunction")
 getBooks.Name = "GetBooks"
 getBooks.Parent = ReplicatedStorage
-getBooks.OnServerInvoke = function(player) return books end
+getBooks.OnServerInvoke = function(player)
+	if booksReadyEvent then
+		booksReadyEvent.Event:Wait()
+	end
+	return books
+end
 local function convertEmptyToAnonymous(authorNames)
 	for _, name in ipairs(authorNames) do -- Check to see if generating a new list is necessary
 		if name == "" or not name then
@@ -100,7 +106,23 @@ local function processWords(words)
 	end
 	return new
 end
+local lastRegisterTime
 function Books:Register(book, genres, cover, title, customAuthorLine, authorNames, authorIds, authorsNote, publishDate, words, librarian)
+	if not booksReadyEvent then
+		warn("Books:Register called after book list assumed to have finished initializing")
+	else
+		local now = workspace.DistributedGameTime
+		if lastRegisterTime ~= now then
+			lastRegisterTime = now
+			task.delay(0.5, function()
+				if now == lastRegisterTime then
+					booksReadyEvent:Fire()
+					booksReadyEvent:Destroy()
+					booksReadyEvent = nil
+				end
+			end)
+		end
+	end
 	BookChildren.AddTo(book)
 
 	-- BookScript specific startup code
