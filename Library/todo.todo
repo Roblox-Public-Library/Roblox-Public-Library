@@ -6,7 +6,7 @@ Maintenace Plugin:
 	Bugs:
 		☐ The "critical" warning occurs when an old id is being removed (can occur after manually fixing it)
 			Don't warn for ids that are being removed
-		☐ This was in the AuthorDirectory.Pg1 (ServerStoage Book Data Storage):
+		☐ This was in the AuthorDirectory.Pg1 (ServerStorage Book Data Storage):
 			{756932804733960192,0},
 			there is no one with an ID that large and it therefore errored. "0" sounds like anonymous (everywhere else it's "username" followed by date looked up I presume)
 	Features for the future:
