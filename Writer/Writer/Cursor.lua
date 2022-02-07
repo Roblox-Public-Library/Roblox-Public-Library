@@ -1,3 +1,5 @@
+-- TODO file is being rewritten into Rendering
+
 --[[Cursors deal with (pre)rendering Elements (using Roblox's RichText format where appropriate)
 Cursor(availSpace, config) - keeps track of where the next element can be placed
 	:AtStartOfFullLine and other common functionality
@@ -20,7 +22,7 @@ Render
 	:HandleLine
 		line instance parented to the only page instance in the cursor
 	:HandleText
-		TODO must ensure that no text element has too many characters in it (16384 is the max, including font tag characters)
+		TODO must ensure that no text element has too many characters in it (16384 is the max, including font tag characters [confirmed 2022-01-31])
 
 '*' means not valid for Render (PreRender figures out what gets on which page)
 page*: ends the current page
@@ -89,10 +91,7 @@ end
 
 local function handleEscapes(text)
 	--	Escape user text to avoid conflict with Roblox's RichText formatting
-	return text
-		:gsub("<", "&lt;")
-		:gsub("&", "&amp;")
-		-- Quotation marks and '>' can be escaped but they don't currently have to be (at least not outside of tags)
+	return text:gsub("<", "&lt;") -- Quotation marks, '>', and '&' can be escaped but they don't currently have to be
 end
 local formatKeyToProp = { -- formatting key to Roblox property, if non-tag version supported
 	Color = "TextColor3",

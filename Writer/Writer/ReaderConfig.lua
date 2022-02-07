@@ -1,13 +1,15 @@
+local Utilities = game:GetService("ReplicatedStorage").Utilities
+local Assert = require(Utilities.Assert)
 local p = script.Parent
 local Sizes = require(p.Sizes)
 local ReaderConfig = {}
 ReaderConfig.__index = ReaderConfig
-function ReaderConfig.new(defaultFont, normalSize, defaultColor, colors)
+function ReaderConfig.new(defaultFont, normalSize, colors)
+	if not colors then error("Colors is mandatory", 2) end
 	return setmetatable({
-		DefaultFont = typeof(defaultFont) == "string" and defaultFont or error("defaultFont must be a string", 2),
-		NormalSize = normalSize,
-		DefaultColor = defaultColor, --:Color3
-		Colors = colors or error("Colors is mandatory", 2),
+		DefaultFont = Assert.String(defaultFont),
+		NormalSize = Assert.Integer(normalSize),
+		Colors = colors,
 	}, ReaderConfig)
 end
 function ReaderConfig:ApplyDefaultsToLabel(label)
@@ -15,8 +17,20 @@ function ReaderConfig:ApplyDefaultsToLabel(label)
 	label.TextSize = self.NormalSize
 	label.TextColor3 = self.DefaultColor
 end
-function ReaderConfig:GetSizeFor(size)
-	--	size must be "large" or "small"
-	return math.floor(self.NormalSize * Sizes[size] + 0.5)
+function ReaderConfig:GetSize(sizeKey)
+	--	sizeKey must be "Normal", "Large", "Small", or nil for default
+	return if sizeKey then math.floor(self.NormalSize * Sizes[sizeKey] + 0.5)
+		else self.NormalSize
+end
+function ReaderConfig:GetColor(colorKey)
+	return if colorKey then self.Colors[colorKey]
+		else self.Colors.Default
+end
+function ReaderConfig:GetHexColor(colorKey)
+	return if colorKey then self.Colors.Hex[colorKey]
+		else self.Colors.Hex.Default
+end
+function ReaderConfig:GetFontFace(font) -- Here for future, to support reader preferences
+	return font
 end
 return ReaderConfig

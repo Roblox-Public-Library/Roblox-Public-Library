@@ -22,6 +22,9 @@ function Text.new(text, format)
 		Format = format or Format.new(),
 	}, Text)
 end
+function Text:Handle(cursor)
+	cursor:HandleText(self)
+end
 
 local Alignment = new("Alignment")
 function Alignment.new(alignment)

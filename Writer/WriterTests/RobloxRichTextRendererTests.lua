@@ -26,7 +26,7 @@ tests.TextWorks = {
 			local rrt = RobloxRichTextRenderer.new(
 				Writer.SpaceLeft.new(math.huge, math.huge),
 				parent,
-				Writer.ReaderConfig.new("SourceSans", 36, Colors.Light.Default, Colors.Light))
+				Writer.ReaderConfig.new("SourceSans", 36, Colors.Light))
 			for i, e in ipairs(elements) do
 				rrt:HandleText(e.Text, e.Format)
 			end

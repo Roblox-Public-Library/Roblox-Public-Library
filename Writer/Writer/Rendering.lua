@@ -20,7 +20,7 @@ Render
 	:HandleLine
 		line instance parented to the only page instance in the cursor
 	:HandleText
-		TODO must ensure that no text element has too many characters in it (16384 is the max, including font tag characters)
+		TODO must ensure that no text element has too many characters in it (16384 is the max, including font tag characters [confirmed 2022-01-31])
 
 '*' means not valid for Render (PreRender figures out what gets on which page)
 page*: ends the current page
@@ -64,14 +64,13 @@ end
 local formatTags = {
 	-- In this list of tags, if one is likely to be toggled frequently (and/or is short in length) it should be last
 	fontTag("Face", function(config, face)
-		-- todo consider user's font preferences!
-		return string.format('<font face="%s">', face)
+		return string.format('<font face="%s">', config:GetFontFace(face))
 	end),
 	fontTag("Color", function(config, color)
-		return string.format('<font color="%s">', config.Colors.Hex[color])
+		return string.format('<font color="%s">', config:GetHexColor(color))
 	end),
 	fontTag("Size", function(config, size)
-		return string.format('<font size="%d">', config:GetSizeFor(size))
+		return string.format('<font size="%d">', config:GetSize(size))
 	end),
 	simpleTag("Strikethrough", "s"),
 	simpleTag("Underline", "u"),
@@ -85,10 +84,7 @@ end
 
 local function handleEscapes(text)
 	--	Escape user text to avoid conflict with Roblox's RichText formatting
-	return text
-		:gsub("<", "&lt;")
-		:gsub("&", "&amp;")
-		-- Quotation marks and '>' can be escaped but they don't currently have to be (at least not outside of tags)
+	return text:gsub("<", "&lt;") -- Quotation marks, '>', and '&' can be escaped but they don't currently have to be
 end
 local formatKeyToProp = { -- formatting key to Roblox property, if non-tag version supported
 	Color = "TextColor3",
@@ -129,7 +125,7 @@ local function generateFormatStringForFormatting(config, format)
 	return table.concat(formatString)
 end
 
-local lineHeight = 15 -- (TODO) temporary variable for line height
+local lineHeight = 15 -- (TODO) temporary variable for base line height
 
 local Base = {}
 Base.__index = Base
@@ -157,7 +153,7 @@ function Base:EnsureAtStartOfFullLine()
 	end
 end
 
-local PreRender = {}
+local PreRender = setmetatable({}, Base) -- todo just changed this to inherit from Base but maybe that was wrong
 PreRender.__index = PreRender
 Rendering.PreRender = PreRender
 function PreRender.All(elements, pageSize, config)
@@ -171,75 +167,47 @@ function PreRender.new(pageSize, config)
 	local self = setmetatable({
 		pageSize = pageSize,
 		config = config,
-		tracker = PageSpaceTracker.new(pageSize.X, pageSize.Y),
+		availSpace = PageSpaceTracker.new(pageSize.X, pageSize.Y),
 		curPage = {}, -- List of elements for the current page
-		nElements = 0, -- on current page
 		pages = {}, -- List of pages so far
-		nPages = 0,
 	}, PreRender)
 	return self
 end
-function PreRender:addPageToPages()
-	local n = self.nPages + 1
-	self.nPages = n
-	self.pages[n] = self.curPage
-end
 function PreRender:NewPage()
-	self.availSpace = self.pageSpace:Clone()
-	self:addPageToPages()
+	table.insert(self.pages, self.curPage)
 	self.curPage = {}
+	self.availSpace:Reset()
 end
 function PreRender:FinishAndGetPages()
 	if self.curPage and #self.curPage > 0 then
-		self:addPageToPages()
+		table.insert(self.pages, self.curPage)
 		self.curPage = nil
 	end
 	return self.pages
 end
 
 function PreRender:addToPage(element)
-	-- todo which was found to be most efficient/easy to understand?
-	--	and how costly is it to be in a function?
-	-- local n = self.nElements + 1
-	-- self.nElements = n
-	-- self.curPage[n] = element
-	-- -- or
-	-- self.nElements += 1
-	-- self.curPage[self.nElements] = element
-	-- -- or
-	table.insert(self.curPage, element) -- todo
+	table.insert(self.curPage, element)
 end
 function PreRender:addFullWidthElement(element, height)
 	--	Add a full-page-width element (that cannot be broken up) to the next page it fits on
-	self.availSpace:EnsureNewLine() -- todo spaceBetweenLines
-	if not self.availSpace:DoesItFitFullWidth(height) then
+	if not self.availSpace:PlaceFullWidth(width, height) then
 		self:NewPage()
+		if not self.availSpace:PlaceFullWidth(width, height) then
+			print(element)
+			error("element does not fit on a new page")
+		end
 	end
-	self:addToPage(element)
 end
 function PreRender:addElement(element, width, height)
 	--	Add an element (that cannot be broken up) to the next page it fits on
-	local result = self.availSpace:DoesItFit(width, height)
-	if result == "newline" then
-		self.availSpace:NewLine() -- todo spaceBetweenLines
-		result = self.availSpace:DoesItFit(width, height)
-		if result == "newline" then
-			print(element)
-			error("element does not fit on new line")
-		end
-	end
-	if not result then
+	if not self.availSpace:Place(width, height) then
 		self:NewPage()
-		result = self.availSpace:DoesItFit(width, height)
-		if not result then
+		if not self.availSpace:Place(width, height) then
 			print(element)
 			error("element does not fit on a new page")
-		elseif result == "newline" then
-			print(element)
-			error("element does not fit on new line")
 		end
 	end
-	self.availSpace:UseSpace(width, height)
 	self:addToPage(element)
 end
 
@@ -247,7 +215,6 @@ function PreRender:HandleLine(line)
 	self:addFullWidthElement(line, lineHeight)
 end
 function PreRender:HandleText(text)
-
 end
 
 
@@ -266,8 +233,15 @@ local Render = setmetatable({}, Base)
 Render.__index = Render
 Rendering.Render = Render
 local base = Render.new
-function Render.new(availSpace, config, pageInstance) -- todo might need offset if render can be for part of a page
-	local self = setmetatable(base(availSpace, config), Render)
+function Render.Page(elements, pageSize, config, pageInstance)
+	local self = Render.new(pageSize, config, pageInstance)
+	for _, element in ipairs(elements) do
+		element:Handle(self)
+	end
+	self:Finish()
+end
+function Render.new(pageSize, config, pageInstance) -- todo might need offset if render can be for part of a page
+	local self = setmetatable(base(availSpace, config), Render) -- todo wrong
 	self.pageInstance = pageInstance
 	--.currentLabel:RenderLabel
 	return self

@@ -152,6 +152,15 @@ for _, const in ipairs(Enum.Font:GetEnumItems()) do
 		close = close,
 	}
 end
+local invalidOpen = function(parser)
+	error("")
+end
+local closeFont = {
+	open = function() error("Can only close tags with </font> and </face>, not open them") end,
+	close = close,
+}
+tags.font = closeFont
+tags.face = closeFont
 
 local close = function(parser)
 	parser:SetFontColor(nil)
@@ -164,6 +173,12 @@ for colorName, _ in pairs(Colors.Light) do
 		close = close,
 	}
 end
+local closeColor = {
+	open = function() error("Can only close tags with </color> or </colour> and </face>, not open them") end,
+	close = close,
+}
+tags.color = closeColor
+tags.colour = closeColor
 
 local close = function(parser)
 	parser:SetFontSize(nil)
