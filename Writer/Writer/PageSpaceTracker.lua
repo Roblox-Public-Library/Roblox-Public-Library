@@ -11,9 +11,6 @@ Typical API:
 	:PlacementFits(width, height) -> bool -- for text
 	:OutOfSpace() -> bool
 ]]
-local function pos(x, y)
-	return UDim2.new(0, x, 0, y)
-end
 local PageSpaceTracker = {}
 PageSpaceTracker.__index = PageSpaceTracker
 function PageSpaceTracker.new(width, height)
@@ -29,6 +26,13 @@ function PageSpaceTracker.new(width, height)
 		--	left.i is the index of the region we may not have gotten past yet (so we will check it again in findRegionAtY)
 		right = {i = 1}, -- list of regions on the right in the format {.left .top .bottom}
 	}, PageSpaceTracker)
+end
+function PageSpaceTracker:Reset()
+	self.x = 0
+	self.y = 0
+	self.curLineHeight = 0
+	self.left = {i = 1}
+	self.right = {i = 1}
 end
 function PageSpaceTracker:save() -- save state so it can be restored later (for undoing state changes)
 	--	Note: Doesn't save left/right tables, so be sure not to modify those
@@ -168,7 +172,7 @@ function PageSpaceTracker:AdvanceToRightOfNextObject(width, height)
 	return consider(self.left) or consider(self.right)
 end
 function PageSpaceTracker:EnsureFullNewLine()
-	--	Ensures that the tracker is on a full new line, advancing it if necessary
+	--	Ensures that the tracker is on a full new line (no 'left'/'right' elements on the sides), advancing it if necessary
 	--	Returns true if successful, false if out of room
 	if self:OutOfSpace() then
 		return false
@@ -332,7 +336,7 @@ function PageSpaceTracker:PlaceFullWidth(height)
 	self.y += height
 	return self:pos(0, y)
 end
-function PageSpaceTracker:Place(width, height)
+function PageSpaceTracker:Place(width, height) -- returns nil if no room; automatically advances to a new line as needed
 	if width > self.width then error(("Width %f > page width %f"):format(width, self.width), 2) end
 	local state = self:save()
 	while true do

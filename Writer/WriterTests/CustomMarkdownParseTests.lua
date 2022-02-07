@@ -1,5 +1,6 @@
 return function(tests, t)
 
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Writer = ReplicatedStorage.Writer
 local Format = require(Writer.Format)
@@ -54,6 +55,8 @@ textTest("all underlined", "__underline__",
 	{{Underline = true}})
 textTest("Ignore escaped", "a \\*b\\* c", {"a *b* c"})
 textTest("Ignore multiplication", "x * y * z", {"x * y * z"})
+-- TODO also allow `<` and `>` to have spaces in the same way as multiplication!
+textTest("Ignore <> with spaces", "x < y > z", {"x < y > z"})
 local arial = {Face = "Arial"}
 local red = {Color = "Red"}
 local arialRed = {Face = "Arial", Color = "Red"}
@@ -61,6 +64,12 @@ textTest("Font name", "normal <Arial>arial",
 	{"normal ", "arial"},
 	{nil, arial})
 textTest("Closing arial tag", "<Arial>arial</arial> normal",
+	{"arial", " normal"},
+	{arial, nil})
+textTest("Closing font tag", "<Arial>arial</font> normal",
+	{"arial", " normal"},
+	{arial, nil})
+textTest("Closing face tag", "<Arial>arial</face> normal",
 	{"arial", " normal"},
 	{arial, nil})
 textTest("Tags condense spaces", "a <Arial> b",
@@ -95,5 +104,6 @@ tests["Horizontal line of +s"] = function()
 	local result = parse("<line;+>")
 	t.tablesEqualRecursive(result, {{Line = "+"}})
 end
+
 
 end

@@ -13,7 +13,7 @@ local Table = require(Utilities.Table)
 local Algorithms = require(Utilities.Algorithms)
 local Text = require(Utilities.Text)
 
--- TODO Merge these classes into Cursor
+-- TODO Merge these classes into Rendering
 
 
 local RenderLabel = {}
@@ -222,18 +222,23 @@ function RenderPage(elements, pageSpace, pageInstance)
 	--	Attaches new instances to pageInstance
 	-- todo maybe return a function to invalidate all controls so they can be reused
 	--	probably need to receive an object pool manager
-	local cursor = Cursor.Render.new(pageSpace, pageInstance)
-	warn(#elements)
+	local cursor = Cursor.Render.new(pageSpace, nil, pageInstance)
 	for _, element in ipairs(elements) do
 		element:Handle(cursor)
 	end
+	cursor:Finish()
 end
 
 do -- MANUAL TEST
-	local elements = {}
-	for i = 1, 10 do
-		elements[i] = Elements.HLine.new()
-	end
+	local ReplicatedStorage = game:GetService("ReplicatedStorage")
+	local Writer = ReplicatedStorage.Writer
+	local parse = require(Writer.CustomMarkdown).ParseText
+	local elements = parse(string.rep([[
+Test text *some* of which is **bolded** or __underlined__, but most of which is not.
+Newline!
+<Arial>Varying<Cartoon> fonts<arial, red> should <small>be</font><green><large>okay!</large></green> Before line <line>After line
+]], 10))
+	--local elements = table.create(10, Elements.HLine.new())
 	local x, y = 200, 200
 	local space = SpaceLeft.new(x, y)
 	local pages = PreRender(elements, space)
