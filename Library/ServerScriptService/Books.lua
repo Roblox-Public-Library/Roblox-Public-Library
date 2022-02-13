@@ -51,10 +51,16 @@ getData.OnServerInvoke = function(player, bookModel)
 	local response = bookModelToContent[bookModel] or error(tostring(bookModel:GetFullName()) .. " has no data")
 	return response[1], response[2], response[3] -- cover, authorsNote, words
 end
+local booksReadyEvent = Instance.new("BindableEvent") -- set to nil when books have finished registering (Roblox only resumes a finite number of threads per frame when returning from most Async functions, including WaitForChild)
 local getBooks = Instance.new("RemoteFunction")
 getBooks.Name = "GetBooks"
 getBooks.Parent = ReplicatedStorage
-getBooks.OnServerInvoke = function(player) return books end
+getBooks.OnServerInvoke = function(player)
+	if booksReadyEvent then
+		booksReadyEvent.Event:Wait()
+	end
+	return books
+end
 local function convertEmptyToAnonymous(authorNames)
 	for _, name in ipairs(authorNames) do -- Check to see if generating a new list is necessary
 		if name == "" or not name then
@@ -67,7 +73,56 @@ local function convertEmptyToAnonymous(authorNames)
 	end
 	return authorNames
 end
+local lineBreakCommands = {
+	["/line"] = true,
+	["/dline"] = true,
+	["/page"] = true,
+	["/turn"] = true,
+}
+local alphaNumeric = {}
+for i = 48, 57 do alphaNumeric[string.char(i)] = true end
+for i = 65, 90 do alphaNumeric[string.char(i)] = true end
+for i = 97, 122 do alphaNumeric[string.char(i)] = true end
+local function processWords(words)
+	local new = {}
+	local secondPrevWasLineBreak = true
+	local prevWasLineBreak = true
+	local prevRepeatedChar
+	for _, v in ipairs(words) do
+		if v == "" then continue end
+		for word in string.gmatch(v, "%S+") do
+			local isLineBreak = lineBreakCommands[word]
+			local firstChar = string.sub(word, 1, 1)
+			local repeatedChar = #word >= 5 and string.match(word, (alphaNumeric[firstChar] and "^" or "^%") .. firstChar .. "+$") and firstChar
+			if prevRepeatedChar and isLineBreak and secondPrevWasLineBreak then
+				new[#new] = "/hline" .. prevRepeatedChar
+			end
+			table.insert(new, word)
+			secondPrevWasLineBreak, prevWasLineBreak, prevRepeatedChar = prevWasLineBreak, isLineBreak, repeatedChar
+		end
+	end
+	if prevRepeatedChar and secondPrevWasLineBreak then -- last word is a repeated character
+		words[#words] = "/hline" .. prevRepeatedChar
+	end
+	return new
+end
+local lastRegisterTime
 function Books:Register(book, genres, cover, title, customAuthorLine, authorNames, authorIds, authorsNote, publishDate, words, librarian)
+	if not booksReadyEvent then
+		warn("Books:Register called after book list assumed to have finished initializing")
+	else
+		local now = workspace.DistributedGameTime
+		if lastRegisterTime ~= now then
+			lastRegisterTime = now
+			task.delay(0.5, function()
+				if now == lastRegisterTime then
+					booksReadyEvent:Fire()
+					booksReadyEvent:Destroy()
+					booksReadyEvent = nil
+				end
+			end)
+		end
+	end
 	BookChildren.AddTo(book)
 
 	-- BookScript specific startup code
@@ -122,7 +177,7 @@ function Books:Register(book, genres, cover, title, customAuthorLine, authorName
 			idToBook[id] = bookData
 		end
 		books[#books + 1] = bookData
-		bookModelToContent[book] = {cover, authorsNote, words}
+		bookModelToContent[book] = {cover, authorsNote, processWords(words)}
 	end
 end
 function Books:GetCount() return #books end

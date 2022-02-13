@@ -76,6 +76,35 @@ local RunService = game:GetService("RunService")
 local heartbeat = RunService.Heartbeat
 local isEditMode = RunService:IsEdit()
 
+local function considerExplainingPermissions(msg)
+	local alreadyDenied = not (msg:find("prompted") or not msg:find("grant"))
+	print("BookMaintenancePlugin requires Script Injection Permissions in order to compile reports and fix mistakes in books.")
+	if alreadyDenied then
+		print("You can modify permissions in the Plugin Manager.")
+	else
+		print("Click \"Allow\" to grant this permission.")
+	end
+	considerExplainingPermissions = function() end
+end
+local function trySetSource(obj, newSource, shouldCancel)
+	--	returns true if successful, false if cancelled
+	if not typeof(obj) == "Instance" and obj:IsA("LuaSourceContainer") then error("obj must be a script, received: " .. tostring(obj), 2) end
+	if not typeof(newSource) == "string" then error("newSource must be a string, received: " .. tostring(newSource), 2) end
+	while true do
+		local success, msg = pcall(function()
+			obj.Source = newSource
+		end)
+		if success then return true end
+		considerExplainingPermissions(msg)
+		wait(1)
+		if shouldCancel and shouldCancel() then return false end
+	end
+end
+local function setSource(obj, newSource)
+	--	Set the source (may yield indefinitely if the user hasn't granted permissions)
+	trySetSource(obj, newSource)
+end
+
 -- In this script, a "model" is the BasePart of a book. A "book" refers to a table with fields including Title, Author, Models, and Source.
 
 local function path(obj)
@@ -214,8 +243,8 @@ local sourceToBook, dataKeyList, updateBookSource, allFieldsAffected do
 	local dataProps = {
 		Title = genGetData("title"),
 		CustomAuthorLine = getAuthorLine,
-		AuthorNames = function(source)
-			local authorNames = baseGetAuthorNames(source)
+		AuthorNames = function(source, model)
+			local authorNames = baseGetAuthorNames(source, model)
 			if authorNames then
 				for i = 1, #authorNames do
 					if authorNames[i] == "" or not authorNames[i] then
@@ -562,7 +591,7 @@ local function WriteMultiPageScript(parent, intro, outro, baseName, scriptType, 
 						obj.Disabled = true
 					end
 				end
-				obj.Source = page
+				setSource(obj, page)
 			end
 			local i = numPages + 1
 			while true do
@@ -688,7 +717,7 @@ local readAuthorDirectory, writeAuthorDirectory do
 				end
 			end
 		end)
-		clientDir.Source = ([[
+		setSource(clientDir, ([[
 local idToNames = {}
 for i = 1, %d do
 	for k, v in pairs(require(script["Pg" .. i])) do
@@ -758,7 +787,7 @@ function AuthorDirectory.PartialMatches(value)
 	end
 	return ids
 end
-return AuthorDirectory]]):format(numPages)
+return AuthorDirectory]]):format(numPages))
 		getWriteMPSAuthorDirectory()(function(write)
 			for id, list in pairs(idToList) do
 				write(("\t{%d%s%s,%s},\n"):format(id, list == "" and "" or ",", list, tostring(idToExtra[id] or 0)))
@@ -972,7 +1001,9 @@ local authorLock, onMaintenanceFinished do
 	end
 end
 
-local noAuthorName = Report.NewListCollector("%d book%s have an authorId but no corresponding author name:")
+local noAuthorName = Report.NewListCollector(
+	"1 book has an authorId but no corresponding author name:",
+	"%d book%s have an authorId but no corresponding author name:")
 local function updateAuthorInformation(report, books)
 	--[[
 		Read database
@@ -1908,7 +1939,7 @@ updateCopiesButton.Click:Connect(function()
 		if source then
 			for i, model in ipairs(models) do
 				if foundIndex ~= i then
-					model:FindFirstChildOfClass("Script").Source = source
+					setSource(model:FindFirstChildOfClass("Script"), source)
 				end
 			end
 			if #models == 1 then

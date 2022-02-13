@@ -281,7 +281,9 @@ do -- About menu
 			a.Position = UDim2.new(0, 0, 0, offset)
 			offset += height + 25
 		end
-		faqFrame.CanvasSize = UDim2.new(0, 0, 0, offset - 25 + padding.PaddingBottom.Offset + padding.PaddingTop.Offset)
+		local y = offset - 25 + padding.PaddingBottom.Offset + padding.PaddingTop.Offset
+		faqFrame.CanvasSize = UDim2.new(0, 0, 0, y)
+		faqFrame.ScrollingEnabled = y > faqFrame.AbsoluteSize.Y
 	end
 	calcOffsets()
 	faqFrame:GetPropertyChangedSignal("AbsoluteWindowSize"):Connect(calcOffsets)
@@ -323,9 +325,11 @@ local function toTime(sec)
 	return ("%d:%.2d"):format(sec / 60, sec % 60) -- %d does math.floor on the integer
 end
 
--- todo make musicclient know curTrackOriginalIndex (keep track during shuffling)
+-- TODO make MusicClient know curTrackOriginalIndex (keep track during shuffling)
 --	then have CurTrackIndexChanged (and also listen to PlaylistChanged)
 --	and bold the currently playing track
+--	(useful if the same track is in the playlist more than once)
+-- TODO filter out non-permitted on load (consider not filtering out those that fail with "Attempt to retrieve data failed" - definitely don't delete them forever!)
 do -- Music
 	local menu = gui.Music
 	topBarMenus[topBarLeft.Music] = menuFromFrame(menu)
@@ -338,7 +342,7 @@ do -- Music
 			local sound = music:GetCurSong()
 			if sound then
 				currentlyPlayingLabel.Text = ("%s (#%d) %s/%s"):format(
-					music:GetCurSongDesc() or "?", -- "?" would only happen if they saved a song that is no longer allowed. TODO filter these out on load, then remove the "?" here.
+					music:GetCurSongDesc() or "?", -- "?" would only happen if they saved a song that is no longer allowed or if a Roblox service is down (which has happened)
 					music:GetCurSongId(),
 					toTime(sound.TimePosition),
 					toTime(sound.TimeLength))
@@ -543,7 +547,8 @@ do -- Music
 		local function adaptToPlaylist(obj, id)
 			obj.ID.PlaceholderText = id
 			obj.ID.Text = ""
-			obj.Title.Text = music:GetDescForId(id)
+			local desc, reason = music:GetDescForId(id)
+			obj.Title.Text = desc or ("? (%s)"):format(reason)
 		end
 		local customObjs
 		local boldLabel, updateBold = genBoldLabel(function() return customPlaylist end, function(i) return customObjs:Get(i).Title end)
@@ -695,7 +700,8 @@ do -- Music
 			viewPlaylistLabel.Text = playlist.Name
 			boldLabel(nil)
 			viewObjs:AdaptToList(playlist.Songs, function(obj, songId)
-				obj.Title.Text = music:GetDescForId(songId)
+				local desc, reason = music:GetDescForId(songId)
+				obj.Title.Text = desc or ("? (%s)"):format(reason)
 			end)
 			updateBold()
 			if cons then
