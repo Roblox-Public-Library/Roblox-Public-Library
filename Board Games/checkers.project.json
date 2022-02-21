@@ -6,6 +6,9 @@
 			"$className": "ReplicatedStorage",
 			"Checkers": {
 				"$path": "Checkers/ReplicatedStorage/Checkers"
+			},
+			"Utilities": {
+				"$path": "../Library/ReplicatedStorage/Utilities"
 			}
 		},
 		"ServerScriptService": {
