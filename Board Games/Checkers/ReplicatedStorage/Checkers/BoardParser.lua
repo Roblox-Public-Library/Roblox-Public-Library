@@ -12,7 +12,7 @@ function module.Parse(s, redOnTop)
 			grid[x][y] = c ~= "." and c or false
 		end
 	end
-	return Board.fromGrid(grid, redOnTop)
+	return Board.FromGrid(grid, redOnTop)
 end
 function module.ToString(board)
 	local s = {}
