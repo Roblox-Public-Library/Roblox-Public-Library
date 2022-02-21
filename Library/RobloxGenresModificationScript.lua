@@ -1,5 +1,5 @@
 local ServerScriptService = game:GetService("ServerScriptService")
-local Genres = require(ServerScriptService.Genres)
+local Genres = require(ServerScriptService.Library.Genres)
 local floors = {"Floor 1", "Floor 2", "Floor 3"}
 
 local conversions = {

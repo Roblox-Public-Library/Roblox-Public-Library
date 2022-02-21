@@ -5,13 +5,13 @@
 		"ReplicatedStorage": {
 			"$className": "ReplicatedStorage",
 			"Chess": {
-				"$path": "Chess/ReplicatedStorage/Chess"
+				"$path": "ReplicatedStorage/Chess"
 			}
 		},
 		"ServerScriptService": {
 			"$className": "ServerScriptService",
 			"Chess": {
-				"$path": "Chess/ServerScriptService/Chess"
+				"$path": "ServerScriptService/Chess"
 			}
 		},
 		"StarterPlayer": {
@@ -19,14 +19,14 @@
 			"StarterPlayerScripts": {
 				"$className": "StarterPlayerScripts",
 				"Chess": {
-					"$path": "Chess/StarterPlayerScripts/Chess"
+					"$path": "StarterPlayerScripts/Chess"
 				}
 			}
 		},
 		"TestService": {
 			"$className": "TestService",
 			"Chess": {
-				"$path": "Chess/TestService/Chess"
+				"$path": "TestService/Chess"
 			}
 		}
 	}

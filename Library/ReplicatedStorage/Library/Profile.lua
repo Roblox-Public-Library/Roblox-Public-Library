@@ -2,9 +2,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Utilities = ReplicatedStorage.Utilities
 local Assert = require(Utilities.Assert)
 local Functions = require(Utilities.Functions)
-local Music = require(ReplicatedStorage.Music)
-local Tutorial = require(ReplicatedStorage.Tutorial)
---local BookPouch = require(ReplicatedStorage.BookPouch)
+local Music = require(ReplicatedStorage.Library.Music)
+local Tutorial = require(ReplicatedStorage.Library.Tutorial)
+--local BookPouch = require(ReplicatedStorage.Library.BookPouch)
 
 local Profile = {}
 Profile.__index = Profile

@@ -1,7 +1,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
-local MessageBox = require(ReplicatedStorage.MessageBox)
-local profile = require(ReplicatedStorage.ProfileClient)
+local MessageBox = require(ReplicatedStorage.Library.MessageBox)
+local profile = require(ReplicatedStorage.Library.ProfileClient)
 local tutorial = profile.Tutorial
 
 if not tutorial.firstTimeFaq then

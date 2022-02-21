@@ -1,5 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Music = require(ReplicatedStorage.Music)
+local Music = require(ReplicatedStorage.Library.Music)
 return function(tests, t)
 
 local function addMusic(t)

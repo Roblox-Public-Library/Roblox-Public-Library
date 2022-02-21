@@ -4,26 +4,44 @@
 		"$className": "DataModel",
 		"ReplicatedStorage": {
 			"$className": "ReplicatedStorage",
-			"$path": "ReplicatedStorage",
-			"$ignoreUnknownInstances": true
+			"CommunityBoards": {
+				"$path": "ReplicatedStorage/CommunityBoards"
+			},
+			"Gui": {
+				"$path": "ReplicatedStorage/Gui"
+			},
+			"Library": {
+				"$path": "ReplicatedStorage/Library"
+			},
+			"Utilities": {
+				"$path": "ReplicatedStorage/Utilities"
+			}
 		},
 		"ServerScriptService": {
 			"$className": "ServerScriptService",
-			"$path": "ServerScriptService",
-			"$ignoreUnknownInstances": true
+			"Library": {
+				"$path": "ServerScriptService/Library"
+			}
 		},
 		"StarterPlayer": {
 			"$className": "StarterPlayer",
 			"StarterPlayerScripts": {
 				"$className": "StarterPlayerScripts",
-				"$path": "StarterPlayerScripts",
-				"$ignoreUnknownInstances": true
+				"Gui": {
+					"$path": "StarterPlayerScripts/Gui"
+				},
+				"Library": {
+					"$path": "StarterPlayerScripts/Library"
+				}
 			}
 		},
 		"TestService": {
 			"$className": "TestService",
+			"Utilities": {
+				"$path": "TestService/Utilities"
+			},
 			"Library": {
-				"$path": "TestService"
+				"$path": "TestService/Library"
 			}
 		}
 	}

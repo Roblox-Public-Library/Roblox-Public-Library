@@ -6,7 +6,7 @@ A handy gear/settings icon is also available from them: http://www.roblox.com/as
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
-local MessageBox = require(ReplicatedStorage.MessageBox)
+local MessageBox = require(ReplicatedStorage.Library.MessageBox)
 local Utilities = ReplicatedStorage.Utilities
 local Assert = require(Utilities.Assert)
 local String = require(Utilities.String)
@@ -16,8 +16,8 @@ local gui = ReplicatedStorage.Guis.Menus
 local topBar = ReplicatedStorage.Guis.TopBar
 
 local BookSearch = require(script.Parent.BookSearch)
-local music = require(ReplicatedStorage.MusicClient)
-local profile = require(ReplicatedStorage.ProfileClient)
+local music = require(ReplicatedStorage.Library.MusicClient)
+local profile = require(ReplicatedStorage.Library.ProfileClient)
 local GuiUtilities = require(ReplicatedStorage.Gui.Utilities)
 
 local localPlayer = game:GetService("Players").LocalPlayer
@@ -186,7 +186,7 @@ do -- About menu
 	local function getTextHeight(label, width)
 		return TextService:GetTextSize(label.Text, label.TextSize, label.Font, Vector2.new(width, 32767)).Y
 	end
-	local About = require(ReplicatedStorage.About)
+	local About = require(ReplicatedStorage.Library.About)
 	local menu = gui.About
 
 	local function getTabs(obj)

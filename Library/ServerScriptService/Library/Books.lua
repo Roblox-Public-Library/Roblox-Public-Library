@@ -2,8 +2,8 @@ local Books = {}
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local List = require(ReplicatedStorage.Utilities.List)
 local ServerScriptService = game:GetService("ServerScriptService")
-local BookChildren = require(ServerScriptService.BookChildren)
-local Genres = require(ServerScriptService.Genres)
+local BookChildren = require(ServerScriptService.Library.BookChildren)
+local Genres = require(ServerScriptService.Library.Genres)
 
 local books = {} -- List<Book> where each book is {.Id .Title .Author .Models} note: everything in books can be replicated as-is to clients
 local idToBook = {}

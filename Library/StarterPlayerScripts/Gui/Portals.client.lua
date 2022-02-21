@@ -1,5 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local MessageBox = require(ReplicatedStorage.MessageBox)
+local MessageBox = require(ReplicatedStorage.Library.MessageBox)
 local TeleportService = game:GetService("TeleportService")
 local remotes = ReplicatedStorage.Remotes
 local AUTO_CLOSE_RADIUS = 7

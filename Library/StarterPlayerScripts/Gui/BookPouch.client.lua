@@ -5,7 +5,7 @@ local localPlayer = Players.LocalPlayer
 local bookPouchGui = ReplicatedStorage.Guis.BookPouchGui
 bookPouchGui.Parent = localPlayer.PlayerGui
 
-local profile = require(ReplicatedStorage.ProfileClient)
+local profile = require(ReplicatedStorage.Library.ProfileClient)
 local bookPouch = profile.BookPouch
 
 --[[TODO

@@ -4,7 +4,7 @@ local Utilities = ReplicatedStorage.Utilities
 local Assert = require(Utilities.Assert)
 local String = require(Utilities.String)
 
-local Music = require(ReplicatedStorage.Music)
+local Music = require(ReplicatedStorage.Library.Music)
 
 local function validatePlaylistName(player, name)
 	--	returns isValid, couldTryAgain (only if not valid)
