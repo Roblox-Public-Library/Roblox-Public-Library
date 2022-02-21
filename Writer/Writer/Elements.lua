@@ -33,7 +33,7 @@ function Alignment.new(alignment)
 	}, Alignment)
 end
 function Alignment:Handle(cursor)
-	if not cursor:AtStartOfLine() then
+	if not cursor:AtStartOfLine() then -- todo :EnsureAtStartOfFullLine
 		cursor:AdvanceToNextLine()
 	end
 	cursor:SetNextAlignment(self.alignment) -- todo to be used when a label is created next

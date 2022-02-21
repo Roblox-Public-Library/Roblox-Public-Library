@@ -1,0 +1,188 @@
+Plan:
+
+High-level steps:
+	☐ Parse user format (as specified by the google doc) into BookScriptFormat
+	☐ PreRender into BookScriptFormat2 which is almost identical but has:
+		- page info (list of elements per page instead of just a list of elements)
+		- nav info (ex "chapter 3 starts on page 19")
+		- no "page"/"turn" commands
+		> note: must be something that can be performed on server and client
+	- Note: PreRender is done at standard size, not at user's screen resolution (since it's meant to be consistent everywhere)
+	Server:
+		☐ PreRender to calculate page count
+	Client:
+		- User clicks a book
+		- Request entire original book format
+		☐ PreRender
+		☐ Init gui
+			☐ show navigation
+			☐ show favourite/like/other options
+			☐ Render front pages
+			☐ On page change, render those pages
+	
+	Question:
+		✔ does everything show up on the same page regardless of resolution [aside from letting the user make the entire book scale larger/smaller] > YES
+			- If we have it always show up the same...
+				+ Consistent page numbers ("typo on page 5" means something)
+					☐ How would this work for single player scroll?
+						> Could have page lines with page number at bottom and you just scroll past them? And/or "Page: #" in status bar somewhere
+				x May be hard to read on small resolution and/or unnecessarily large on huge screens / cannot customize text size for reading (outside of book scaling)
+					> Though you can still switch to 1-page format
+				x Consecutive lines may need to be slightly different text size
+					> Probably very small/hard to detect
+				How would we have it show up the same?:
+					☐ PreRender at standard resolution to assign elements to pages (and break them up appropriately). Output will still be in parsed format, but with page & nav structure.
+			If we didn't, how would people communicate typos/sections?:
+				- Paragraph #s (visibility could be toggled)
+	
+	For bookmarks:
+		1. Bookmark the top-left visible paragraph
+
+
+View Options:
+	☐ 1. 2-page
+	☐ 2. 1-page (but identical to 2-page -- just 1 at a time)
+		+ good for mobile
+	☐ 3. 1-page-infinite-scroll
+		+ good for any screen - no reason not to allow text size adjustment
+		- would need page # line divisions
+		✔ inconsistency if a book has a lot of text all in one chapter (so a lot of scrolling on one page) followed by a lot of images, each of which are meant to be on a new page
+			- could alternatively have infinite scroll on one page (for entire book) a page division strategy of:
+				- 1. you see the page immediately [for simple "new page" command]
+				x - 2. it is invisible until you scroll down enough? [for chapters / "turn" command]
+				- 2b. Just do #1 for both "new page" and "turn" command
+
+Cool idea:
+	☐ Rendering is, by default, to a 3D book (though it can be blanked out with a privacy setting, maybe?)
+	☐ Pages can therefore turn in 3D! (They should probably tween in size as they do to mimic how you normally curve a page, not have it stand straight out as you turn it)
+	☐ You can also read over someone's shoulder and see the title page on the cover
+	☐ A book could have a new "Summary" field for the back cover
+
+
+Idea for "1 page infinite scroll" for page divisions that are in the middle of a line (due to adjusted user text size):
+
+------------------------------------------------- 7
+lots............................................
+of..............................................
+text ...........................................
+          ---------------------------------------  8
+a little | the rest of some line
+----------
+
+[there would not be extra space between the rows "text" and "a little"]
+
+
+
+Terminology:
+	Parse (parse original book format into elements)
+	PreRender (distribute elements onto pages)
+	Render (create gui instances based on the given elements)
+	Processing:
+		☐	Parse book content
+			☐	CONSIDER: Revise tests to *not* have multiple ways of doing things - if people use the variants, people have to *remember* all the variants or else they'll be confused if they see it in someone else's book!
+				☐	1st ask question on what's easier to read/understand - since comma separating isn't that complicated to remember...
+					<red, line;-, arial, /sub>
+					<red><line;-><arial></sub>
+		☐	PreRender at standard resolution to assign elements to pages (and break them up appropriately). Output will still be in parsed format, but with page & nav structure.
+			☐	Be sure to not use entire page height - leave room for 2 lines of text (it's okay if it's extremely cramped if those 2 lines are filled)
+				OR don't leave 2 lines, but make text smaller as needed so that it fits on the page (should only need to reduce everything by 1)
+	Display:
+		☐	(Using current resolution) Create/reuse instances and render the format from the PreRender stage (and of course display it)
+		☐	Center the page content vertically so that any lines of empty space won't be so noticeable
+	OnResolutionChange:
+		☐ For infinite scroll, rerender currently visible pages
+
+Parsing User Format:
+	✔ Started
+
+Prerendering:
+	List<Element> -> List<Page with elements on it>, NavigationInformation
+	For each element:
+		☐ Some commands turn the page
+		☐ Figure out the size/if it fits on the current page (or can be split up -- text can)
+			☐ If not, advance to next page and put it there
+		☐ For certain types of elements, add to navigation information
+
+	Output is a Book with:
+		.Chapters:List<Chapter> with:
+			.Name:string? and :GetName() [converts no name to "Chapter 1"]
+			.Number
+		.Pages:List<Page> with:
+			.Number
+			.IsLeftSidePage -- or this could be a function taken from Number % 2
+			.Elements, a list of ProcessedElement, each of which is much like what Prerendering receives but also contains position & size information
+		.Title/.Author/etc (or point to BookData that has this information - the core data sent for all books by the server when you join))
+
+Bookmarks:
+	☐ Save chapter # and page # offset from beginning of chapter
+
+Page Rendering:
+	(List<ProcessedElement>, Page:Frame, UserSettings) -> mutate Page/add actual Instances to it
+
+Gui:
+	Navigation handling:
+		☐ Support travel to specific chapter (including start of book as "chapter 0" - only called "Introduction" or whatever) or bookmark
+		☐ Receive Book with Chapters, user bookmarks
+		☐ display options as designed in gui
+		on click of a navigation option:
+			☐ jump to the page and have it rendered (along with the page on the opposite side, if in 2-page view)
+			☐ (if in infinite scroll view, put it at the top of the screen. If user scrolls up, render that page above the one you started with - depending on algorithm chosen this *might* look different than if the user had started with that previous page due to the potential for line merging)
+
+
+Compare:
+	+ Elements.Text.new(text, format)
+		+ defaults
+			x when would parser ever use that
+		+ value verification
+		+ guaranteed consistent fields (no typos)
+		> Each class would have its own :Handle and/or :Render
+
+
+	or parser could just do
+	{
+		Type = "Text",
+		Text = text,
+		Format = format,
+	}
+		+ no need for formal classes
+	
+	Element -> ProcessedElement:
+		Just add Position and Size to the element
+		element.Position = position
+
+
+-- PreRender file
+local typeToHandle = {
+	Text = function(self, element)
+		-- ...
+		element.Position = pos
+		-- or maybe add a new element
+	end,
+
+}
+
+
+-- Render file
+local typeToRender = {
+	Text = function(self, element)
+		local x = Instance.new("TextLabel")
+		x.Text = element.Text
+		x.Position = element.Position
+		--etc
+	end,
+}
+
+Change to existing code:
+	☐ `Elements.Text(text, format) -> element data` instead of using classes
+
+	
+Library Projects:
+	☐ book formatting
+	☐ book gui
+		designing
+		forming it in Studio (ideally with Scale & Offset as appropriate, "UI" instance objects, etc)
+		scripting it client-side
+		support for it server-side
+	☐ checkers
+	☐ upgrade data store (use ProfileService probably - )
+	☐ likes/favs
