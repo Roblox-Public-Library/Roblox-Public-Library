@@ -3,7 +3,7 @@ Handles playing music and keeping the server up-to-date with the user's musical 
 ]]
 local Marketplace = game:GetService("MarketplaceService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Music = require(ReplicatedStorage.Music)
+local Music = require(ReplicatedStorage.Library.Music)
 local remotes = ReplicatedStorage.Remotes.Music
 local Assert = require(ReplicatedStorage.Utilities.Assert)
 local Event = require(ReplicatedStorage.Utilities.Event)

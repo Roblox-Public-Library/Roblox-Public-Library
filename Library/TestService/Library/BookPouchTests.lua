@@ -1,5 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local BookPouch = require(ReplicatedStorage.BookPouch)
+local BookPouch = require(ReplicatedStorage.Library.BookPouch)
 return function(tests, t)
 
 tests["Serialize/Deserialize works"] = {

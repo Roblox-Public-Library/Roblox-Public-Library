@@ -1,7 +1,7 @@
 return function(tests, t)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Writer = require(ReplicatedStorage.Writer)
+local Writer = require(ReplicatedStorage.Library.Writer)
 local Colors, RobloxRichTextRenderer = Writer.Colors, Writer.RobloxRichTextRenderer
 local parse = Writer.CustomMarkdown.ParseText
 

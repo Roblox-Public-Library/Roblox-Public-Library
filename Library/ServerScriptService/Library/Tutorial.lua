@@ -1,5 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Tutorial = require(ReplicatedStorage.Tutorial)
+local Tutorial = require(ReplicatedStorage.Library.Tutorial)
 
 function Tutorial.InitRemotes(newRemote)
 	newRemote:Event("Tutorial", function(player, tutorial, action)

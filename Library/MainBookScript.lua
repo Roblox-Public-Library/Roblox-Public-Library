@@ -2,7 +2,7 @@ local ContentProvider = game:GetService("ContentProvider")
 local TextService = game:GetService("TextService")
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Books = require(ReplicatedStorage.BooksClient)
+local Books = require(ReplicatedStorage.Library.BooksClient)
 local musicClientScript = ReplicatedStorage:FindFirstChild("MusicClient")
 local music = musicClientScript and require(musicClientScript) or {GoCrazy = function() end} -- Allows this script to be used in workshops without the music system
 local localPlayer = game:GetService("Players").LocalPlayer

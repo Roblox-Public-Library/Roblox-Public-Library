@@ -731,7 +731,7 @@ end
 
 -- Add in those from BookClient
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Books = require(ReplicatedStorage.BooksClient)
+local Books = require(ReplicatedStorage.Library.BooksClient)
 local books = Books:GetBooks()
 for _, book in ipairs(books) do
 	for i, authorId in ipairs(book.AuthorIds) do

@@ -11,8 +11,8 @@ local timeWindow = 30 -- in seconds
 local muteLength = {30, 90, math.huge} -- in seconds
 
 local ServerScriptService = game:GetService("ServerScriptService")
-local Analytics = require(ServerScriptService.Analytics)
-local AntiSpamFunctions = require(ServerScriptService.AntiSpamFunctions)
+local Analytics = require(ServerScriptService.Library.Analytics)
+local AntiSpamFunctions = require(ServerScriptService.Library.AntiSpamFunctions)
 
 local AntiSpamEvent = Instance.new("RemoteEvent")
 AntiSpamEvent.Name = "AntiSpamEvent"

@@ -9,17 +9,17 @@ Player needs to be able to do the following to a book (ignoring the gui/input):
 	To support that functionality, we need client side functions that signal remotes that the server side is listening to.
 ]]
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Profile = require(ReplicatedStorage.Profile)
+local Profile = require(ReplicatedStorage.Library.Profile)
 local remotes = ReplicatedStorage.Remotes
 local AUTOSAVE_FREQ = 60
 
 local ServerScriptService = game:GetService("ServerScriptService")
-local DataStores = require(ServerScriptService.DataStores)
+local DataStores = require(ServerScriptService.Library.DataStores)
 local profileStore = DataStores:GetDataStore("Profiles")
 local oldPlaylistStore = DataStores:GetDataStore("Playlists")
-local Music = require(ServerScriptService.MusicServer)
-local Tutorial = require(ServerScriptService.Tutorial)
-local NewRemote = require(ServerScriptService.NewRemote)
+local Music = require(ServerScriptService.Library.MusicServer)
+local Tutorial = require(ServerScriptService.Library.Tutorial)
+local NewRemote = require(ServerScriptService.Library.NewRemote)
 
 local Players = game:GetService("Players")
 

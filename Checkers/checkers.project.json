@@ -5,7 +5,7 @@
 		"ReplicatedStorage": {
 			"$className": "ReplicatedStorage",
 			"Checkers": {
-				"$path": "Checkers/ReplicatedStorage/Checkers"
+				"$path": "ReplicatedStorage/Checkers"
 			},
 			"Utilities": {
 				"$path": "../Library/ReplicatedStorage/Utilities"
@@ -14,7 +14,7 @@
 		"ServerScriptService": {
 			"$className": "ServerScriptService",
 			"Checkers": {
-				"$path": "Checkers/ServerScriptService/Checkers"
+				"$path": "ServerScriptService/Checkers"
 			}
 		},
 		"StarterPlayer": {
@@ -22,14 +22,14 @@
 			"StarterPlayerScripts": {
 				"$className": "StarterPlayerScripts",
 				"Checkers": {
-					"$path": "Checkers/StarterPlayerScripts/Checkers"
+					"$path": "StarterPlayerScripts/Checkers"
 				}
 			}
 		},
 		"TestService": {
 			"$className": "TestService",
 			"Checkers": {
-				"$path": "Checkers/TestService/Checkers"
+				"$path": "TestService/Checkers"
 			}
 		}
 	}

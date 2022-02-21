@@ -1,6 +1,6 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GuiUtils = require(ReplicatedStorage.Gui.Utilities)
-local TimeZoneAbbreviations = require(ReplicatedStorage.TimeZoneAbbreviations)
+local TimeZoneAbbreviations = require(ReplicatedStorage.Library.TimeZoneAbbreviations)
 
 local timeZoneFull = os.date("%Z", os.time())
 local timeZoneDesc = " " .. (TimeZoneAbbreviations[timeZoneFull] or timeZoneFull:gsub("[a-z ]+", "")) -- gsub performs "Eastern Standard Time" -> "EST"
