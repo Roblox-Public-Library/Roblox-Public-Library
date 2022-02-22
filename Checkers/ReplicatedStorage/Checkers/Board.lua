@@ -25,6 +25,7 @@ local oppositeTeam = {
 	Red = "Black",
 	Black = "Red",
 }
+Board.OppositeTeam = oppositeTeam
 local isPawn = {r = true, b = true}
 Board.IsPawn = isPawn
 
@@ -373,7 +374,7 @@ function Board:AnalyzeEndGameConditions(teamToMove) -- returns an event or nil
 			end
 		end
 		if not validMoveFound and pieceToTeam[piece] == teamToMove then
-			if self:GetValidMoves(teamToMove, pos)[1] then
+			if self:GetValidMoves(pos)[1] then
 				validMoveFound = true
 			end
 		end
@@ -396,7 +397,7 @@ function Board:ShouldPromotePawn(piece, targetCoord)
 		and targetCoord.Y == (self.redOnTop == (team == "Red") and 8 or 1)
 end
 
-function Board:GetValidMoves(team, pieceCoord)
+function Board:GetValidMoves(pieceCoord)
 	AssertPos(pieceCoord)
 	Assert(self:Get(pieceCoord), "string") -- otherwise nothing there
 	local team = self:GetPieceOwner(pieceCoord)

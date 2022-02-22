@@ -122,7 +122,7 @@ function Game.new(checkersModel)
 			then topReset.Reset or bottomReset.Reset
 			else topReset.Reset and bottomReset.Reset
 		if shouldReset then
-			self:GameOver()
+			self:RecordGameOver()
 			self:Reset()
 		elseif topReset.Reset or bottomReset.Reset then
 			self:Fire("ProposeReset", true, topReset.Reset)
@@ -154,20 +154,23 @@ function Game:Fire(remoteName, ...)
 end
 function Game:finishNewGame()
 	self:Fire("NewGame", self.redOnTop)
+	self:Fire("StartTurn", "Red")
 end
 local base = Game.NewGame
-function Game:NewGame()
-	self.redOnTop = not self.redOnTop
-	base(self, Board.new(self.redOnTop))
+function Game:NewGame(board, redOnTop)
+	if board == nil and redOnTop == nil then
+		redOnTop = not self.redOnTop
+	end
+	base(self, nil, redOnTop)
 	self.resetting = false
 	self.gameOverFor3Sec = false
 	self:finishNewGame()
 end
-local base = Game.GameOver
-function Game:GameOver(victor)
+local base = Game.RecordGameOver
+function Game:RecordGameOver(victor)
 	base(self, victor)
 	task.delay(3, function()
-		if self.gameOver then
+		if self.GameOver then
 			self.gameOverFor3Sec = true
 		end
 	end)
@@ -185,8 +188,8 @@ end
 function Game:playerChange(team)
 	local resetButton = if team == (if self.redOnTop then "Red" else "Black") then self.topReset else self.bottomReset
 	resetButton:CancelReset()
-	if self.Turn == team and not self.gameOver then
-		self:Fire("StartTurn", team)
+	if not self.GameOver and (self.Turn == team or self:NumPlayers() == 1) then
+		self:Fire("StartTurn", self.Turn)
 	end
 end
 local base = Game.SetTurn
@@ -195,15 +198,20 @@ function Game:SetTurn(turn)
 	self:Fire("StartTurn", turn)
 end
 
+local base = Game.moveMade
+function Game:moveMade(move, events)
+	self:Fire("MoveMade", move)
+	base(self, move, events)
+	if not self.GameOver then
+		self:SetTurn(if self.Turn == "Red" then "Black" else "Red")
+	end
+end
 remotes.TryMove.OnServerEvent:Connect(function(player, checkersModel, move)
 	local game = checkersModelToGame[checkersModel]
 	if not game then return end
 	move = Move.FromClient(move)
 	if not move then return end
-	if player ~= game:PlayerForTeam(game.Turn) then return end
-	local legal, eventList = game:TryMove(player, move)
-	if not legal then return end
-	game:Fire("MoveMade", move)
+	game:TryMove(player, move)
 end)
 
 local function handle(model)

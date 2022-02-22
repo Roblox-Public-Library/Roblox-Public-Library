@@ -4,6 +4,9 @@
 		"$className": "DataModel",
 		"ReplicatedStorage": {
 			"$className": "ReplicatedStorage",
+			"Checkers": {
+				"$path": "ReplicatedStorage/Checkers"
+			},
 			"CommunityBoards": {
 				"$path": "ReplicatedStorage/CommunityBoards"
 			},
@@ -19,6 +22,9 @@
 		},
 		"ServerScriptService": {
 			"$className": "ServerScriptService",
+			"Checkers": {
+				"$path": "ServerScriptService/Checkers"
+			},
 			"Library": {
 				"$path": "ServerScriptService/Library"
 			}
@@ -27,6 +33,9 @@
 			"$className": "StarterPlayer",
 			"StarterPlayerScripts": {
 				"$className": "StarterPlayerScripts",
+				"Checkers": {
+					"$path": "StarterPlayerScripts/Checkers"
+				},
 				"Gui": {
 					"$path": "StarterPlayerScripts/Gui"
 				},
@@ -37,6 +46,9 @@
 		},
 		"TestService": {
 			"$className": "TestService",
+			"Checkers": {
+				"$path": "TestService/Checkers"
+			},
 			"Utilities": {
 				"$path": "TestService/Utilities"
 			},
