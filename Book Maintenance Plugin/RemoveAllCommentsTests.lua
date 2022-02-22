@@ -1,7 +1,7 @@
 return function(tests, t)
 
 local ServerStorage = game:GetService("ServerStorage")
-local rac = require(ServerStorage.RemoveAllComments)
+local rac = require(ServerStorage["Book Maintenance Plugin"].RemoveAllComments)
 
 local function test(name, input, output)
 	tests[name] = function()

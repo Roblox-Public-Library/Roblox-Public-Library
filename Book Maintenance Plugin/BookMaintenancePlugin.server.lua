@@ -53,8 +53,9 @@ end
 local function tryRequire(obj)
 	return not failed and require(obj)
 end
-local BookChildren = tryRequire(get(ServerScriptService, "BookChildren"))
-local Genres = tryRequire(get(ServerScriptService, "Genres"))
+local Library = get(ServerScriptService, "Library")
+local BookChildren = tryRequire(get(Library, "BookChildren"))
+local Genres = tryRequire(get(Library, "Genres"))
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Utilities = get(ReplicatedStorage, "Utilities")
 local String = tryRequire(get(Utilities, "String"))

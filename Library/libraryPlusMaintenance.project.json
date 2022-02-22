@@ -4,13 +4,30 @@
 		"$className": "DataModel",
 		"ReplicatedStorage": {
 			"$className": "ReplicatedStorage",
-			"$path": "ReplicatedStorage",
-			"$ignoreUnknownInstances": true
+			"Checkers": {
+				"$path": "ReplicatedStorage/Checkers"
+			},
+			"CommunityBoards": {
+				"$path": "ReplicatedStorage/CommunityBoards"
+			},
+			"Gui": {
+				"$path": "ReplicatedStorage/Gui"
+			},
+			"Library": {
+				"$path": "ReplicatedStorage/Library"
+			},
+			"Utilities": {
+				"$path": "ReplicatedStorage/Utilities"
+			}
 		},
 		"ServerScriptService": {
 			"$className": "ServerScriptService",
-			"$path": "ServerScriptService",
-			"$ignoreUnknownInstances": true
+			"Checkers": {
+				"$path": "ServerScriptService/Checkers"
+			},
+			"Library": {
+				"$path": "ServerScriptService/Library"
+			}
 		},
 		"ServerStorage": {
 			"$className": "ServerStorage",
@@ -20,21 +37,29 @@
 		},
 		"StarterPlayer": {
 			"$className": "StarterPlayer",
-			"StarterCharacterScripts": {
-				"$className": "StarterCharacterScripts",
-				"$path": "StarterCharacterScripts",
-				"$ignoreUnknownInstances": true
-			},
 			"StarterPlayerScripts": {
 				"$className": "StarterPlayerScripts",
-				"$path": "StarterPlayerScripts",
-				"$ignoreUnknownInstances": true
+				"Checkers": {
+					"$path": "StarterPlayerScripts/Checkers"
+				},
+				"Gui": {
+					"$path": "StarterPlayerScripts/Gui"
+				},
+				"Library": {
+					"$path": "StarterPlayerScripts/Library"
+				}
 			}
 		},
 		"TestService": {
 			"$className": "TestService",
+			"Checkers": {
+				"$path": "TestService/Checkers"
+			},
+			"Utilities": {
+				"$path": "TestService/Utilities"
+			},
 			"Library": {
-				"$path": "TestService"
+				"$path": "TestService/Library"
 			}
 		}
 	}
