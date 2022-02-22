@@ -75,7 +75,7 @@ local getValidTest = {
 			unFound[coordListToKey(typeof(pos) == "Vector2" and {pos} or pos)] = true
 		end
 		local alreadyFound = {}
-		for _, move in ipairs(board:GetValidMoves(team, start)) do
+		for _, move in ipairs(board:GetValidMoves(start)) do
 			local key = coordListToKey(move.coords)
 			if unFound[key] then
 				unFound[key] = nil

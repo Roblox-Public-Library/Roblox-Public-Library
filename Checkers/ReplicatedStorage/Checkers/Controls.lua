@@ -6,6 +6,10 @@ local UserInputService = game:GetService("UserInputService")
 local Board = require(script.Parent.Board)
 local Move = Board.Move
 
+local idleMidTurnInstructionTime = 6
+local idleMidTurnInstructions = "Keep jumping!"
+local idleMidTurnInstructions2 = "Click off board to cancel"
+
 local finalNode = {canStop = true}
 local function convertValidMovesToTree(validMoves)
 	-- we want [pos] = {valid}
@@ -64,7 +68,8 @@ function Controls.new(game, boardModel, model, submitMove)
 
 		-- lastGhostBoardPos -- for dragging, the last board position the ghost was dragged to (whether valid or not)
 		-- lastValidGhostPos -- the last valid board position the ghost was moved to
-		-- lastValidGhostPosAtInputBegan -- used to see if the ghost should be deselected on InputEnded
+		-- lastValidGhostPosAtInputBegan -- used to see if the ghost should be deselected on InputEnded; nil if the ghost was just created
+		actions = 0, -- used to track whether the player is doing anything (so that they can be advised about forced jumping rules)
 	}, Controls)
 	self:EnterGameCameraMode()
 	self.cons = {
@@ -79,12 +84,14 @@ function Controls.new(game, boardModel, model, submitMove)
 					self:ClearMove()
 				end
 				if not self.selected and self:isOurPiece(pos) then
-					local validMoves = game.Board:GetValidMoves(game.Turn, pos)
+					local validMoves = game.Board:GetValidMoves(pos)
 					if validMoves[1] then -- only select the piece if at least 1 valid move
 						self.validMovesTree = convertValidMovesToTree(validMoves)
 						self.selected = boardModel:NewGhost(pos)
 						self.moveStartPos = pos
 						self.lastValidGhostPos = pos
+						self.lastGhostBoardPos = pos
+						self.lastValidGhostPosAtInputBegan = nil
 						for moveString in pairs(self.validMovesTree) do
 							local move = stringToVector2(moveString)
 							if (move - pos).Magnitude > 2 then -- (2, 2)'s magnitude is ~2.8
@@ -97,7 +104,7 @@ function Controls.new(game, boardModel, model, submitMove)
 				end
 			elseif targetType == "Square" then
 				if self.selected then
-					if not self:tryAdvanceMove(pos, true) and self.moveSoFar[1] == nil then -- Allows deselecting by clicking on squares if you haven't started jumping
+					if not self:tryAdvanceMove(pos, true) and not self.moveSoFar[1] == nil then -- Allows deselecting by clicking on squares if you haven't started jumping
 						self:ClearMove()
 					else
 						self.lastGhostBoardPos = pos
@@ -116,7 +123,7 @@ function Controls.new(game, boardModel, model, submitMove)
 			if self.dragging then
 				self.dragging = false
 				if self.selected then
-					if self.canSubmitAt == self.lastGhostBoardPos and not processed then
+					if self.canSubmitAt and self.canSubmitAt == self.lastGhostBoardPos and not processed then
 						self:submit()
 					else
 						local targetType, pos = self:identifyInputTarget(input)
@@ -138,8 +145,6 @@ function Controls.new(game, boardModel, model, submitMove)
 					local boardPos, pos = self:identifyInputPos(input)
 					if not boardPos then
 						self:ClearMove()
-					-- elseif boardPos == self.lastValidGhostPos then -- don't attempt to tryAdvanceMove
-					-- 	self.selected:MoveToVector3(pos)
 					elseif not self:tryAdvanceMove(boardPos, false) then
 						self.selected:MoveToVector3(pos)
 					end
@@ -154,7 +159,7 @@ function Controls.new(game, boardModel, model, submitMove)
 				if self.prevHighlightPos then
 					self.boardModel:UnhighlightPiece(self.prevHighlightPos)
 				end
-				if targetType == "Piece" and self:isOurPiece(pos) and game.Board:GetValidMoves(game.Turn, pos)[1] then
+				if targetType == "Piece" and self:isOurPiece(pos) and game.Board:GetValidMoves(pos)[1] then
 					self.boardModel:HighlightPiece(pos)
 					self.prevHighlightPos = pos
 				else
@@ -166,6 +171,7 @@ function Controls.new(game, boardModel, model, submitMove)
 	return self
 end
 function Controls:Destroy()
+	self:ClearMove()
 	for _, con in ipairs(self.cons) do
 		con:Disconnect()
 	end
@@ -186,6 +192,7 @@ function Controls:ExitGameCameraMode()
 	localPlayer.CameraMaxZoomDistance = StarterPlayer.CameraMaxZoomDistance
 end
 function Controls:ClearMove() -- clear/cancel any move-in-progress
+	self:newAction()
 	self.canSubmitAt = false
 	if self.selected then
 		self.selected:Destroy()
@@ -213,12 +220,20 @@ function Controls:identifyInputPos(input) -- returns boardPos, Vector3 pos
 		return self.boardModel:Vector3ToBoardPos(result.Position), result.Position
 	end
 end
+function Controls:newAction()
+	self.actions += 1
+	if self.idleInstructionsGiven then
+		self.idleInstructionsGiven = false
+		self.game:UpdateTurnDisplays()
+	end
+end
 function Controls:tryAdvanceMove(pos, allowSubmit) -- board pos
 	local key = tostring(pos)
 	local value = self.validMovesTree[key]
 	if not value then
 		return false
 	end
+	self:newAction()
 	self.validMovesTree = value
 	table.insert(self.moveSoFar, pos)
 	if value.canStop then
@@ -236,6 +251,14 @@ function Controls:tryAdvanceMove(pos, allowSubmit) -- board pos
 			-- only way you can double move is through a capture
 			self.boardModel:HighlightAttackSquare(stringToVector2(move))
 		end
+		local startActions = self.actions
+		task.delay(idleMidTurnInstructionTime, function()
+			if self.actions == startActions then
+				self.boardModel:UpdateDisplays(idleMidTurnInstructions2)
+				self.boardModel:DisplayAlternatingText(idleMidTurnInstructions)
+				self.idleInstructionsGiven = true
+			end
+		end)
 	end
 	return true
 end

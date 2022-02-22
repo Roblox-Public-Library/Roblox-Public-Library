@@ -3,26 +3,7 @@ local Board = require(script.Parent.Board)
 local Move = Board.Move
 
 local Game = {}
---Game.__index = Game
-local function printAndReturn(name, ...)
-	if select("#", ...) > 0 then
-		print(name, ...)
-	end
-	return ...
-end
-local function printAndReturnSkipSelf(name, self, ...)
-	print(name, ...)
-	return self, ...
-end
-function Game:__index(key)
-	local v = rawget(Game, key)
-	if type(v) == "function" and key ~= "PlayerCanMove" and key ~= "PlayerForTeam" then
-		return function(...)
-			return printAndReturn("->", v(printAndReturnSkipSelf(key, ...)))
-		end
-	end
-	return v
-end
+Game.__index = Game
 function Game.new(board, checkersModel, redOnTop)
 	local self = setmetatable({
 		redOnTop = not not redOnTop, -- defaults to false
@@ -31,7 +12,8 @@ function Game.new(board, checkersModel, redOnTop)
 		-- redPlayer
 		-- blackPlayer
 		Turn = "Red",
-		-- gameOver = false
+		-- GameOver = false
+		-- Victor = "Red"/"Black"/nil for draw (only when GameOver is true)
 	}, Game)
 	return self
 end
@@ -65,7 +47,8 @@ function Game:Serialize()
 		Turn = self.Turn,
 		redPlayer = self.redPlayer,
 		blackPieces = self.blackPlayer,
-		gameOver = self.gameOver,
+		GameOver = self.GameOver,
+		Victor = self.Victor,
 	}
 end
 function Game.Deserialize(game)
@@ -90,34 +73,42 @@ end
 function Game:NumPlayers()
 	return (if self.redPlayer then 1 else 0) + (if self.blackPlayer and self.blackPlayer ~= self.redPlayer then 1 else 0)
 end
+function Game:moveMade(move, events)
+	local last = events[#events]
+	if last.Type == "Draw" or last.Type == "Victory" then
+		self:RecordGameOver(if last.Type == "Victory" then last.Team else nil)
+	end
+end
 function Game:TryMove(player, move)
-	if not player == self:PlayerForTeam(self.Turn) or self.gameOver then return false end -- player not allowed to make a move at this time
+	if not player == self:PlayerForTeam(self.Turn) or self.GameOver then return false end -- player not allowed to make a move at this time
 	local success, events = self.Board:TryMove(self.Turn, move)
 	if success then
-		local e = events[#events]
-		if e.Type == "Draw" or e.Type == "Victory" then
-			self:GameOver(if e.Type == "Victory" then e.Team else nil)
-		else
-			self:SetTurn(if self.Turn == "Red" then "Black" else "Red")
-		end
+		self:moveMade(move, events)
 	end
 	return success, events
 end
 function Game:SetTurn(turn)
 	self.Turn = turn
 end
-function Game:GameOver(victor)
-	self.gameOver = true
+function Game:RecordGameOver(victor)
+	self.GameOver = true
+	self.Victor = victor -- can be nil for draw
 end
 function Game:NewGame(board, redOnTop)
 	if redOnTop ~= nil then
-		self.redOnTop = redOnTop
+		redOnTop = not not redOnTop
+		if self.redOnTop ~= redOnTop then
+			self.redOnTop = redOnTop
+			self.redPlayer, self.blackPlayer = self.blackPlayer, self.redPlayer
+		end
 	end
 	self.Board = board or Board.new(self.redOnTop)
-	self.gameOver = false
+	self.GameOver = false
+	self.Victor = nil
+	self.Turn = "Red"
 end
 function Game:PlayerCanMove(player)
-	return not self.gameOver and player == self:PlayerForTeam(self.Turn)
+	return not self.GameOver and player == self:PlayerForTeam(self.Turn)
 end
 
 return Game

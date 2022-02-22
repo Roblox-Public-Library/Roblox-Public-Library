@@ -18,11 +18,11 @@ local timeBetweenAlternatingMsg = 3
 
 -- EasingStyles: 'In' starts slow, ends fast; 'Out' is the opposite
 
---local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Linear, Enum.EasingDirection.In)
-local tweenInfoMove1 = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-local tweenInfoMove2 = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-local tweenInfoCapture = TweenInfo.new(0.8, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
-local tweenInfoFadeIn = TweenInfo.new(0.5, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+local mult = 1 -- change to 0.1 for fast debugging (especially with client game's AUTO_PLAY)
+local tweenInfoMove1 = TweenInfo.new(0.25 * mult, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+local tweenInfoMove2 = TweenInfo.new(0.25 * mult, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local tweenInfoCapture = TweenInfo.new(0.8 * mult, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+local tweenInfoFadeIn = TweenInfo.new(0.5 * mult, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
 local storage = ReplicatedStorage.CheckerPieces
 local pawn = storage.Piece
 local king = storage.KingedPiece
@@ -47,9 +47,6 @@ end
 local function getPieceHeight(piece)
 	return nameToHeight[piece.Name]
 end
-local function getPieceTeam(piece)
-	return if piece.Name:find("Red", 1, true) then "Red" else "Black"
-end
 
 local function newGrid()
 	local grid = table.create(8)
@@ -61,13 +58,14 @@ function BoardModel.new(board, model)
 	--	board: the board representation
 	--	model: the model in workspace that contains the checker board
 	local grid = newGrid()
-	local topLeft = model.Board["1"].Position
+	local topLeftPart = model.Board["1"]
+	local topLeft = topLeftPart.Position
 	local statusFrame = model.Table.Top.SurfaceGui.Status
 	local self = setmetatable({
 		DisplaysChanged = Event.new(), -- Occurs whenever a new message (or alternating message) is configured to be displayed. Note that this only fires once per function call (even for DisplayAlternatingText).
 
 		model = model,
-		topLeft = topLeft, -- Position
+		topLeft = topLeft + Vector3.new(0, topLeftPart.Size.Y / 2, 0), -- Position (adjusted to be on top of the board square)
 		down = model.Board["9"].Position - topLeft, -- Direction
 		right = model.Board["2"].Position - topLeft, -- Direction
 		grid = grid,
@@ -317,14 +315,14 @@ local eventTypeToHandler = {
 		})
 		piece:Destroy()
 		self.pieceToTeam[piece] = nil
-		-- piece.Position = self:getNewJailPosition(getPieceTeam(piece))
+		-- piece.Position = self:getNewJailPosition(self.pieceToTeam[piece])
 		-- piece.Transparency = 0
 	end,
 	Promote = function(self, event)
 		local pos = event.Pos
 		local grid = self.grid
 		local piece = grid[pos.X][pos.Y]
-		local team = getPieceTeam(piece)
+		local team = self.pieceToTeam[piece]
 		local newModel = boardTileToModel[team:sub(1, 1)]:Clone()
 		newModel.Transparency = 1
 		newModel.Position = self:BoardPosToVector3(pos, getPieceHeight(newModel))
@@ -336,14 +334,14 @@ local eventTypeToHandler = {
 		self.pieceToTeam[piece] = nil
 	end,
 	Draw = function(self)
-		self.topStatus.Text = "Draw"
-		self.bottomStatus.Text = "Draw"
+		self:UpdateDisplays("Draw")
 		self:handleEndOfGame()
 	end,
 	Victory = function(self, event)
 		local topWins = (event.Team == "Red") == self.redOnTop
-		self.topStatus.Text = if topWins then "You win!" else event.Team .. " Wins"
-		self.bottomStatus.Text = if not topWins then "You win!" else event.Team .. " Wins"
+		self:UpdateDisplays(
+			if topWins then "You win!" else event.Team .. " Wins",
+			if not topWins then "You win!" else event.Team .. " Wins")
 		self:handleEndOfGame()
 	end,
 }
