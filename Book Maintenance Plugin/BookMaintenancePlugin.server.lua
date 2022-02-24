@@ -261,7 +261,7 @@ local sourceToBook, dataKeyList, updateBookSource, allFieldsAffected do
 		Genres = genGetListData("genres"),
 	}
 	local mandatoryFields = {"Title", "Authors", "PublishDate", "Librarian", "Genres"}
-	local allFieldsAffected = {}
+	allFieldsAffected = {}
 	for k, _ in pairs(dataProps) do allFieldsAffected[#allFieldsAffected + 1] = k end
 	local function calculateBookAuthors(book)
 		return book.CustomAuthorLine or #book.AuthorNames > 0 and List.ToEnglish(book.AuthorNames) or "Anonymous"

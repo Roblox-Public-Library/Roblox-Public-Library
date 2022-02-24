@@ -51,7 +51,7 @@ function AddEventsToSerializable.Event(class, eventNames)
 	--	(by calling the base class's .new) and would then call it again a 2nd time to finish its own constructor
 	local function init(self)
 		for i, name in ipairs(eventNames) do
-			self[name] = Event()
+			self[name] = Event.new()
 		end
 		return self
 	end

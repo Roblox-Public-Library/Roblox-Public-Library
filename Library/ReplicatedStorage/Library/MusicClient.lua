@@ -29,7 +29,7 @@ local setToHandleRemoteArgs = {
 for _, setName in ipairs({"SetEnabled", "SetActivePlaylist", "RemoveCustomPlaylistTrack"}) do
 	local eventName = setToEventName[setName]
 	if eventName then
-		local event = Event()
+		local event = Event.new()
 		music[eventName] = event
 		local base = music[setName]
 		music[setName] = function(self, ...)
@@ -48,9 +48,9 @@ end
 local curSongIndexChanged = Instance.new("BindableEvent")
 music.CurSongIndexChanged = curSongIndexChanged.Event
 
-local playlistCreated = Event()
-local playlistRemoved = Event()
-local playlistRenamed = Event()
+local playlistCreated = Event.new()
+local playlistRemoved = Event.new()
+local playlistRenamed = Event.new()
 music.PlaylistCreated = playlistCreated
 music.PlaylistRemoved = playlistRemoved
 music.PlaylistRenamed = playlistRenamed
