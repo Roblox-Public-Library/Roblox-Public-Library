@@ -5,7 +5,7 @@
 		"ReplicatedStorage": {
 			"$className": "ReplicatedStorage",
 			"Checkers": {
-				"$path": "ReplicatedStorage/Checkers"
+				"$path": "../Checkers/ReplicatedStorage/Checkers"
 			},
 			"CommunityBoards": {
 				"$path": "ReplicatedStorage/CommunityBoards"
@@ -22,8 +22,11 @@
 		},
 		"ServerScriptService": {
 			"$className": "ServerScriptService",
+			"Books": {
+				"$path": "ServerScriptService/BooksRedirect.lua"
+			},
 			"Checkers": {
-				"$path": "ServerScriptService/Checkers"
+				"$path": "../Checkers/ServerScriptService/Checkers"
 			},
 			"Library": {
 				"$path": "ServerScriptService/Library"
@@ -40,7 +43,7 @@
 			"StarterPlayerScripts": {
 				"$className": "StarterPlayerScripts",
 				"Checkers": {
-					"$path": "StarterPlayerScripts/Checkers"
+					"$path": "../Checkers/StarterPlayerScripts/Checkers"
 				},
 				"Gui": {
 					"$path": "StarterPlayerScripts/Gui"
@@ -53,7 +56,7 @@
 		"TestService": {
 			"$className": "TestService",
 			"Checkers": {
-				"$path": "TestService/Checkers"
+				"$path": "../Checkers/TestService/Checkers"
 			},
 			"Utilities": {
 				"$path": "TestService/Utilities"

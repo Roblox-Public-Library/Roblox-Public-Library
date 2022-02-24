@@ -6,7 +6,7 @@ local TweenService = game:GetService("TweenService")
 local tweenInfo = TweenInfo.new(0.3)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local AuthorDirectory = require(ReplicatedStorage.Library.AuthorDirectory)
+local AuthorDirectory = require(ReplicatedStorage.AuthorDirectory)
 local List = require(ReplicatedStorage.Utilities.List)
 local ObjectList = require(ReplicatedStorage.Utilities.ObjectList)
 local Books = require(ReplicatedStorage.Library.BooksClient)

@@ -1,0 +1,2 @@
+-- This file is here because library books currently require ServerScriptService.Books and it may be valuable to put book related scripts in a Books module in the future (in which case ServerScriptService.Books will be the correct way to require it)
+return require(script.Parent.Library.Books)
