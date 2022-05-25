@@ -343,7 +343,7 @@ open.OnInvoke = function(model, cover, authorsNote, bookWords)
 	mainFrame.Pg2.Librarian.Text = "Librarian: " .. book.Librarian
 	mainFrame.Pg2.AuthorsNote.Text = authorsNote
 
-	fontSize = (mainFrame.AbsoluteSize.Y / 20) * 0.6
+	fontSize = (mainFrame.AbsoluteSize.Y / 20) * 0.9
 	for i = 3, #frames do
 		for _, w in ipairs(frames[i]:GetChildren()) do
 			if w:IsA("ImageLabel") then
