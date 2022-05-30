@@ -318,6 +318,98 @@ local function getWordsFromBookWords(bookWords)
 	return words
 end
 
+local TIME_INCREMENT = 10
+local topFrame = mainFrame.TopFrame
+local audioToggle = topFrame.Audio
+local back = topFrame.Back
+local forward = topFrame.Forward
+local togglePause = topFrame.TogglePause
+local speed = topFrame.Speed
+local stop = topFrame.Stop
+local audioControls = {back, forward, togglePause, speed, stop}
+local audioSound = Instance.new("Sound")
+audioSound.Name = "AudioBook"
+audioSound.Parent = localPlayer
+local pitchShift1 = Instance.new("PitchShiftSoundEffect")
+pitchShift1.Parent = audioSound
+local pitchShift2 = Instance.new("PitchShiftSoundEffect")
+pitchShift2.Parent = audioSound
+local function setSpeed(s)
+	audioSound.PlaybackSpeed = s
+	if s < 0.5 then
+		pitchShift1.Octave = 0.5
+		s *= 2
+	elseif s > 2 then
+		pitchShift1.Octave = 2
+		s /= 2
+	else
+		pitchShift1.Octave = 1 / s
+		pitchShift2.Octave = 1
+		return
+	end
+	pitchShift2.Octave = 1 / s
+end
+local function setAudioControlsVisible(visible)
+	for _, button in ipairs(audioControls) do
+		button.Visible = visible
+	end
+end
+setAudioControlsVisible(false)
+audioToggle.Activated:Connect(function()
+	setAudioControlsVisible(not back.Visible)
+end)
+back.Number.Text = TIME_INCREMENT
+forward.Number.Text = TIME_INCREMENT
+back.Activated:Connect(function()
+	audioSound.TimePosition = math.max(0, audioSound.TimePosition - TIME_INCREMENT)
+end)
+forward.Activated:Connect(function()
+	audioSound.TimePosition = math.min(audioSound.TimeLength, audioSound.TimePosition + TIME_INCREMENT)
+end)
+local playRectOffset = Vector2.new(764, 244)
+local pauseRectOffset = Vector2.new(804, 124)
+togglePause.Activated:Connect(function()
+	if audioSound.IsPlaying then
+		audioSound:Pause()
+	else
+		audioSound:Resume()
+	end
+end)
+audioSound:GetPropertyChangedSignal("Playing"):Connect(function()
+	togglePause.ImageRectOffset = if audioSound.IsPlaying
+		then pauseRectOffset
+		else playRectOffset
+end)
+stop.Activated:Connect(function()
+	audioSound:Stop()
+end)
+
+local prevSpeed = 1
+local function formatSpeed(s)
+	return if s % 1 == 0
+		then string.format("%.1f", s)
+		else string.format("%.2f", s)
+end
+speed.FocusLost:Connect(function(submitted)
+	if not submitted then
+		speed.Text = formatSpeed(prevSpeed)
+		return
+	end
+	local s = tonumber(speed.Text)
+	if not s then
+		speed.Text = formatSpeed(prevSpeed)
+		return
+	end
+	s = math.clamp(math.floor(s * 100 + 0.5) / 100, 0.25, 4)
+	speed.Text = formatSpeed(s)
+	prevSpeed = s
+	setSpeed(s)
+end)
+
+local function idToSoundId(id)
+	return "rbxassetid://" .. id
+end
+
 local open = Instance.new("BindableFunction")
 open.Name = "OpenBook"
 open.Parent = ReplicatedStorage
@@ -328,6 +420,12 @@ open.OnInvoke = function(model, cover, authorsNote, bookWords)
 	local titleTextColor = model.TitleColor.Value
 	local titleStrokeColor = handleStrokeColor(titleTextColor, model.TitleOutlineColor.Value)
 	events.bookOpened:Fire()
+	local audioId = tonumber(model:GetAttribute("Audio") or nil)
+	if audioId then
+		audioSound.SoundId = idToSoundId(audioId)
+	end
+	topFrame.Visible = audioId ~= nil
+
 	mainFrame.Position = UDim2.new(-2, 0, 0, 0) -- Put it off screen while we load it
 	sizeMainFrame()
 	mainFrame.Visible = true
@@ -467,6 +565,7 @@ end)
 bottomFrame.X.Activated:Connect(function()
 	SFX.BookClose:Play()
 	mainFrame.Visible = false
+	audioSound:Stop()
 	for i = 3, page do
 		for _, w in ipairs(frames[i]:GetChildren()) do
 			if w:IsA("ImageLabel") then
