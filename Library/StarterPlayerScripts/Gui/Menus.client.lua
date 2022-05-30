@@ -366,7 +366,7 @@ do -- Music
 	local pauseRectOffset = Vector2.new(804, 124)
 	local togglePause = actions.TogglePause
 	local function updateTogglePause()
-		togglePause.ImageRectOffset = music:IsPaused() and playRectOffset or pauseRectOffset
+		togglePause.ImageRectOffset = if music:IsPaused() then playRectOffset else pauseRectOffset
 	end
 	togglePause.Activated:Connect(function()
 		music:TogglePause()
