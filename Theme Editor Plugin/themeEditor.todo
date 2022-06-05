@@ -57,10 +57,11 @@ Idea for Inconsistencies Detected:
 		(end of scrolling frame)
 		[Cancel] [Override - Apply to All]
 		☐ auto-update as names changes (or other property changes) are made
-	
+
 	Select Next behavior:
 		☐ use linked list to track
-			☐ create linked list		
+			☐ create linked list
+	☐ "Add to Themes" adds to all themes if none selected or else the themes you've got selected (in the Explorer)
 
 Bug:
 	✔ Rename part in themes: doesn't rename part in ViewportFrame until you reselect part
@@ -79,8 +80,11 @@ Polish:
 		There could even be complex rules, like "apply this effect for 'wall's that aren't tagged with 'special'", which might be as simple as naming like so...
 			wall !special	-> any part that has wall tag but not special tag
 			wall special	-> any part that has both tags
-	
+
 	☐ Update code to use Roblox's Theme colours everywhere
+
+	☐ When you select 1+ themes in the explorer, it should reflect in the theme editor
+	☐
 
 Sanity Checks:
 	☐ TODO figure these out (some are below)
@@ -114,12 +118,32 @@ Plugin functionality:
 		☐ Do we need to have a different option for "Scan Workspace (add to theme)" vs "Scan Workspace (add to all themes)"
 		☐ similar to "Inconsistencies detected" UI
 			have a scrollingframe with all the 100% consistent unique names, sorted by # of occurrences
-			[viewport frame] [Select Next]
-			[  part name   ] [Select All (100)]
-			[              ] [Add] [Remove]
+			[viewport frame] 			[Select Next]
+			[  part name   ]			[Select All (100)]
+			[              ] 			[Add] [Remove]
 
 			[Add all of above] <-- this would be for all the consistent ones
 			----- major separator, then 2nd scrollingframe with the inconsistent ones -----
+
+
+[Select Next] [Select All] [Add] [Remove] <-- grayed out until you select something
+-- Consistent --
+[viewport frame] [viewport frame] [viewport frame]
+[  part name   ] [  part name   ] [  part name   ]
+[        |count] [        |count] [        |count]
+
+-- Inconsistent --
+[viewport frame] Color:
+[			   ] Material:
+[			   ] Reflectance:
+[        |count] Transparency:
+
+			☐ title of UI should indicate what it's for (like "Workspace Scan" or "Add 3 parts to ThemeName")
+
+Workspace scan window: when and where does it show up?
+- Starts with consistent, then inconsistent (both are collapsible)
+- When you press parts + button, workspace scan comes up; scans selected parts (if applicable) or whole workspace
+
 
 	☐ AddPartsToTheme(s) buttons:
 		☐ Show UI if there are inconsistencies between parts with the same name

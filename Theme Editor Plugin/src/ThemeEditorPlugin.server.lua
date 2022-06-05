@@ -264,14 +264,14 @@ function PartViewport:Destroy() -- todo make sure if themePart is deleted that P
 end
 Lighting:GetPropertyChangedSignal("Ambient"):Connect(function()
 	local ambient = Lighting.Ambient
-	for viewport in pairs(viewports) do
+	for viewport in viewports do
 		viewport.Ambient = ambient
 	end
 end)
 
 local folderToThemeData
 local function forEachThemePartsData(fn)
-	for _, themeData in pairs(folderToThemeData) do
+	for _, themeData in folderToThemeData do
 		if fn(themeData.PartsData) then return end
 	end
 end
@@ -328,7 +328,7 @@ local function addPartsToTheme()
 			end
 		end)
 	end
-	
+
 	if partsSelected == 0 then
 		log("No parts selected")
 	else
@@ -768,7 +768,7 @@ local function cleanup()
 		viewport:Destroy()
 	end
 	currentViewports = nil
-	for _, themeData in pairs(folderToThemeData) do
+	for _, themeData in folderToThemeData do
 		themeData:Destroy()
 	end
 	folderToThemeData = nil
