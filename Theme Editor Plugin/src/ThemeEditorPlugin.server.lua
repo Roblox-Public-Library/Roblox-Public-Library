@@ -1,25 +1,18 @@
 local workspace = workspace.ThemeEditorTesting
 local parent = script.Parent
+local AddPartsWidget = require(parent.AddPartsWidget)
 local ThemePartsData = require(parent.ThemePartsData)
 local MenuOption = require(parent.PluginUtility.MenuOption)
 local Config = require(parent.Config)
 local props = Config.Props
+local Plugin = require(parent.PluginUtility.Plugin)
+local log = Plugin.GenLog(script)
+local undoable = Plugin.Undoable
 
-local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local Lighting = game:GetService("Lighting")
 local Selection = game:GetService("Selection")
 local ServerStorage = game:GetService("ServerStorage")
 
-local function log(...)
-	print(parent.Name .. ":", ...)
-end
-
-local function undoable(desc, fn)
-	ChangeHistoryService:SetWaypoint("Before " .. desc)
-	local success, msg = xpcall(fn, function(msg) return debug.traceback(msg, 2) end)
-	ChangeHistoryService:SetWaypoint(desc)
-	if not success then error(msg) end
-end
 
 local function connectCall(event, fn)
 	fn()
@@ -276,91 +269,6 @@ local function forEachThemePartsData(fn)
 	end
 end
 
-local function addPartsToTheme()
-	local partsData = folderToThemeData[getSelectedTheme()].PartsData
-	local seenBefore = {} -- [Instance] = true if we've already analyzed it (protects against if user has a model and some of its descendants selected simultaneously)
-	local alreadyWasInTheme = {} -- List and set of part names
-	local inconsistentNames = {} -- List and set of part names with inconsistent properties
-	local uniqueSoFar = {} -- [name] = part if it's unique (ignoring duplicates with identical properties)
-	local partsSelected = 0
-	local partsAdded = 0
-	local function check(list)
-		for _, instance in ipairs(list) do
-			if seenBefore[instance] then continue end
-			seenBefore[instance] = true
-			check(instance:GetChildren())
-			if instance:IsA("BasePart") then
-				partsSelected += 1
-				local name = instance.Name
-				local other = uniqueSoFar[name]
-				if other then
-					-- make sure it's got the identical properties, otherwise it's inconsistent
-					if not Config.ArePartPropsDuplicate(instance, other) then
-						table.insert(inconsistentNames, name)
-						inconsistentNames[name] = true
-						uniqueSoFar[name] = nil
-					end -- otherwise nothing to be done
-				elseif inconsistentNames[name] or alreadyWasInTheme[name] then
-					continue
-				else -- haven't seen it before in this operation
-					if partsData:ContainsPartName(instance.Name) then
-						table.insert(alreadyWasInTheme, name)
-						alreadyWasInTheme[name] = true
-					else
-						uniqueSoFar[name] = instance
-					end
-				end
-			end
-		end
-	end
-	--[[
-		options for parts:
-		in theme already (alreadyWasInTheme) <-- warn if nothing to be added OR could always report
-		inconsistent in selection (inconsistentNames) <-- always warn
-		good to be added [or is a duplicate of one to be added] (uniqueSoFar)
-	]]
-	check(Selection:Get())
-	if next(uniqueSoFar) then
-		undoable("Add selected parts to selected theme", function()
-			for part in ipairs(uniqueSoFar) do
-				partsAdded += 1
-				partsData:AddPart(part)
-			end
-		end)
-	end
-
-	if partsSelected == 0 then
-		log("No parts selected")
-	else
-
-		log([[Add Selected Parts to Theme Report
-	3 parts added: List [but only show ': List' if <= 6?]
-	5 parts already in theme [list max length 6?]
-	10 parts with inconsistent properties: list parts [max length 20?]
-]])
-	end
-	--[[TODO
-	Finish converting log plan above into code (merge below commented out as desired)
-	Figure out how much is desired for "add to all themes" case
-		Extract common code & call
-	]]
-	-- elseif #alreadyWasInTheme == partsSelected then
-	-- 	log("All selected parts are already in " .. getSelectedTheme().Name)
-	-- elseif #alreadyWasInTheme ~= 0 then
-	-- 	log("Parts " .. table.concat(alreadyWasInTheme, ", ") .. " are already in " .. getSelectedTheme().Name)
-	-- end
-end
-local function addPartsToAllThemes()
-	local parts = Selection:Get()
-	undoable("Add selected parts to all themes", function()
-		forEachThemePartsData(function(partsData)
-			for _, part in ipairs(parts) do
-				partsData:AddPartIfUnique(part)
-			end
-		end)
-	end)
-end
-
 local function renamePartInAllThemesBase(desc, callback)
 	if not renameTarget then
 		local list = Selection:Get()
@@ -443,23 +351,36 @@ local addPartsButton = widgetFrame.PartsFrame.AddPartsButton
 -- 	addPartsButton.TextColor3 = if enabled then enabledColor else disabledColor
 -- end
 
+local function addPartsToAllThemes()
+	local parts = Selection:Get()
+	undoable("Add selected parts to all themes", function()
+		forEachThemePartsData(function(partsData)
+			for _, part in ipairs(parts) do
+				partsData:AddPartIfUnique(part)
+			end
+		end)
+	end)
+end
+
 local addPartsMenu
-local addToThemeOption
-local addToAllThemesOption
+local scanSelectionOption
+local scanWorkspaceOption
 local function prepareAddPartsMenu()
 	addPartsMenu:Clear()
-	addToThemeOption:AddToMenu(addPartsMenu)
-	addToAllThemesOption:AddToMenu(addPartsMenu)
+	scanSelectionOption:AddToMenu(addPartsMenu)
+	scanWorkspaceOption:AddToMenu(addPartsMenu)
 end
 
 installFinished:Connect(function()
 	addPartsMenu = plugin:CreatePluginMenu("0", "Add Part(s)")
-	local addToThemeAction = plugin:CreatePluginAction("AddToTheme", "Add part(s) to selected theme", "Adds the currently selected part(s) to the selected theme, ignoring duplicates.")
-	addToThemeAction.Triggered:Connect(addPartsToTheme)
-	addToThemeOption = MenuOption.new(addToThemeAction)
+	local scanSelectionAction = plugin:CreatePluginAction("AddToTheme", "Scan selection for parts to add", "Scans the currently selected part(s) and opens the consistency menu.")
+	scanSelectionAction.Triggered:Connect(AddPartsWidget.ScanSelection)
+	scanSelectionOption = MenuOption.new(scanSelectionAction)
 	local addToAllThemesAction = plugin:CreatePluginAction("AddToThemes", "Add part(s) to all themes", "Adds the currently selected part(s) to all themes, ignoring duplicates.")
 	addToAllThemesAction.Triggered:Connect(addPartsToAllThemes)
-	addToAllThemesOption = MenuOption.new(addToAllThemesAction)
+	local scanWorkspaceAction = plugin:CreatePluginAction("AddWSToTheme", "Scan workspace for parts to add", "Scans the workspace for parts and opens the consistency menu.")
+	scanWorkspaceAction.Triggered:Connect(AddPartsWidget.ScanWorkspace)
+	scanWorkspaceOption = MenuOption.new(scanWorkspaceAction)
 	prepareAddPartsMenu()
 	addPartsButton.MouseButton1Click:Connect(function()
 		addPartsMenu:ShowAsync()

@@ -1,15 +1,37 @@
 Theme Editor Todo Document:
 ---------------------------
 Current:
-	✔ select theme to look at
-		✔ on select it should create one viewport for every part located within the relevant folder name
-	✔ ui grid layout will organize them from there :)
-	✔ perhaps store which theme is currently being looked at/modified somewhere?
-		✔ could be stored within script
-		✔ on init, read from Selected Theme and set the theme to that
-	✘ Only show add parts button when {you have have parts selected that are in workspace} and {a theme selected} and {at least one part selected that is not in your selected theme}
-		Maybe it enables when you select some parts in workspace? it just checks the other stuff after you select a part or parts
 
+Add Parts Menu:
+	☐ "+" on "Parts" menu toggles the Add Parts Widget
+		Dropdown includes "Scan workspace" and "Scan selection"
+		Separate from main widget to allow closing 
+	✔ If you have something selected, analyze that, otherwise analyze entire workspace (with yields; cancel if Add Parts Widget is closed)
+	☐ Display consistent parts with a name and part count, and inconsistent part groups with a name and each version's part count and properties
+		> Parts are analyzed per name
+
+	☐ Gray out Select Next / Select All until you have selected a part
+	☐ Minus sign removes selection from widget
+	☐ "+" adds whatever is selected in workspace to widget
+	☐ Select buttons at the top
+	☐ Add to (All/Selected) Theme buttons
+		Only enabled if everything is consistent
+		Potentially have "confirm add to following themes"? 
+		Alternatively have it be "add to X selected theme(s)" 
+	☐ Add section collapse functionality to Consistent/Inconsistent sections and to PartNames in inconsistent
+	☐ Only clear widget on studio shutdown
+		
+	Conflict resolution options:
+		>> don't copy into theme but report <<
+		✘ copy into theme with " (2)" in name
+		✘ overwrite and report
+		Report: 
+			Add Selected Parts to Theme Report
+			3 parts added: List [but only show ': List' if <= 6?]
+			5 parts already in theme [list max length 6?] -- conflict resolution, see above
+			10 parts with inconsistent properties: list parts [max length 20?] -- add first from the "add parts" widget in this case
+		
+		
 New Ideas:
 	✔ + beside Parts that has these menu options:
 		✔ Add selected parts to theme [disabled if parts are already in this theme]
@@ -67,6 +89,8 @@ Bug:
 	✔ Rename part in themes: doesn't rename part in ViewportFrame until you reselect part
 
 Polish:
+	☐ Add way to select multiple themes within main widget
+	☐ When you select 1+ themes in the explorer, it should reflect in the theme editor
 	✔ when you change lighting ambient, also change the ambient of all viewport frames (and for partTemplate to affect future viewport frames)
 		and run this on startup
 	✔ Currently applied theme should say "Reapply to Workspace"
@@ -82,9 +106,6 @@ Polish:
 			wall special	-> any part that has both tags
 
 	☐ Update code to use Roblox's Theme colours everywhere
-
-	☐ When you select 1+ themes in the explorer, it should reflect in the theme editor
-	☐
 
 Sanity Checks:
 	☐ TODO figure these out (some are below)

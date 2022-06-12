@@ -97,6 +97,9 @@ function ThemePartsData:AddPartIfUnique(part)
 		return true
 	end
 end
+function ThemePartsData:GetAPartFromName(name)
+	return (next(self.nameToPart[name])) -- () ensures we just return the part
+end
 function ThemePartsData:RenamePart(oldName, newName)
 	if self:ContainsPartName(oldName) then
 		local nameToPart = self.nameToPart
