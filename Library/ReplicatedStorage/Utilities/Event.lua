@@ -1,7 +1,7 @@
 --------------------------------------------------------------------------------
 --               Batched Yield-Safe Event Implementation                     --
--- This is a  class which has effectively identical behavior to a       --
--- normal RBXScriptEvent, with the only difference being a couple extra      --
+-- This is an Event class which has effectively identical behavior to a       --
+-- normal RBXScriptSignal, with the only difference being a couple extra      --
 -- stack frames at the bottom of the stack trace when an error is thrown.     --
 -- This implementation caches runner coroutines, so the ability to yield in   --
 -- the event handlers comes at minimal extra cost over a naive event        --
@@ -22,8 +22,8 @@
 -- Authors:                                                                   --
 --   stravant - July 31st, 2021 - Created the file.                           --
 --
--- Changes:
---   Using pull request: https://github.com/stravant/goodevent/pull/3
+-- Changes by chess123mate, 2022:
+--   Using pull request: https://github.com/stravant/goodsignal/pull/3
 --   DisconnectAll -> Destroy
 --   Use error instead of assert
 --   Remove "strict" mode metatables that error on __index and __newindex
@@ -31,11 +31,8 @@
 --   Class integration
 --   Added init/deinit arguments
 --   On destroy, if an event is mid-fire, the remaining handlers are cancelled
+--   Added Once
 --   Renamed to Event
---
--- Performance:
---   In a simple "Connect and Fire a bunch" test, this class consistently performed 3-4x slower than my Event class
---   It sometimes performed only 1.2x slower when Fire wasn't used
 --------------------------------------------------------------------------------
 
 local Class = require(game.ReplicatedStorage.Utilities.Class)
@@ -112,7 +109,7 @@ end
 local Event = Class.New("Event")
 
 local function runInit(self)
-	self.initArg = self:init()
+	self.initReturn = self:init()
 end
 
 function Event.new(init, deinit)
@@ -146,7 +143,15 @@ end
 -- Disconnect all handlers. Since we use a linked list it suffices to clear the
 -- reference to the head handler.
 function Event:Destroy()
+	local hadCons = self.handlerListHead
 	self.handlerListHead = false
+	if hadCons and self.deinit then
+		if not freeRunnerThread then
+			freeRunnerThread = coroutine.create(runEventHandlerInFreeThread)
+			task.spawn(freeRunnerThread)
+		end
+		task.spawn(freeRunnerThread, self.deinit, self, self.initReturn)
+	end
 end
 Event.Clear = Event.Destroy -- function(self)
 
@@ -179,6 +184,13 @@ function Event:Wait()
 		task.spawn(waitingCoroutine, ...)
 	end)
 	return coroutine.yield()
+end
+
+function Event:Once(fn)
+	local con; con = self:Connect(function(...)
+		con:Disconnect()
+		fn(...)
+	end)
 end
 
 return Event
