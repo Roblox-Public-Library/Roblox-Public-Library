@@ -89,8 +89,8 @@ local function considerExplainingPermissions(msg)
 end
 local function trySetSource(obj, newSource, shouldCancel)
 	--	returns true if successful, false if cancelled
-	if not typeof(obj) == "Instance" and obj:IsA("LuaSourceContainer") then error("obj must be a script, received: " .. tostring(obj), 2) end
-	if not typeof(newSource) == "string" then error("newSource must be a string, received: " .. tostring(newSource), 2) end
+	if not (typeof(obj) == "Instance" and obj:IsA("LuaSourceContainer")) then error("obj must be a script, received: " .. tostring(obj), 2) end
+	if typeof(newSource) ~= "string" then error("newSource must be a string, received: " .. tostring(newSource), 2) end
 	while true do
 		local success, msg = pcall(function()
 			obj.Source = newSource

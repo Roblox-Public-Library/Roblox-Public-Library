@@ -80,7 +80,7 @@ function Game:moveMade(move, events)
 	end
 end
 function Game:TryMove(player, move)
-	if not player == self:PlayerForTeam(self.Turn) or self.GameOver then return false end -- player not allowed to make a move at this time
+	if player ~= self:PlayerForTeam(self.Turn) or self.GameOver then return false end -- player not allowed to make a move at this time
 	local success, events = self.Board:TryMove(self.Turn, move)
 	if success then
 		self:moveMade(move, events)

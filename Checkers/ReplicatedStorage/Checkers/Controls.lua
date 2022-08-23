@@ -104,7 +104,7 @@ function Controls.new(game, boardModel, model, submitMove)
 				end
 			elseif targetType == "Square" then
 				if self.selected then
-					if not self:tryAdvanceMove(pos, true) and not self.moveSoFar[1] == nil then -- Allows deselecting by clicking on squares if you haven't started jumping
+					if not self:tryAdvanceMove(pos, true) and self.moveSoFar[1] ~= nil then -- Allows deselecting by clicking on squares if you haven't started jumping
 						self:ClearMove()
 					else
 						self.lastGhostBoardPos = pos
