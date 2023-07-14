@@ -4,7 +4,6 @@ It uses 'getArg' - ex, a Profile class would retrieve the profile for a given pl
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Utilities = ReplicatedStorage.Utilities
 local Assert = require(Utilities.Assert)
-local doNothing = require(Utilities.Functions).DoNothing
 local NewRemote = {}
 NewRemote.__index = NewRemote
 function NewRemote.new(folder, getArg)
@@ -25,12 +24,15 @@ function NewRemote:Event(name, func)
 	local e = Instance.new("RemoteEvent")
 	e.Name = name
 	e.Parent = self.folder
-	local getArg = self.getArg
-	e.OnServerEvent:Connect(function(player, ...)
-		local arg = getArg(player)
-		if not arg then return end -- player left
-		func(player, arg, ...)
-	end)
+	if func then
+		local getArg = self.getArg
+		e.OnServerEvent:Connect(function(player, ...)
+			local arg = getArg(player)
+			if not arg then return end -- player left
+			func(player, arg, ...)
+		end)
+	end
+	return e
 end
 function NewRemote:Function(name, func)
 	--	func(player, arg from getArg, ... from remote):... to return to the remote
@@ -43,5 +45,6 @@ function NewRemote:Function(name, func)
 		if not arg then return end -- player left
 		return func(player, arg, ...)
 	end
+	return e
 end
 return NewRemote

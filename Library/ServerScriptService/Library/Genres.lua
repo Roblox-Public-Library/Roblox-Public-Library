@@ -1,68 +1,5 @@
-local Genres = {
-	"Action",
-	"Adventure",
-	"Animals",
-	"Astronomy",
-	"Children's",
-	"Comedy",
-	"Comics",
-	"Conduct",
-	"Critiques",
-	"Culture",
-	"Economics & Money",
-	"Events",
-	"Facts",
-	"Fan Fiction",
-	"Fantasy",
-	"Fiction",
-	"Folklore",
-	"Foods",
-	"Games",
-	"Geography",
-	"Health",
-	"Historical Fiction",
-	"History",
-	"Horror",
-	"Languages",
-	"Library Archives",
-	"Library Post",
-	"Life Learn",
-	"Mathematics",
-	"Media",
-	"Miscellaneous",
-	"Music",
-	"Mystery",
-	"Mythology",
-	"Nature",
-	"People",
-	"Philosophy",
-	"Poetry",
-	"Politics",
-	"Psychology",
-	"Reference",
-	"Relationships",
-	"Religion",
-	"Roblox Clans",
-	"Roblox Development",
-	"Roblox Economy",
-	"Roblox Fiction",
-	"Roblox Games",
-	"Roblox Groups",
-	"Roblox History",
-	"Roblox Learn",
-	"Roblox Legends",
-	"Roblox Lua",
-	"Roblox People",
-	"Romance",
-	"Science Fiction",
-	"Science",
-	"Secret",
-	"Short Story",
-	"Social",
-	"Sports",
-	"Technology",
-	"Travel",
-}
+local Genres = require(game:GetService("ReplicatedStorage").Library.Genres)
+
 local normalizedToGenre = {}
 local function normalize(genre)
 	return genre:gsub("%W+", ""):lower()
@@ -168,4 +105,8 @@ function Genres.InputToGenre(input)
 	end
 	return genre
 end
+function Genres.IsGenre(genre)
+	return normalizedToGenre[normalize(genre)]
+end
+
 return Genres

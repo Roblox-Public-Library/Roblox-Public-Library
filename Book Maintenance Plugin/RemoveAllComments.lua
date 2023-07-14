@@ -1,6 +1,5 @@
 local String = require(game:GetService("ReplicatedStorage").Utilities.String)
 local function removeAllComments(source, removeBlankLines)
-	--	Note: only supports removing line comments (but does properly respect block strings)
 	--	removeBlankLines: if true, the resulting string will have all blank lines removed, except it allows 1 line between code
 	local s = {} -- new source
 	local index = 1

@@ -35,24 +35,24 @@ button.TextScaled = true
 -- trim sizes to fit their TextBounds
 -- set label scaling to true
 function resize(obj)
-    -- Not permanent and probably won't even work, but just for testing for now
-    local minWidth, maxWidth = 10, 100
-    obj.Size = UDim2.new(
+	-- Not permanent and probably won't even work, but just for testing for now
+	local minWidth, maxWidth = 10, 100
+	obj.Size = UDim2.new(
 		0, math.min(minWidth, textBox.TextBounds.X),
 		0, math.max(maxWidth, textBox.TextBounds.X)
 	)
-    --return obj[TextScaled]
+	--return obj[TextScaled]
 end
 
 function createLabel(text)
-    local Label = Instance.new("TextLabel", frame)
-    ---------------------------------
-    Label.Name = "TextLine"
-    Label.Parent = frame -- extra check for the corect parent
-    Label.Text = tostring(text)
-    ---------------------------------
-    wait(0.01)
-    resize(Label) -- resize the label
+	local Label = Instance.new("TextLabel", frame)
+	---------------------------------
+	Label.Name = "TextLine"
+	Label.Parent = frame -- extra check for the corect parent
+	Label.Text = tostring(text)
+	---------------------------------
+	wait(0.01)
+	resize(Label) -- resize the label
 end
 
 -- textLabel_:GetPropertyChangedSignal("TextBounds"):Connect(resize(textLabel_)) -- test the resizing function if it works or errors or even does anything

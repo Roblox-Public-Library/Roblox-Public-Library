@@ -1,1 +1,0 @@
-require(game:GetService("ServerScriptService").Library.Portals).Setup(script.Parent)

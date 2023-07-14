@@ -1,5 +1,68 @@
  (If you install the Todo+ extension you can toggle a task being done with Alt+d and create a new task with Ctrl+Enter)
 --------------------------
+Finished:
+	✔ "Mirror, rorriM" doesn't have audio but is configured to
+		> it works inconsistently
+		> when it doesn't work, system doesn't think it's supposed to have audio (doesn't show up in search)
+	✔ "Greenland Academy - It's Only the Beginning by 601sss" has `"What does this a` on its own line - did this get fixed? (Might be book editor person typo)
+	✔ 	When upper limit becomes empty, it doesn't treat that as "infinite"
+	✔ uselinescommands to true and the whole title page loses linebreaks!
+	✔ word wrap isn't working like it should, allowing a break after an opening parenthesis (and probably allowing it before a closing one)
+	✘ on mobile device "redmi 8", "the great northern war" book has text inside of itself
+		for Roblox, find a resolution of 760 x 360 [real is double that, as usual]
+		> can't replicate, fixed?
+	✔ see bug Tycoon found - after one line of text and then an image (100x50, center), there's still plenty of space, yet remaining text is put on a new page.
+	✔ don't split on utf8 characters (RichText), as hyphens and quotes (in particular) shouldn't be split on
+	✔ 	ParallelTasks working correctly?
+	✔ when there was a tag `<line.`, the error message incorrectly claimed "Line 9", and the line shown was neither line 9 (in any sense) nor the line that had the problem!
+		✔ clarify tag error msg with "" around tag name so that weird indentation is more obvious
+	✔ allow nesting tags properly
+		<section,
+		✘ disallow tag separator for tags that support nesting
+		✔ scan for ">" but keep track of # of non-escaped "<"s as well (specifically, " < " and "\\<" are escaped)
+		✔ parse the args for such tags
+	✔ tag `<pagenumbering>` on its own line should not count as a newline (same with other tags of that type)
+	✔ Tests broken
+
+Todo:
+	✔ Tutorial needs to wait for assets to load before starting
+	☐	BookMaintenancePlugin incorrectly complaining about Map book not being in main shelving (it has Library Archives genre, which is in ignore list)
+		see "noBookCopy"?
+	Newline related:
+		✔	`<indent,newline>` followed by 1+ sections, each section doesn't have a newline!
+		✔ for a book with `<indent,newline>\n<bar>` doesn't have newline (from indent) before bar
+		✔ `<indent,newline><page>\n<header>` incorrectly adds a newline before the header
+		✔ `<indent,newline><page><section>` incorrectly has newline - left page only ?!
+			> confirmed via test
+			✔	confirm visually in book
+	Get rid of attributes and Color3Values:
+		☐ upgrade all old book scripts
+			☐ detect script source of old format
+				☐ move color3values to `local titleColor =` after the `local cover = ...` line
+				☐ modify last line to also have the new vars
+			☐ for new scripts, also put them in, after Cover = ...,
+		☐ scan for any books that use attributes
+		☐ remove all color3 values
+		☐ move title color info to "summary" in Books
+		☐ update ReadingBookModelHandler
+		☐ update BookChildren and BookMaintenancePlugin - it'll have to scan the source for the colours so that it can pass that info to BookChildren.UpdateGuis
+		☐ UPDATE WORKSHOPS
+	☐	Performance? (We should test a low quality device and see if it lags)
+
+	New features maybe:
+		☐	"Book customization option: ability to make the UI on the book model with the title and such invisible so that the custom title font/text on the cover art isn't obscured. The title itself would still be displayed when the book is read."
+			> "Disgustedorito — 05/26/2023 2:16 PM
+			Because unless the code is dumb, having different real and display titles without breaking all books would be really easy to add pretty much no matter how books work"
+				> he wanted it for his book I believe
+		✘ "Change the format of books to center the Librarian byline as well as the "published on" date to be flush with the RLC subheader" (Austin)
+		☐	"Make these a menu on the side just like the book pouch menu rather than little icons. Much better" - Fanatical suggested this
+			> "Change the "book settings" icon shown in Fanatical's suggestion a settings icon" (AquaF1ower)
+		☐	"A computer terminal near the front desk that opens the Book Finder prompt, in case a player misses the magnifier icon"
+		✘ "Comments on books. For example, a reader may leave its opinion on the book ingame for the other readers and the Author to see and receive feedback on it."
+		Chess:
+			☐	spectate button on the chess tables that allows others to see the game easier
+			☐	change colour scheme so black is more visible
+
 Maintenace Plugin:
 	Configuration Design:
 		☐ Support
@@ -22,83 +85,10 @@ Maintenace Plugin:
 		☐ Scan for new books continuously on startup
 		☐ Allow dependencies to be added after startup (ie create toolbar etc)
 
-
-New Book Gui:
-	☐ reorganize/redesign from cod's to work on any resolution
-	☐ design
-	☐ implement
-
-Book Pouch/Inventory:
-	Interface:
-		✔ Perhaps "Books" or "Inventory" text should be on far left side (rotated 90 degrees), at least when the pouch is closed
-		✔ Starts out open (but invisible if you're not carrying any books) @done(20-07-19 12:57)
-		✔ A ScrollingFrame (only scrolls if needed) to hold each book @done(20-07-19 12:57)
-		☐ It should save books you previously had in your inventory
-			This will be automatic when integrated into Profile
-		✔ An "x" beside each book to remove it from the inventory @done(20-07-19 12:56)
-		✔ When you click on a book in the pouch, it opens up @done(20-07-19 12:56)
-	Files Needed:
-		> BookPouch in ReplicatedStorage for the class and common behaviour
-		> BookPouchServer to handle server-side remotes (to allow client to add/remove books)
-		> BookPouchClient and/or BookPouchGui to call those remotes and show the list in the interface
-	Integration with Profile:
-		☐ Needs BookPouch class with .new/:Serialize/.Deserialize so it can be stored in the data stores and transmitted to the client
-		☐ At the end of Profile.server, call InitRemotes on BookPouchServer
-	Note:
-		We're going to have to rewrite the way books are opened, but in the end there'll be some function where you give it the book id and it opens the book; you could use a dummy function for now (that just prints out the book id)
-	Other Tasks:
-		☐ BookPouch should store the list of book ids. It can get various information from ReplicatedStorage.BooksClient (this file can be extended if further information is needed)
-		☐ BookPouchTests should properly test serialization/deserialization
-		☐ When a book is opened, add it to the user's book pouch instance (from profile.BookPouch)
-		☐ When a book pouch has something added to it or removed from it, it should trigger some sort of Changed event so that the gui code can update the list
-		☐ Optionally, the gui can use ObjectList to maintain a row in the ScrollingFrame for each book in the list
-		☐ The client should notify the server whenever a change is made; the server should verify the request (ex Assert.Integer(id)) and appropriately update the book pouch for that player
-
-New Book Gui:
-	For now we can add on to the existing book gui
-	☐ favoriting a book
-		☐ ImageButton star, like on Roblox's site. Change its icon when the change is confirmed (put it in a grayed out state while saving)
-		☐ store it in the user's profile
-		☐ store it in the book's list of people who have favourited it using UpdateAsync
-	☐ mark book as read/unread
-		☐ TextButton that grays out while confirming change; text must change to "Mark as Read"/"Mark as Unread"
-		☐ store in user's profile
-		☐ store/remove it in book's list of who's read it (UpdateAsync)
-	☐ some way to add to "pouch"
-	☐ need to rewrite the BookGui script
-
 Consider these assets:
 	Star = "rbxassetid://706790939"
 	StarOutline = "rbxassetid://706767490"
 	StarWithBorder = "rbxassetid://706767649"
-
---------------------------
-Data Flow Plan (Profiles):
---------------------------
-OnEnter:
-	☐ DataStoreLoad -> profileData
-	☐ Profile.Deserialize/Decode -> profile
-	☐ profiles[player] = profile
-	☐ fire profileLoaded for the player (can be created on demand; only fire if it exists)
-	☐ mark when next autosave can occur
-
-User clicks Music Off:
-	✔ gui asks Music
-	✔ Music gets a ref to the current profile and can check :IsMusicEnabled()
-	✔ Music should then react to new value of MusicEnabled
-	✔ ClientProfile uses remote to notify server of change
-	✔ Server records it and marks profile as changed
-	✔ activate autosave routine/queue as needed
-
-User clicks a book:
-	☐ book gui asks ClientProfile for fav/read/etc details
-	☐ book gui asks BookContent module for content (which keeps it only while the book is in your inventory; maybe also the last book you had opened)
-		☐ asks for content from server
-
-Say we use the most basic table syntax (so it's simple to view/edit). What data could be stored in one key?
-ex, Favorites=[1,532,531]
-so if we assume there are 10k books and that each ID is 4 digits long, then we need 5 digits per favourite is ~50,000 characters and the limit is 260,000 characters!
-So we could do that for now
 
 Theme Editor:
 	☐

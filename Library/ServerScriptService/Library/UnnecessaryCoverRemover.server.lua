@@ -86,7 +86,7 @@ end
 local ignore = {}
 local filterArg = RaycastParams.new()
 filterArg.FilterDescendantsInstances = ignore
-filterArg.FilterType = Enum.RaycastFilterType.Blacklist
+filterArg.FilterType = Enum.RaycastFilterType.Exclude
 local n = 0
 local total = 0
 local allBooks = getAllBooks()

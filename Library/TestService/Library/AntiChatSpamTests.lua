@@ -1,6 +1,6 @@
 return function(tests, t)
 
-local AntiSpamFunctions = require(game:GetService("ServerScriptService").AntiSpamFunctions)
+local AntiSpamFunctions = require(game:GetService("ServerScriptService").Library.AntiSpamFunctions)
 
 tests["GetPointValue works"] = {
 	test = function(msg, points)

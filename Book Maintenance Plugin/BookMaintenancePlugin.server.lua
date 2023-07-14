@@ -7,7 +7,8 @@ Responsibilities:
 -Automatically transform genres when possible
 -Warn if a book's genres are completely invalid
 -Auto-detect a book's genre based on the shelf it is on and warn if that genre isn't listed
--Replace all fancy quotation marks with simple equivalents (in both script source and part name)
+-(Disabled) Replace all fancy quotation marks with simple equivalents (in both script source and part name)
+-Delete comments from book scripts (only if they're in the workspace)
 -Compile list of books with title, author, and all other available data into an output script
 -Remove unnecessary welds
 ]]
@@ -35,6 +36,10 @@ function findId(objList) -- Select 1+ books and this will print the id assigned 
 	end
 end
 ]]
+
+local bookNameBlacklist = { -- any books with these names are ignored
+	Template = true,
+}
 
 local Players = game:GetService("Players")
 local ServerScriptService = game:GetService("ServerScriptService")
@@ -168,12 +173,17 @@ local function getBookTitleByAuthorLine(book)
 	return ('"%s" by %s%s'):format(fields.Title, fields.Author, fields.Genre and (" (%s)"):format(fields.Genre) or "")
 end
 
+local function capitalize(s)
+	return s:sub(1, 1):upper() .. s:sub(2)
+end
+
 local wordStartBorder = "%f[%w_]"
 local wordEndBorder = "%f[^%w_]"
 local sourceToBook, dataKeyList, updateBookSource, allFieldsAffected do
 	local function genGetData(key)
 		local first = "^local%s+" .. key .. wordEndBorder
 		local firstAlt = "\nlocal%s+" .. key .. wordEndBorder
+		local firstAlt2 = "\n%s*" .. capitalize(key) .. wordEndBorder
 		-- Note: "^" means "at start of where we're looking" based on the index we provide to string.find
 		local second = "^[ \t]-\n?[ \t]-="
 		local finds = {
@@ -186,6 +196,9 @@ local sourceToBook, dataKeyList, updateBookSource, allFieldsAffected do
 			local _, start = source:find(first)
 			if not start then
 				_, start = source:find(firstAlt)
+				if not start then
+					_, start = source:find(firstAlt2)
+				end
 			end
 			if not start then return nil end
 			_, start = source:find(second, start + 1)
@@ -205,11 +218,15 @@ local sourceToBook, dataKeyList, updateBookSource, allFieldsAffected do
 	local function genGetListData(key)
 		local first = "^local%s+" .. key .. wordEndBorder
 		local firstAlt = "\nlocal%s+" .. key .. wordEndBorder
+		local firstAlt2 = "\n%s*" .. capitalize(key) .. wordEndBorder
 		local second = "^[ \t]*\n?[ \t]*=[ \t]*\n?[ \t]*%{([^}]*)%}"
 		return function(source, model)
 			local _, index = source:find(first)
 			if not index then
 				_, index = source:find(firstAlt)
+				if not index then
+					_, index = source:find(firstAlt2)
+				end
 			end
 			if not index then return {} end
 			local _, _, data = source:find(second, index + 1)
@@ -262,7 +279,7 @@ local sourceToBook, dataKeyList, updateBookSource, allFieldsAffected do
 	}
 	local mandatoryFields = {"Title", "Authors", "PublishDate", "Librarian", "Genres"}
 	allFieldsAffected = {}
-	for k, _ in pairs(dataProps) do allFieldsAffected[#allFieldsAffected + 1] = k end
+	for k, _ in dataProps do allFieldsAffected[#allFieldsAffected + 1] = k end
 	local function calculateBookAuthors(book)
 		return book.CustomAuthorLine or #book.AuthorNames > 0 and List.ToEnglish(book.AuthorNames) or "Anonymous"
 	end
@@ -290,7 +307,7 @@ local sourceToBook, dataKeyList, updateBookSource, allFieldsAffected do
 			Source = source,
 		}
 		local model = models[1]
-		for k, v in pairs(dataProps) do
+		for k, v in dataProps do
 			book[k] = v(source, model)
 		end
 		if book.AuthorNames[1] == nil then
@@ -324,7 +341,7 @@ local sourceToBook, dataKeyList, updateBookSource, allFieldsAffected do
 			end
 		else
 			updateAuthors = true
-			for k, v in pairs(dataProps) do
+			for k, v in dataProps do
 				book[k] = v(newSource, model)
 			end
 		end
@@ -346,6 +363,9 @@ local failedToFindVar = Report.NewListCollector("Failed to find variables for th
 local function modifySourceVarList(report, source, var, newValue, model) -- newValue:list
 	--	returns success, source; warns if fails to find 'var'
 	local _, lastCharToKeep = source:find("local%s+" .. var .. "%s*=%s*%{")
+	if not lastCharToKeep then
+		_, lastCharToKeep = source:find("\n%s*" .. capitalize(var) .. "%s*=%s*%{")
+	end
 	if not lastCharToKeep then
 		report(failedToFindVar, ("'%s' in %s"):format(var, path(model)))
 		return false, source
@@ -677,7 +697,7 @@ local readAuthorDirectory, writeAuthorDirectory do
 	end
 	local function setToList(set)
 		local list = {}
-		for k, _ in pairs(set) do
+		for k, _ in set do
 			list[#list + 1] = k
 		end
 		return list
@@ -699,7 +719,7 @@ local readAuthorDirectory, writeAuthorDirectory do
 		local idToList = {}
 		local idToExtra = {}
 		local i = 0 -- using 'i' to only occasionally call considerYield() is 5x faster (not measuring the rest of the loop)
-		for id, entry in pairs(idToEntry) do
+		for id, entry in idToEntry do
 			idToList[id] = listToTableContents(setToList(entry.Names))
 			idToExtra[id] = entry.Banned or entry.LastUpdated
 			i += 1
@@ -709,7 +729,7 @@ local readAuthorDirectory, writeAuthorDirectory do
 			end
 		end
 		local numPages = WriteMultiPageScript(clientDir, "return {\n", "}")(function(write)
-			for id, list in pairs(idToList) do
+			for id, list in idToList do
 				write(("\t[%d] = {%s},\n"):format(id, list))
 				i += 1
 				if i == 100 then
@@ -721,7 +741,7 @@ local readAuthorDirectory, writeAuthorDirectory do
 		setSource(clientDir, ([[
 local idToNames = {}
 for i = 1, %d do
-	for k, v in pairs(require(script["Pg" .. i])) do
+	for k, v in require(script["Pg" .. i]) do
 		local new = #v > 0 and {} or v
 		for j, name in ipairs(v) do
 			new[j] = name:lower()
@@ -751,7 +771,7 @@ for _, book in ipairs(books) do
 end
 
 local nameToIds = {}
-for id, names in pairs(idToNames) do
+for id, names in idToNames do
 	for _, name in ipairs(names) do
 		local list = nameToIds[name]
 		if not list then
@@ -779,7 +799,7 @@ function AuthorDirectory.PartialMatches(value)
 		return idToNames[value]
 	end
 	local ids = {}
-	for name, idList in pairs(nameToIds) do
+	for name, idList in nameToIds do
 		if name:find(value, 1, true) then
 			for _, id in ipairs(idList) do
 				ids[#ids + 1] = id
@@ -790,7 +810,7 @@ function AuthorDirectory.PartialMatches(value)
 end
 return AuthorDirectory]]):format(numPages))
 		getWriteMPSAuthorDirectory()(function(write)
-			for id, list in pairs(idToList) do
+			for id, list in idToList do
 				write(("\t{%d%s%s,%s},\n"):format(id, list == "" and "" or ",", list, tostring(idToExtra[id] or 0)))
 			end
 		end)
@@ -853,7 +873,7 @@ local authorLock, onMaintenanceFinished do
 				authorsDetected = 0
 				local unbannedAuthorsDetected = 0
 				local upToDate = 0
-				for id, entry in pairs(idToEntry) do
+				for id, entry in idToEntry do
 					authorsDetected += 1
 					if entry.LastUpdated then
 						unbannedAuthorsDetected += 1
@@ -1016,7 +1036,7 @@ local function updateAuthorInformation(report, books)
 	local idsFound = {}
 	local numNew, numRemoved = 0, 0
 	for _, book in ipairs(books) do
-		for i, authorId in pairs(book.AuthorIds) do -- using pairs in case there are holes in the list
+		for i, authorId in book.AuthorIds do -- using pairs in case there are holes in the list
 			if type(authorId) ~= "number" then continue end -- ex if it's false
 			idsFound[authorId] = true
 			local authorName = book.AuthorNames[i]
@@ -1032,7 +1052,7 @@ local function updateAuthorInformation(report, books)
 			end
 		end
 	end
-	for id, entry in pairs(idToEntry) do
+	for id, entry in idToEntry do
 		if not idsFound[id] then
 			idToEntry[id] = nil
 			numRemoved += 1
@@ -1106,23 +1126,40 @@ local generateReportToScript do
 		startLength = #commentAndHeaderOpen + #commentClose
 	end
 	local writeReport = WriteMultiPageScript(ServerStorage, commentAndHeaderOpen, commentClose, "Book List Report Pg", "Script", true)
+	local function includeBookInReport(book)
+		return book.Models[1]:IsDescendantOf(workspace)
+	end
+	local function countBooksInReport(books)
+		local n = 0
+		local ignored = 0
+		for i, book in ipairs(books) do
+			if includeBookInReport(book) then
+				n += 1
+			else
+				ignored += 1
+			end
+		end
+		return n, ignored
+	end
 	local function generateReport(books)
 		return writeReport(function(write)
 			for _, book in ipairs(books) do
-				write(bookToReportLine(book))
+				if includeBookInReport(book) then
+					write(bookToReportLine(book))
+				end
 			end
 		end)
 	end
 	generateReportToScript = function(report, books)
 		local numPages = generateReport(books)
-		report(FINAL_SUMMARY, ("%d unique books compiled into %d ServerStorage.Book List Report page%s"):format(#books, numPages, numPages == 1 and "" or "s"))
+		local booksInReport, booksIgnored = countBooksInReport(books)
+		report(FINAL_SUMMARY, ("%d unique books compiled into %d ServerStorage.Book List Report page%s%s"):format(booksInReport, numPages, numPages == 1 and "" or "s", if booksIgnored > 0 then " (" .. booksIgnored .. " outside workspace not included)" else ""))
 	end
 end
 
 local function isBook(obj)
-	if obj:IsA("BasePart") and obj:FindFirstChild("BookNameFront") then
-		local script = obj:FindFirstChildOfClass("Script")
-		return script
+	if obj:IsA("BasePart") and obj:FindFirstChild("BookNameFront") and not bookNameBlacklist[obj.Name] then
+		return obj:FindFirstChildOfClass("Script")
 	end
 	return false
 end
@@ -1140,6 +1177,7 @@ local function findAllBooks(report)
 		list[#list + 1] = model
 	end
 	local foldersConsidered = {}
+	-- Check places in which a book is always supposed to appear once
 	for _, folder in ipairs({workspace.Books, workspace["Post Books"]}) do
 		foldersConsidered[folder] = true
 		for _, c in ipairs(folder:GetDescendants()) do
@@ -1148,33 +1186,45 @@ local function findAllBooks(report)
 			end
 		end
 	end
+	local function addToListCheckInStandard(c, nonWorkspace)
+		local source = c:FindFirstChildOfClass("Script").Source
+		if not sourceToModels[source] then
+			report(noBookCopy, path(c))
+		end
+		addToList(c, source, nonWorkspace)
+	end
+	-- Check places in which a book can be duplicated
 	for _, folder in ipairs({workspace.BookOfTheMonth, workspace.NewBooks, workspace["Staff Recs"]}) do
 		foldersConsidered[folder] = true
 		for _, c in ipairs(folder:GetDescendants()) do
 			if isBook(c) then
-				local source = c:FindFirstChildOfClass("Script").Source
-				if not sourceToModels[source] then
-					report(noBookCopy, path(c))
-				end
-				addToList(c, source)
+				addToListCheckInStandard(c)
 			end
 		end
 	end
+	-- Check all other places in the workspace
 	for _, folder in ipairs(workspace:GetChildren()) do
 		if isBook(folder) then
-			addToList(folder)
-		end
-		if not foldersConsidered[folder] then
+			addToListCheckInStandard(folder)
+		elseif not foldersConsidered[folder] then
 			for _, c in ipairs(folder:GetDescendants()) do
 				if isBook(c) then
-					addToList(c)
+					addToListCheckInStandard(c)
 				end
+			end
+		end
+	end
+	-- Check in the rest of the game (to maintain ids of books temporarily removed from the workspace)
+	for _, name in ipairs({"ReplicatedStorage", "ServerScriptService", "ServerStorage"}) do
+		for _, c in game:GetService(name):GetDescendants() do
+			if isBook(c) then
+				addToList(c, nil, true)
 			end
 		end
 	end
 	local books = {}
 	local n = 0
-	for source, models in pairs(sourceToModels) do
+	for source, models in sourceToModels do
 		local book = sourceToBook(report, source, models)
 		if book then
 			n = n + 1
@@ -1218,14 +1268,15 @@ end
 
 local getRidOfSpecialCharactersAndCommentsAndWaitForChildFor do
 	local specials = {
-		['‘'] = "'",
-		['’'] = "'",
-		['“'] = '"',
-		['”'] = '"',
-		["…"] = "...",
+		-- ['‘'] = "'",
+		-- ['’'] = "'",
+		-- ['“'] = '"',
+		-- ['”'] = '"',
+		-- ["…"] = "...",
 	}
 	local function replaceSpecials(s, stringOpening)
-		for k, v in pairs(specials) do
+		if true then return s end
+		for k, v in specials do
 			local replace = v == stringOpening and "\\" .. v or v
 			s = s:gsub(k, replace)
 		end
@@ -1259,8 +1310,11 @@ local trimFieldToVar = {
 }
 local function trimFields(book)
 	local source = book.Source
-	for field, var in pairs(trimFieldToVar) do
+	for field, var in trimFieldToVar do
 		local start, final = source:find("local%s+" .. field .. "%s*=%s*")
+		if not start then
+			start, final = source:find("\n%s*" .. capitalize(field) .. "%s*=%s*")
+		end
 		if start then
 			local char = source:sub(final + 1, final + 1)
 			if char == "[" then
@@ -1304,23 +1358,6 @@ local function updateModelName(report, book)
 	local name = getBookTitleByAuthorLine(book)
 	for _, model in ipairs(book.Models) do
 		local botmTag = model.Name:match(" %- BOTM.*") -- preserve BOTM tag
---[[
-new name
-reserve 40 chars for title
-20 for author
-20 for genre
-Botm can be limited to 15 chars
-
-Possible algorithm:
-1. Try to allow everything regardless of size
-2. If it goes past max size, reduce anything that exceeds its limit until it all fits
-
-Complication:
-max size is 100 bytes, but titles can have utf8 characters (ie 2+ bytes ohh), and we ideally don't split up a utf8 character
-
-
-]]
-
 		local newName = botmTag and name .. botmTag or name
 		if model.Name ~= newName then
 			model.Name = newName
@@ -1340,7 +1377,7 @@ local idToModels, idToFolder -- can read from these after calling readIdsFolder
 local invalidValues = Report.NewListCollector("The following %d value%s in the Book Data Storage.Ids folder are not ObjectValues:")
 local incorrectlyNamedEntries = Report.NewListCollector("The following %d name%s in the Book Data Storage.Ids folder are not integers.")
 local function readIdsFolder(report)
-	--	stores results in idToModels, idToFolder (and also returns them)
+	--	stores results in idToModels, idToFolder
 	--	'report' is optional (for the sake of the Update Copies button)
 	if idToModels then return end -- already cached (this is broken by updateIdsFolder)
 	local madeReport = not report
@@ -1361,7 +1398,7 @@ local function readIdsFolder(report)
 			else
 				local models = {}
 				local function considerAdd(value)
-					if value and workspace:IsAncestorOf(value) then
+					if value then
 						models[#models + 1] = value
 					end
 				end
@@ -1379,7 +1416,7 @@ local function readIdsFolder(report)
 	end
 end
 local function updateIdsFolder(report, books, invalidIds)
-	-- Note: any ids remaining in invalidIds after the for loop will be deleted
+	-- Note: any ids remaining in idToFolder after the for loop will be deleted
 	for _, book in ipairs(books) do
 		if not book.Id then
 			continue
@@ -1416,7 +1453,7 @@ local function updateIdsFolder(report, books, invalidIds)
 	end
 	-- Remove unused entries
 	local n = 0
-	for id, folder in pairs(idToFolder) do
+	for id, folder in idToFolder do
 		folder.Parent = nil
 		n += 1
 	end
@@ -1442,9 +1479,9 @@ local sameIdDifSource = {
 	end,
 	Compile = function(data)
 		local s = {"The following books have same ids but different sources! For each set, select the newer book and click \"Update Copies\" to fix, then run maintenance again."}
-		for id, set in pairs(data.idToSet) do
+		for id, set in data.idToSet do
 			local t = {}
-			for model, _ in pairs(set) do
+			for model, _ in set do
 				t[#t + 1] = path(model)
 			end
 			s[#s + 1] = List.ToEnglish(t)
@@ -1455,7 +1492,7 @@ local sameIdDifSource = {
 local function verifyExistingBooksHaveSameId(report, idToModels, invalidIds, invalidSources)
 	--	invalidIds[id] = true is performed for any id that has this problem
 	--	invalidSources[source] = true is also performed for all sources affected
-	for id, models in pairs(idToModels) do
+	for id, models in idToModels do
 		if #models > 1 then
 			local first = models[1]:FindFirstChildOfClass("Script").Source
 			for i = 2, #models do
@@ -1543,7 +1580,7 @@ local function assignIds(report, books, pauseIfNeeded)
 				(do not register ids for anything in the "invalid" table)
 	]]
 	local modelToId = {}
-	for id, models in pairs(idToModels) do
+	for id, models in idToModels do
 		for _, model in ipairs(models) do
 			modelToId[model] = id
 		end
@@ -1582,10 +1619,19 @@ local function assignIds(report, books, pauseIfNeeded)
 			end
 		elseif existingId then -- either they're all old or there are new copies but no inconsistencies; do quick maintenance only
 			updateModelName(report, book) -- just in case it's been changed (we assume that any editing will not introduce a need to trim/get rid of special characters/will not invalidate the book)
-		else --allNew. if it doesn't share fields with another book, add to 'new' list (done further down) so it can get a new id if its source doesn't end up on the invalid list
+		else -- allNew. if it doesn't share fields with another book, add to 'new' list (done further down) so it can get a new id if its source doesn't end up on the invalid list
 			-- Note: we only get rid of special characters (etc) for new books because it takes at least several seconds to perform this for a few thousand books.
+			local anyModelInWorkspace = false
+			for _, model in ipairs(models) do
+				if model:IsDescendantOf(workspace) then
+					anyModelInWorkspace = true
+					break
+				end
+			end
 			trimFields(book)
-			getRidOfSpecialCharactersAndCommentsAndWaitForChildFor(book)
+			if anyModelInWorkspace then -- book could be under construction so don't remove comments
+				getRidOfSpecialCharactersAndCommentsAndWaitForChildFor(book)
+			end
 			updateModelName(report, book)
 			pauseIfNeeded()
 		end
@@ -1704,7 +1750,7 @@ local onShelfLackingGenre = {
 	Compile = function(data)
 		local s = {"The following shelves contain books lacking that shelf's genre:"}
 		local shelfToGenre = data.shelfToGenre
-		for shelf, books in pairs(data.shelfToBooks) do
+		for shelf, books in data.shelfToBooks do
 			s[#s + 1] = ("\t%s%s:"):format(shelf, shelf == shelfToGenre[shelf] and "" or (" (genre %s)"):format(shelfToGenre[shelf]))
 			for _, book in ipairs(books) do
 				s[#s + 1] = ("\t\t%s"):format(bookPath(book))
@@ -1717,7 +1763,7 @@ local multiShelfBooks = Report.NewListCollector("%d books have copies on shelves
 local base = multiShelfBooks.Collect
 function multiShelfBooks.Collect(data, shelfModel, book, shelfToModel)
 	local list = {book.Models[1].Name}
-	for shelf, model in pairs(shelfToModel) do
+	for shelf, model in shelfToModel do
 		list[#list + 1] = ("\n\t\t%s: %s"):format(shelf, path(model))
 	end
 	base(data, table.concat(list))
@@ -1928,7 +1974,7 @@ updateCopiesButton.Click:Connect(function()
 	end
 	updateCopiesButton:SetActive(true)
 	readIdsFolder()
-	for id, models in pairs(idToModels) do
+	for id, models in idToModels do
 		local source, foundIndex
 		for i, model in ipairs(models) do
 			if model == bookModel then

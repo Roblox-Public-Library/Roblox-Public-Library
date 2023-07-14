@@ -48,10 +48,10 @@ Controls.__index = Controls
 function Controls.new(game, boardModel, model, submitMove)
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterDescendantsInstances = {model.Board, model.Pieces}
-	raycastParams.FilterType = Enum.RaycastFilterType.Whitelist
+	raycastParams.FilterType = Enum.RaycastFilterType.Include
 	local raycastParamsBoardOnly = RaycastParams.new()
 	raycastParamsBoardOnly.FilterDescendantsInstances = {model.Board}
-	raycastParamsBoardOnly.FilterType = Enum.RaycastFilterType.Whitelist
+	raycastParamsBoardOnly.FilterType = Enum.RaycastFilterType.Include
 	local self = setmetatable({
 		game = game or error("no game", 2), --:Game
 		boardModel = boardModel or error("no boardModel", 2), --:BoardModel

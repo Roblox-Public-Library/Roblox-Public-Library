@@ -74,7 +74,7 @@ function Connection.new(event, fn)
 end
 
 function Connection:Disconnect()
-	if not self.Connected then error("Can't disconnect a connection twice.", 2) end
+	if not self.Connected then return end
 	self.Connected = false
 
 	-- Unhook the node, but DON'T clear it. That way any fire calls that are

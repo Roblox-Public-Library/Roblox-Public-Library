@@ -2,13 +2,15 @@ local Marketplace = game:GetService("MarketplaceService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Assert = require(ReplicatedStorage.Utilities.Assert)
 local Class = require(ReplicatedStorage.Utilities.Class)
+local Event = require(ReplicatedStorage.Utilities.Event)
+local Table = require(ReplicatedStorage.Utilities.Table)
 local AddEventsToSerializable = require(ReplicatedStorage.Utilities.AddEventsToSerializable)
 --[[Playlist:
 .Name
 .Id (0 or negative for default ones, 1+ for custom)
 .Songs:List<Song Id>
 .]]
-local function anyProblemWithSongId(id)
+local function anyProblemWithSongIdAsync(id)
 	--	Returns a string representing the problem with 'id', or nil if it's a valid id
 	id = tonumber(id)
 	if not id or not Assert.Check.Integer(id, 1) then return "That is not a valid song id" end
@@ -31,7 +33,7 @@ local function anyProblemWithSongId(id)
 	return nil
 end
 
-local noRefsLeft = Instance.new("BindableEvent")
+local noRefsLeft = Event.new()
 local idToNumRefs = {}
 local function addRef(id)
 	idToNumRefs[id] = (idToNumRefs[id] or 0) + 1
@@ -84,15 +86,16 @@ function Playlist:Serialize()
 	assert(self.Id > 0, "Can only serialize custom playlists")
 	return {Id = self.Id, Name = self.Name, Songs = self.Songs}
 end
-local function filterSongs(songs)
+local function filterSongsAsync(songs, validSongs)
+	--	validSongs is an optional table that will be filled with the valid songs from 'songs' and returned.
 	Assert.List(songs)
 	local num = #songs
 	if num == 0 then return songs end
 	local event = Instance.new("BindableEvent")
 	local problemIds = {}
 	for _, songId in ipairs(songs) do
-		coroutine.wrap(function()
-			if anyProblemWithSongId(songId) then
+		task.spawn(function()
+			if anyProblemWithSongIdAsync(songId) then
 				problemIds[songId] = true
 			end
 			num = num - 1
@@ -100,12 +103,12 @@ local function filterSongs(songs)
 				event:Fire()
 				event:Destroy()
 			end
-		end)()
+		end)
 	end
 	if num > 0 then
 		event.Event:Wait()
 	end
-	local validSongs = {}
+	validSongs = validSongs or {}
 	for _, songId in ipairs(songs) do
 		if not problemIds[songId] then
 			validSongs[#validSongs + 1] = songId
@@ -113,8 +116,16 @@ local function filterSongs(songs)
 	end
 	return validSongs
 end
-function Playlist.DeserializeDataStore(data)
-	return Playlist.new(data.Id, data.Name, filterSongs(data.Songs))
+function Playlist.DeserializeDataStore(data, player)
+	task.spawn(function()
+		-- Note: this means that if a song turns out to have been deleted/inaccessible, the client might not find out about it until the next time they join the place
+		local validSongs = filterSongsAsync(data.Songs)
+		if #validSongs ~= #data.Songs then
+			data.Songs = validSongs
+			Playlist.UpdatePlaylist:FireClient(player, data.Id, validSongs)
+		end
+	end)
+	return Playlist.new(data.Id, data.Name, data.Songs)
 end
 function Playlist.Deserialize(data)
 	return Playlist.new(data.Id, data.Name, data.Songs)
@@ -155,10 +166,10 @@ local Music = {
 	--	This allows the profile to have space for everything else
 	DefaultPlaylists = defaultPlaylists, -- id -> playlist
 	ListOfDefaultPlaylists = listOfDefaultPlaylists,
-	AnyProblemWithSongId = anyProblemWithSongId,
-	NoRefsLeft = noRefsLeft.Event, --(songId) -- triggered when a song is removed from all playlists
+	AnyProblemWithSongIdAsync = anyProblemWithSongIdAsync,
+	NoRefsLeft = noRefsLeft, --(songId) -- triggered when a song is removed from all playlists
 	Playlist = Playlist,
-	FilterSongs = filterSongs,
+	FilterSongsAsync = filterSongsAsync,
 }
 Music.__index = Music
 function Music.new()
@@ -183,11 +194,11 @@ end
 local function getDefaultPlaylist()
 	return defaultPlaylists[0] or defaultPlaylists[next(defaultPlaylists)]
 end
-local function deserialize(data, deserializePlaylist)
+local function deserialize(data, deserializePlaylist, ...)
 	local customPlaylists = {}
 	local nameToPlaylist = {}
 	for _, playlistData in ipairs(data.customPlaylists) do
-		local playlist = deserializePlaylist(playlistData)
+		local playlist = deserializePlaylist(playlistData, ...)
 		customPlaylists[playlist.Id] = playlist
 		nameToPlaylist[playlist.Name] = playlist
 	end
@@ -197,11 +208,11 @@ local function deserialize(data, deserializePlaylist)
 	data.nameToPlaylist = nameToPlaylist
 	return setmetatable(data, Music)
 end
-function Music.DeserializeDataStore(data)
-	return deserialize(data, Playlist.DeserializeDataStore)
+function Music.DeserializeDataStore(data, player)
+	return deserialize(Table.DeepClone(data), Playlist.DeserializeDataStore, player)
 end
 function Music.Deserialize(data)
-	return deserialize(data, Playlist.Deserialize)
+	return deserialize(Table.DeepClone(data), Playlist.Deserialize)
 end
 function Music:GetEnabled()
 	return self.enabled

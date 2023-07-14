@@ -61,6 +61,22 @@ function Table.Equals(t1, t2)
 	return true
 end
 
+function Table.ApplyClonedDefaults(dest, source)
+	--	For string keys dest doesn't have, copy over values from source (using deep cloning on any tables)
+	--	This is applied recursively if both dest and source have a table with the same key
+	if not dest then dest = {} end
+	for k, sv in source do
+		if type(k) ~= "string" then continue end
+		local dv = dest[k]
+		if dv == nil then
+			dest[k] = if type(sv) == "table" then Table.DeepClone(sv) else sv
+		elseif type(dv) == "table" and type(sv) == "table" then
+			Table.ApplyClonedDefaults(dv, sv)
+		end
+	end
+	return dest
+end
+
 -- ToString section
 
 local function isCustomEvent(v) -- assumes type(v) == "table"

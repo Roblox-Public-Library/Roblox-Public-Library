@@ -1,0 +1,121 @@
+{
+	"name": "Workshop",
+	"tree": {
+		"$className": "DataModel",
+		"ServerStorage": {
+			"$className": "ServerStorage",
+			"Workshop": {
+				"$className": "Model",
+				"$ignoreUnknownInstances": true,
+				"Workshop": {
+					"$path": "Workshop/Workshop.server.lua",
+					"$ignoreUnknownInstances": false,
+					"ReplicatedStorage": {
+						"$className": "Folder",
+						"$ignoreUnknownInstances": false,
+						"Gui": {
+							"$path": "ReplicatedStorage/Gui"
+						},
+						"Guis": {
+							"$className": "Folder",
+							"$ignoreUnknownInstances": true
+						},
+						"Library": {
+							"$className": "Folder",
+							"$ignoreUnknownInstances": false,
+							"BookChildren": {
+								"$path": "ReplicatedStorage/Library/BookChildren.lua"
+							},
+							"BooksClient": {
+								"$path": "ReplicatedStorage/Library/BooksClient.lua"
+							},
+							"BooksContentCache": {
+								"$path": "ReplicatedStorage/Library/BooksContentCache.lua"
+							},
+							"Genres": {
+								"$path": "ReplicatedStorage/Library/Genres.lua"
+							},
+							"ProfileClient": {
+								"$path": "Workshop/WorkshopProfileClient.lua"
+							}
+						},
+						"Utilities": {
+							"$path": "ReplicatedStorage/Utilities"
+						},
+						"SFX": {
+							"$className": "Folder",
+							"$ignoreUnknownInstances": true
+						},
+						"Writer": {
+							"$path": "../Writer/ReplicatedStorage/Writer"
+						}
+					},
+					"ServerScriptService": {
+						"$className": "Folder",
+						"$ignoreUnknownInstances": false,
+						"Books": {
+							"$path": "ServerScriptService/BooksRedirect.lua"
+						},
+						"Library": {
+							"$className": "Folder",
+							"$ignoreUnknownInstances": false,
+							"BookChildren": {
+								"$path": "ServerScriptService/Library/BookChildren.lua"
+							},
+							"Books": {
+								"$path": "ServerScriptService/Library/Books.lua"
+							},
+							"BookVersionUpgrader": {
+								"$path": "ServerScriptService/Library/BookVersionUpgrader.lua"
+							},
+							"Genres": {
+								"$path": "ServerScriptService/Library/Genres.lua"
+							},
+							"UnnecessaryCoverRemover": {
+								"$path": "ServerScriptService/Library/UnnecessaryCoverRemover.server.lua"
+							}
+						},
+						"Utilities": {
+							"$path": "ServerScriptService/Utilities"
+						},
+						"ParallelTasks": {
+							"$path": "../../Roblox-Public-Library-Private/ParallelTasks"
+						}
+					},
+					"StarterGui": {
+						"$className": "Folder",
+						"$ignoreUnknownInstances": true,
+						"Book Selection": {
+							"$className": "ScreenGui",
+							"$ignoreUnknownInstances": true,
+							"SelectScript": {
+								"$path": "SelectScript.client.lua"
+							}
+						}
+					},
+					"StarterPlayerScripts": {
+						"$className": "Folder",
+						"$ignoreUnknownInstances": false,
+						"Run": {
+							"$path": "StarterPlayerScripts/Library/Run.client.lua"
+						}
+					}
+				},
+				"Template": {
+					"$className": "Part",
+					"$ignoreUnknownInstances": true,
+					"BookScript": {
+						"$path": "BookScript.server.lua"
+					}
+				},
+				"Demo": {
+					"$className": "Part",
+					"$ignoreUnknownInstances": true,
+					"BookScript": {
+						"$path": "Workshop/DemoBookScript.server.lua"
+					}
+				}
+			}
+		}
+	}
+}

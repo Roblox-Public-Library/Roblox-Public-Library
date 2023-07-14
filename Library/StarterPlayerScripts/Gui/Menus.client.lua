@@ -6,7 +6,7 @@ A handy gear/settings icon is also available from them: http://www.roblox.com/as
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
-local MessageBox = require(ReplicatedStorage.Library.MessageBox)
+local MessageBox = require(ReplicatedStorage.Gui.MessageBox)
 local Utilities = ReplicatedStorage.Utilities
 local Assert = require(Utilities.Assert)
 local String = require(Utilities.String)
@@ -15,13 +15,18 @@ local ButtonList = require(ReplicatedStorage.Gui.ButtonList)
 local gui = ReplicatedStorage.Guis.Menus
 local topBar = ReplicatedStorage.Guis.TopBar
 
-local BookSearch = require(script.Parent.BookSearch)
-local music = require(ReplicatedStorage.Library.MusicClient)
-local profile = require(ReplicatedStorage.Library.ProfileClient)
+local BookGui = require(ReplicatedStorage.Gui.BookGui)
+local BookSearch = require(ReplicatedStorage.Gui.BookSearch)
+local BookViewingSettings = require(ReplicatedStorage.Gui.BookViewingSettings)
 local GuiUtilities = require(ReplicatedStorage.Gui.Utilities)
+local profile = require(ReplicatedStorage.Library.ProfileClient)
+local	music = profile.Music
+
+local UserInputService = game:GetService("UserInputService")
 
 local localPlayer = game:GetService("Players").LocalPlayer
 local playerGui = localPlayer.PlayerGui
+gui.Enabled = true
 gui.Parent = playerGui
 topBar.Parent = playerGui
 
@@ -34,41 +39,72 @@ local inputTypeIsClick = {
 
 local handleVerticalScrollingFrame = GuiUtilities.HandleVerticalScrollingFrame
 
-local catchClickGui = ReplicatedStorage.Guis.MenusCatchClick
-local catchClick = catchClickGui.CatchClick
-catchClickGui.Enabled = false
-catchClick.Visible = true
-catchClick.Active = false
-catchClickGui.Parent = playerGui
-
 --[[Menus have the following interface:
 :Open()
 :Close()
 .CloseOnCatchClick = true by default
 ]]
 
+local closeOnClick = false
 local displayedMenu
-local function displayMenu(menu)
-	if displayedMenu == menu then return end
-	if displayedMenu then
-		displayedMenu:Close()
-		if not menu then -- only play sound if won't be playing BookOpen below
-			sfx.BookClose:Play()
+local displayedBVS
+local restoreBook = false
+--[[
+displayMenu rules...
+for BVS, use 2nd arg
+for search, always nil 2nd arg
+for all others, keep 2nd arg
+]]
+local function displayMenu(menu, bvsMenu, suppressCloseSound)
+	-- Return if nothing needs to change
+	if menu == displayedMenu and bvsMenu == displayedBVS then return end
+	-- Close menus as appropriate
+	local closed, opened = false, false
+	if displayedBVS ~= bvsMenu then
+		if displayedBVS then
+			displayedBVS:Close()
+			closed = true
+		end
+		displayedBVS = bvsMenu
+		if displayedBVS then
+			displayedBVS:Open()
+			opened = true
 		end
 	end
-	displayedMenu = menu
-	if displayedMenu then
+	if displayedMenu ~= menu then
+		if displayedMenu then
+			displayedMenu:Close()
+			closed = true
+		end
+		displayedMenu = menu
+		if displayedMenu then
+			opened = true
+			displayedMenu:Open()
+			closeOnClick = menu.CloseOnCatchClick ~= false
+			restoreBook = BookGui.BookOpen
+			if restoreBook then
+				BookGui.Minimize(function()
+					-- BookGui wants to restore
+					displayMenu(nil, displayedBVS)
+				end)
+			end
+		else
+			closeOnClick = false
+			if restoreBook then -- Restore minimized book
+				restoreBook = false
+				BookGui.Restore()
+			end
+		end
+	end
+	if opened then
 		sfx.BookOpen:Play()
-		displayedMenu:Open()
-		catchClickGui.Enabled = menu.CloseOnCatchClick ~= false
-	else
-		catchClickGui.Enabled = false
+	elseif closed and not suppressCloseSound then
+		sfx.BookClose:Play()
 	end
 end
-local function closeMenu() displayMenu() end -- meant for use in connections
-catchClick.InputBegan:Connect(function(input)
-	if inputTypeIsClick[input.UserInputType] then
-		closeMenu()
+UserInputService.InputBegan:Connect(function(input, processed)
+	if closeOnClick and not processed and inputTypeIsClick[input.UserInputType] then
+		displayMenu(nil, displayedBVS)
 	end
 end)
 
@@ -230,18 +266,16 @@ do -- About menu
 		selectedTabHeader.BackgroundColor3 = selectedBG
 		selectedTabHeader.AutoButtonColor = false
 	end
-	for name, tab in pairs(tabHeaders) do
+	for name, tab in tabHeaders do
 		tab.Activated:Connect(function() selectTab(name) end)
 	end
 	selectTab("FAQ")
 
-	local questionLabels, answerLabels = {}, {}
+	local qaLabels = {} -- list of {.question : label .answer : list<label>}
 	local faqFrame = tabs.FAQ
 	for i, v in ipairs(About.FAQ) do
 		local question, answer = v.Question, v.Answer
 		local q = Instance.new("TextLabel")
-		local a = Instance.new("TextLabel")
-
 		q.Name = "Q"..i
 		q.BackgroundTransparency = 1
 		q.Font = Enum.Font.SourceSansItalic
@@ -250,36 +284,45 @@ do -- About menu
 		q.TextWrapped = true
 		q.TextXAlignment = Enum.TextXAlignment.Left
 		q.TextColor3 = Color3.new(1, 1, 1)
-
-		a.Name = "A"..i
-		a.BackgroundTransparency = 1
-		a.Font = Enum.Font.SourceSansLight
-		a.Text = "A"..i..") "..answer
-		a.TextSize = 24
-		a.TextWrapped = true
-		a.TextXAlignment = Enum.TextXAlignment.Left
-		a.TextColor3 = q.TextColor3
-
 		q.Parent = faqFrame
-		a.Parent = faqFrame
-		questionLabels[i] = q
-		answerLabels[i] = a
+		if type(answer) == "string" then
+			answer = {answer}
+		end
+		local aList = table.create(#answer)
+		for j, text in answer do
+			local a = Instance.new("TextLabel")
+			a.Name = "A"..i.."-"..j
+			a.BackgroundTransparency = 1
+			a.Font = Enum.Font.SourceSansLight
+			a.Text = if j == 1 then "A"..i..") "..text else text
+			a.TextSize = 24
+			a.TextWrapped = true
+			a.TextXAlignment = Enum.TextXAlignment.Left
+			a.TextColor3 = q.TextColor3
+			a.Parent = faqFrame
+			aList[j] = a
+		end
+		qaLabels[i] = {question = q, answer = aList}
 	end
+	local resetTutorials = faqFrame.ResetTutorials
 	local function calcOffsets()
-		local offset = 0
+		local offset = 2 * (resetTutorials.AbsolutePosition.Y - resetTutorials.Parent.AbsolutePosition.Y) - faqFrame.UIPadding.PaddingTop.Offset + resetTutorials.AbsoluteSize.Y
 		local padding = faqFrame.UIPadding
 		local width = faqFrame.AbsoluteWindowSize.X - padding.PaddingLeft.Offset - padding.PaddingRight.Offset
-		for i, v in ipairs(About.FAQ) do
-			local q, a = questionLabels[i], answerLabels[i]
+		for i, t in ipairs(qaLabels) do
+			local q, aList = t.question, t.answer
 			local height = getTextHeight(q, width)
 			q.Size = UDim2.new(1, 0, 0, height)
 			q.Position = UDim2.new(0, 0, 0, offset)
 			offset += height
 
-			height = getTextHeight(a, width)
-			a.Size = UDim2.new(1, 0, 0, height)
-			a.Position = UDim2.new(0, 0, 0, offset)
-			offset += height + 25
+			for j, a in ipairs(aList) do
+				height = getTextHeight(a, width)
+				a.Size = UDim2.new(1, 0, 0, height)
+				a.Position = UDim2.new(0, 0, 0, offset)
+				offset += height
+			end
+			offset += 25
 		end
 		local y = offset - 25 + padding.PaddingBottom.Offset + padding.PaddingTop.Offset
 		faqFrame.CanvasSize = UDim2.new(0, 0, 0, y)
@@ -287,6 +330,10 @@ do -- About menu
 	end
 	calcOffsets()
 	faqFrame:GetPropertyChangedSignal("AbsoluteWindowSize"):Connect(calcOffsets)
+	resetTutorials.Activated:Connect(function()
+		displayMenu(nil, nil)
+		profile.Tutorial:ResetAll()
+	end)
 
 	local creditFrame = tabs.Credits
 	local template = creditFrame.Row
@@ -341,9 +388,10 @@ do -- Music
 		if music:GetEnabled() then
 			local sound = music:GetCurSong()
 			if sound then
-				currentlyPlayingLabel.Text = ("%s (#%d) %s/%s"):format(
+				local curSongId = music:GetCurSongId()
+				currentlyPlayingLabel.Text = ("%s%s %s/%s"):format(
 					music:GetCurSongDesc() or "?", -- "?" would only happen if they saved a song that is no longer allowed or if a Roblox service is down (which has happened)
-					music:GetCurSongId(),
+					if curSongId then " (#" .. curSongId .. ")" else "",
 					toTime(sound.TimePosition),
 					toTime(sound.TimeLength))
 					currentlyPlayingBar.Size = UDim2.new(sound.TimePosition / sound.TimeLength, 0, 1, 0)
@@ -694,7 +742,12 @@ do -- Music
 			end)
 		end)
 		local cons
-		local boldLabel, updateBold = genBoldLabel(function() return viewPlaylist end, function(i) return viewObjs:Get(i).Title end)
+		local boldLabel, updateBold = genBoldLabel(
+			function() return viewPlaylist end,
+			function(i)
+				local obj = viewObjs:Get(i)
+				return obj and obj.Title
+			end)
 		local function setPlaylistToView(playlist)
 			viewPlaylist = playlist
 			viewPlaylistLabel.Text = playlist.Name
@@ -732,37 +785,43 @@ do -- Music
 		end)
 	end
 end
-topBarMenus[topBarLeft.Search] = BookSearch
 
-for button, menu in pairs(topBarMenus) do
+topBarMenus[topBarLeft.Search] = BookSearch
+topBarMenus[topBarLeft.BookViewingSettings] = BookViewingSettings
+
+for button, menu in topBarMenus do
 	local atRest = 0.5
 	local onHover = 0.72
 	local onClick = 0.33
-	button.ImageTransparency = atRest
+	button.BackgroundTransparency = atRest
 	button.MouseEnter:Connect(function()
-		button.ImageTransparency = onHover
+		button.BackgroundTransparency = onHover
 	end)
 	button.InputBegan:Connect(function(input)
 		if inputTypeIsClick[input.UserInputType] then
-			button.ImageTransparency = onClick
+			button.BackgroundTransparency = onClick
 		end
 	end)
 	button.InputEnded:Connect(function()
-		button.ImageTransparency = atRest
+		button.BackgroundTransparency = atRest
 	end)
-	button.Activated:Connect(function()
-		displayMenu(displayedMenu ~= menu and menu or nil)
-	end)
+	if menu == BookViewingSettings then
+		button.Activated:Connect(function()
+			displayMenu(
+				if displayedMenu ~= BookSearch then displayedMenu else nil,
+				if displayedBVS ~= menu then menu else nil)
+		end)
+	else
+		button.Activated:Connect(function()
+			displayMenu(
+				if displayedMenu ~= menu then menu else nil,
+				if menu ~= BookSearch then displayedBVS else nil)
+		end)
+	end
 end
 
-local events = require(script.Parent.BookGui)
-events.BookOpened:Connect(function()
-	BookSearch:Hide()
-	gui.Enabled = false
-end)
-events.BookClosed:Connect(function()
-	BookSearch:Unhide()
-	gui.Enabled = true
+BookGui.BookOpened:Connect(function()
+	displayMenu(nil, displayedBVS, true)
 end)
 
 do -- Keep top bar at the correct position

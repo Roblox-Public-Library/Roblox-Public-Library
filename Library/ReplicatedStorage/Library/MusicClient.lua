@@ -9,7 +9,37 @@ local Assert = require(ReplicatedStorage.Utilities.Assert)
 local Event = require(ReplicatedStorage.Utilities.Event)
 local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
-local music = require(script.Parent.ProfileClient).Music
+
+local ContentProvider = game:GetService("ContentProvider")
+
+local function idToSoundId(id)
+	return "rbxassetid://" .. id
+end
+
+local function loadSongsAsync(list)
+	local soundIds = {}
+	for i, id in list do
+		local s = Instance.new("Sound")
+		s.SoundId = idToSoundId(id)
+		soundIds[i] = s
+	end
+	local failed = {}
+	ContentProvider:PreloadAsync(soundIds, function(soundId, status)
+		if status == Enum.AssetFetchStatus.Success then return end
+		failed[soundId] = true
+	end)
+	local final = {}
+	for i, id in list do
+		local soundId = idToSoundId(id)
+		if not failed[soundId] then
+			table.insert(final, id)
+		end
+	end
+	return final
+end
+
+local function setupInstance(music) -- Remainder of file originally written to just return the client's instance
+
 
 local Playlist = Music.Playlist
 
@@ -107,7 +137,7 @@ function music:InvokeRenameCustomPlaylist(playlist, newName)
 	end
 end
 function music:InvokeSetCustomPlaylistTrack(playlist, index, songId)
-	local problem = Music.AnyProblemWithSongId(songId)
+	local problem = Music.AnyProblemWithSongIdAsync(songId)
 		or remotes.SetCustomPlaylistTrack:InvokeServer(playlist.Id, index, songId)
 	if problem then
 		StarterGui:SetCore("SendNotification", {
@@ -189,7 +219,7 @@ local nextTrack = Instance.new("Sound") -- what will be played once the current 
 -- Idea is that nextTrack loads while curTrack plays
 curTrack.Parent = localPlayer
 nextTrack.Parent = localPlayer
-local curMusic = {} -- shuffled list of *indices* to curSongList
+local curMusic = {} -- shuffled list of *indices* to curSongList (excluding ones that failed to load)
 local curMusicIndex = 0 -- essentially the next index into curMusic
 
 local defaultVolume = 0.3
@@ -210,28 +240,37 @@ end)
 
 function Music:GetCurSongDesc()
 	--	returns desc OR false, reasonForUser
-	return getDesc(curTrackId)
+	if curTrackId then
+		return getDesc(curTrackId)
+	else
+		return false, "Music failed to load"
+	end
 end
 function Music:GetCurSongIndex() return curTrackIndex end -- index in current playlist
 function Music:GetCurSongId() return curTrackId end -- integer form
 function Music:GetCurSong() return curTrack end -- returns the Sound instance
 
-local function idToSoundId(id)
-	return "rbxassetid://" .. id
-end
-local function getNextSong(forceReshuffle) -- returns index, id, SoundId
+local function getNextSong(forceReshuffle)
+	--	returns index, id, SoundId
+	--	returns nil, nil, "" if all songs failed to load
 	curMusicIndex = curMusicIndex + 1
 	if forceReshuffle or not curMusic[curMusicIndex] then
 		curMusic = {}
-		for i = 1, #curSongList do curMusic[i] = i end
+		for i, v in curSongList do
+			curMusic[i] = i
+		end
 		curMusic = shuffleAvoidFirst(curMusic, function(index)
 			return curSongList[index] == curTrackId
 		end)
 		curMusicIndex = 1
 	end
 	local index = curMusic[curMusicIndex]
-	local id = curSongList[index]
-	return index, id, idToSoundId(id)
+	if index then
+		local id = curSongList[index]
+		return index, id, idToSoundId(id)
+	else
+		return nil, nil, ""
+	end
 end
 local function changeSong(modifyFunc)
 	curTrack:Stop()
@@ -284,18 +323,39 @@ end
 function Music:IsPaused()
 	return not curTrack.Playing
 end
-local function setSongList(songList)
+local function setSongList(songList) -- returns true if successful
 	if #songList == 0 then error("Song list cannot be empty") end
-	curSongList = songList
+	curSongList = loadSongsAsync(songList)
+	if #curSongList == 0 then return false end
 	playNextSong(true)
+	return true
 end
 local customPlaylists = music:GetCustomPlaylists() -- treat as read-only; can be modified through music:SetCustomPlaylistTrack
 local defaultPlaylists = music.DefaultPlaylists -- id -> defaultPlaylist
-local function activePlaylistChanged(playlist)
-	setSongList(playlist.Songs)
+local function activePlaylistChanged(playlist, noWarning)
+	if not setSongList(playlist.Songs) then
+		if noWarning then
+			print("All playlist songs failed to load", playlist.Songs)
+		else
+			StarterGui:SetCore("SendNotification", {
+				Title = "Playlist Failed to Play",
+				Text = "All songs failed to load. Perhaps none of them are public?",
+				Duration = 4,
+			})
+		end
+	end
 end
-activePlaylistChanged(music:GetActivePlaylist())
+activePlaylistChanged(music:GetActivePlaylist(), true)
 music.ActivePlaylistChanged:Connect(activePlaylistChanged)
+
+remotes.UpdatePlaylist.OnClientEvent:Connect(function(id, songs)
+	local playlist = music:GetPlaylist(id)
+	playlist.Songs = songs
+	if music:GetActivePlaylist() == playlist then -- refresh the playlist
+		music.activePlaylist = nil
+		music:SetActivePlaylist(playlist)
+	end
+end)
 
 local crazyMusic = ReplicatedStorage.DefaultMusic:GetChildren()
 function Music:GoCrazy(initialSilenceDuration)
@@ -344,3 +404,14 @@ function Music:GetSortedCustomPlaylistsWithContent()
 	return t
 end
 return music
+
+
+end -- end of setupInstance
+
+for _, k in {"new", "Deserialize", "DeserializeDataStore"} do
+	local base = Music[k]
+	Music[k] = function(...)
+		return setupInstance(base(...))
+	end
+end
+return Music

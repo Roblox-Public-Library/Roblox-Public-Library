@@ -12,6 +12,7 @@ return {
         {"Thanks to", "Our Authors, Secretaries, Librarians, Book Movers, and Dev Team!"}
     },
     FAQ = {
+        -- Note: maximum AutoLocalize length is 299, so keep strings no longer than 295 to ensure space for additional characters added by the FAQ menu
         {
             Question = "How do I make a book?",
             Answer = "You can make a book by messaging a librarian or joining our communications server and submitting in #book-submissions."
@@ -22,7 +23,7 @@ return {
         },
         {
             Question = "How long does it take for my book to be reviewed?",
-            Answer = "First, your book is looked at by our review committee; they ensure your book follows Roblox's ToU and Community Guidelines. Next, a librarian will create your book at their workshop. Then, after about a week, the librarian will move it to “Book Purgatory”, essentially the waiting room for books. Finally, a book mover will move the book from purgatory into the library. Most of these will take varying amounts of time and I cannot assign a time length to them. The maximum your book will take to enter the library is about 1-3 months."
+            Answer = {"First, your book is looked at by our review committee; they ensure your book follows Roblox's ToU and Community Guidelines. Next, a librarian will create your book at their workshop.", "Then, after about a week, the librarian will move it to “Book Purgatory”, essentially the waiting room for books. Finally, a book mover will move the book from purgatory into the library.", "Most of these will take varying amounts of time and I cannot assign a time length to them. The maximum your book will take to enter the library is about 1-3 months."}
         },
         {
             Question = "Can I submit multiple books at the same time?",

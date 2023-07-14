@@ -14,9 +14,9 @@ for _, data in ipairs(data) do
 		dataToAdd[#dataToAdd + 1] = data
 	end
 end
-local module = {}
-module.Data = data
-function module.RemoveFrom(book)
+local BookChildren = require(game:GetService("ReplicatedStorage").Library.BookChildren)
+BookChildren.Data = data
+function BookChildren.RemoveFrom(book)
 	--	Returns the number of things destroyed
 	local found = 0
 	for _, data in ipairs(data) do
@@ -28,7 +28,7 @@ function module.RemoveFrom(book)
 	end
 	return found
 end
-function module.AddTo(book)
+function BookChildren.AddTo(book)
 	for _, data in ipairs(dataToAdd) do
 		if not book:FindFirstChild(data.Name or data.Type) then
 			local obj = Instance.new(data.Type)
@@ -42,17 +42,21 @@ function module.AddTo(book)
 		end
 	end
 end
-function module.UpdateGuis(book, title)
+local getAttribute = BookChildren.GetAttribute
+function BookChildren.UpdateGuis(book, title)
 	--	Returns the number of gui modifications made
-	local titleColor = book.TitleColor.Value
-	local titleOutlineColor = book.TitleOutlineColor.Value
+	local scr = BookChildren.GetBookScript(book)
+	local titleColor = getAttribute(scr, "TitleColor")
+	local titleOutlineColor = getAttribute(scr, "TitleOutlineColor")
 	local modified = 0
-	for _, obj in ipairs({book.BookNameFront.BookName, book.BookNameSide.BookName}) do
-		modified += (obj.Text ~= title and 1 or 0) + (obj.TextColor3 ~= titleColor and 1 or 0) + (obj.TextStrokeColor3 ~= titleOutlineColor and 1 or 0)
-		obj.Text = title
-		obj.TextColor3 = titleColor
-		obj.TextStrokeColor3 = titleOutlineColor
+	if titleColor and titleOutlineColor then
+		for _, obj in ipairs({book.BookNameFront.BookName, book.BookNameSide.BookName}) do
+			modified += (obj.Text ~= title and 1 or 0) + (obj.TextColor3 ~= titleColor and 1 or 0) + (obj.TextStrokeColor3 ~= titleOutlineColor and 1 or 0)
+			obj.Text = title
+			obj.TextColor3 = titleColor
+			obj.TextStrokeColor3 = titleOutlineColor
+		end
 	end
 	return modified
 end
-return module
+return BookChildren

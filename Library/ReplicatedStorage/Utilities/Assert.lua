@@ -2,21 +2,19 @@ local DoNothing = require(script.Parent.Functions).DoNothing
 local Assert = {}
 --[[Example usage:
 Assert.IsA(player, "Player") -- will error if 'player' isn't an Instance of class Player; otherwise it returns the value passed into it
-local Validate = Assert.Validate -- Validate has the same functions as Assert but when not debugging simply returns false if there's a problem (also printing out the problem if not in an online server)
-if Validate.List(myVar) then return end
+local Validate = Assert.Validate -- Validate has the same functions as Assert but simply returns nil if there's a problem (also printing out the problem if not in an online server)
+if not Validate.List(myVar) then return end -- note: for boolean validation, compare to nil
 
 Use:
-	Validate to validate client input
-	Assert to verify that a non-Remote function has been called correctly.
-	Check to query whether something is true (it will return nil when Assert would error)
+	'Validate' to validate client input
+	'Assert' to verify that a non-Remote function has been called correctly.
+	'Check' to query whether something is true (it will return nil when Assert would error)
 ]]
 local RunService = game:GetService("RunService")
 local published = not RunService:IsStudio()
 
-local function returnFalse() return false end
 local errorIgnoresMsg = {
 	[DoNothing] = true,
-	[returnFalse] = true,
 }
 
 local function StringDictKeysToList(dict)
@@ -54,9 +52,7 @@ local function describePlainTable(t)
 	return ("table with {%s}"):format(limitString(table.concat(s, " "), 120))
 end
 local function describeTable(t)
-	return t.ClassName
-		or (type(t.Class) == "table" and string.format("(%s)", table.concat(StringDictKeysToList(t.Class), ",")))
-		or describePlainTable(t)
+	return t.ClassName or describePlainTable(t)
 end
 
 local function objToClassString(var)
@@ -181,13 +177,25 @@ function NewAsserts(self, error, format, objToClassString)
 		if type(min) == "string" then desc = min; min = nil end
 		if type(max) == "string" then desc = max; max = nil end
 		if type(var) ~= "number" or var % 1 ~= 0 or (min and var < min) or (max and var > max) then
-			local minMaxDesc = min and max and format(" between %d and %d", min, max)
-				or min and format(" greater than %d", min)
-				or max and format(" less than %d", max)
-				or ""
+			local minMaxDesc = if min and max then format(" between %d and %d", min, max)
+				elseif min then format(" greater than %d", min)
+				elseif max then format(" less than %d", max)
+				else ""
 			return error(format("%s must be an integer%s, got: %s", desc or "argument", minMaxDesc, objToClassString(var)), 3)
 		end
 		return var
+	end
+	function self.Enum(var, enumType, desc)
+		if typeof(var) ~= "EnumItem" or var.EnumType ~= enumType then
+			return error(format("%s must be Enum.%s, got: %s", desc or "argument", enumType.Name, objToClassString(var)))
+		end
+		return var
+	end
+	function self.Partial(fnName, a, b, c) -- For instance, Partial("Integer", 1, 10, "Value") will return a function that asserts that the given value is an integer between 1 and 10
+		local base = self[fnName]
+		return function(var)
+			return base(var, a, b, c)
+		end
 	end
 	function self.NewCondition(mustBeDesc, func, desc) -- Create a reusable custom condition for self.Conditions
 		assert(type(func) == "function")
@@ -232,7 +240,7 @@ Assert.NewAsserts = NewAsserts
 local Validate = {}
 Assert.Validate = Validate
 NewAsserts(Validate, -- Note: error messages here that ignore the message they're given should be added to errorIgnoresMsg
-	published and returnFalse or function(...) print(...) return false end,
+	published and DoNothing or function(msg, lvl) print(debug.traceback(msg, lvl + 1)) end,
 	published and DoNothing or string.format,
 	published and DoNothing or objToClassString)
 local Check = {}

@@ -37,4 +37,7 @@ function String.SplitReturnDelimiters(s, char)
 	end
 	return t, delims
 end
+function String.CamelCaseToEnglish(s)
+	return s:sub(1, 1) .. s:sub(2):gsub("_", " "):gsub("[A-Z]", " %1")
+end
 return String

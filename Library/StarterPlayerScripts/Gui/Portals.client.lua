@@ -1,5 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local MessageBox = require(ReplicatedStorage.Library.MessageBox)
+local MessageBox = require(ReplicatedStorage.Gui.MessageBox)
 local TeleportService = game:GetService("TeleportService")
 local remotes = ReplicatedStorage.Remotes
 local AUTO_CLOSE_RADIUS = 7
@@ -34,7 +34,7 @@ local fireNum = 0
 remotes.Teleport.OnClientEvent:Connect(function(id, teleportPart, placeName)
 	fireNum += 1
 	local num = fireNum
-	coroutine.wrap(function()
+	task.spawn(function()
 		waitUntilWalkAwayFrom(teleportPart)
 		remotes.TeleportWalkedAway:FireServer(teleportPart)
 		-- Close the MessageBox if we haven't had a new teleport suggestion.
@@ -43,7 +43,7 @@ remotes.Teleport.OnClientEvent:Connect(function(id, teleportPart, placeName)
 		if num == fireNum then
 			MessageBox.Close()
 		end
-	end)()
+	end)
 	local response = MessageBox.Show("Teleport to "..placeName.."?")
 	if response then
 		teleportDetails = {id = id, placeName = placeName}
@@ -55,7 +55,7 @@ remotes.Teleport.OnClientEvent:Connect(function(id, teleportPart, placeName)
 end)
 TeleportService.TeleportInitFailed:Connect(function()
 	if not teleportDetails then return end -- teleport from a different system
-	if MessageBox.Show("Teleport to "..teleportDetails.placeName.." failed. Try again?") then
+	if MessageBox.Show("Teleport to " .. teleportDetails.placeName .. " failed. Try again?") then
 		TeleportService:Teleport(teleportDetails.id)
 	else
 		teleportDetails = nil

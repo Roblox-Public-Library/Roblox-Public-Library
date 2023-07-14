@@ -1,46 +1,94 @@
 local Players = game:GetService("Players")
+local	localPlayer = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Books = require(ReplicatedStorage.Library.BooksClient)
+local bookPouch = require(ReplicatedStorage.Library.ProfileClient).BookPouch
+local BookGui = require(ReplicatedStorage.Gui.BookGui)
 
-local localPlayer = Players.LocalPlayer
-local bookPouchGui = ReplicatedStorage.Guis.BookPouchGui
-bookPouchGui.Parent = localPlayer.PlayerGui
+local TweenService = game:GetService("TweenService")
 
-local profile = require(ReplicatedStorage.Library.ProfileClient)
-local bookPouch = profile.BookPouch
+local gui = ReplicatedStorage.Guis.BookPouchGui
+gui.Enabled = true
 
---[[TODO
-bookPouch may have several books in it (from data stores); update the gui to reflect this
-When something's added to the book pouch, consider updating its LayoutOrder
-    (or let it use alphabetical sorting, but then change the name to be the same as the text)
-Handle removing a book from the pouch - it must update the server and the 'bookPouch' object
-Server side, when a book is opened, this should be automatically recorded as added to the user's pouch
-We should cap the number of books you can have in the pouch (even if it's to 1000)
-The arrow button should toggle visibility.
-    If the player has closed it, adding new books to the pouch should not re-open it.
-]]
+local bg = gui.BooksBG -- background frame
+local normalSize = bg.Size
+local noSize = UDim2.new(UDim.new(), normalSize.Y)
+local uiSizeConstraint = bg.UISizeConstraint
+bg.Size = noSize
+local normalMinSize = uiSizeConstraint.MinSize
+local noMinSize = Vector2.new(0, 0)
+uiSizeConstraint.MinSize = noMinSize
+bg.Visible = false
 
-local rowTemplate = bookPouchGui.BooksBG.Books.Row
+local open = false
+
+local sf = bg.Books -- scrolling frame
+local rowTemplate = sf.Row
 rowTemplate.Parent = nil
-
--- Automatically add opened books to the pouch
-ReplicatedStorage.BookOpen.OnClientEvent:Connect(function(book)
-    bookPouchGui.Enabled = true
-    local newRow = rowTemplate:Clone()
-    newRow.Parent = bookPouchGui.ScrollingFrame
-    newRow.Book.Text = book.Name.." by "..book.Author
+local idToRow = {}
+local function addBook(id)
+	local row = rowTemplate:Clone()
+	local book = Books:FromId(id)
+	row.Book.Text = if book then string.format("%s <i>by %s</i>", book.Title, book.AuthorLine)
+		else (warn("No book with id", id) or "?")
+	row.Book.Activated:Connect(function()
+		BookGui.OpenAsync(id)
+	end)
+	row.Delete.Activated:Connect(function()
+		row:Destroy()
+		idToRow[id] = nil
+		bookPouch:SetInPouch(id, false)
+	end)
+	row.Parent = sf
+	idToRow[id] = row
+end
+bookPouch:ForEachBookId(addBook)
+bookPouch.ListChanged:Connect(function(id, added)
+	if added then
+		addBook(id)
+	else
+		idToRow[id]:Destroy()
+		idToRow[id] = nil
+	end
 end)
 
--- for a in bookPouchGui.ScrollingFrame:GetChildren() do
---     a.Activated:Connect(function(book)
---         book = workspace.Books:FindFirstChild(book.Name)
---         book.BookClick:FireServer(localPlayer)
---     end)
--- end
+gui.Parent = localPlayer.PlayerGui
 
--- for b in bookPouchGui:GetDescendants() do
---     if b.Name == "Delete" then
---         b.Activated:Connect(function()
---             b.Parent:Destroy()
---         end)
---     end
--- end
+local toggle = gui.ExpandToggle
+local arrows = toggle.Arrows
+local tweenDuration = 0.7
+local arrowTweenInfo = TweenInfo.new(tweenDuration / 2, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+local tweening
+local function toggleOpen()
+	open = not open
+	uiSizeConstraint.MinSize = noMinSize
+	bg.Visible = true
+	bg:TweenSize(
+		if open then normalSize else noSize,
+		Enum.EasingDirection.InOut,
+		Enum.EasingStyle.Quad,
+		tweenDuration,
+		true)
+	TweenService:Create(arrows, arrowTweenInfo, {Rotation = if open then 90 else -90}):Play()
+	task.wait(tweenDuration)
+	bg.Visible = open
+	uiSizeConstraint.MinSize = normalMinSize
+	tweening = false
+end
+toggle.Activated:Connect(function()
+	if tweening then return end
+	toggleOpen()
+end)
+
+local wasOpen
+BookGui.BookOpened:Connect(function()
+	wasOpen = open
+	if open then
+		toggleOpen()
+	end
+end)
+BookGui.BookClosed:Connect(function()
+	if wasOpen and not open then
+		toggleOpen()
+	end
+end)

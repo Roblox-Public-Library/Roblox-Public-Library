@@ -1,19 +1,17 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local BookPouch = require(ReplicatedStorage.Library.BookPouch)
 return function(tests, t)
 
-tests["Serialize/Deserialize works"] = {
-	setup = function() return BookPouch.new() end,
-	cleanup = function(b) b:Destroy() end,
-	test = function(b)
-		b:CreateNewPlaylist("a", {123, 456})
-		b:SetEnabled(false)
-		local b2 = BookPouch.Deserialize(b:Serialize())
-		t.equals(b2:GetEnabled(), b:GetEnabled())
-		t.equals(b2:GetActivePlaylist().Id, b:GetActivePlaylist().Id)
-		t.equals(b2:GetCustomPlaylists()[1].Name, b:GetCustomPlaylists()[1].Name)
-	end,
-	skip = true
-}
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local BookPouch = require(ReplicatedStorage.Library.BookPouch)
+function tests.BookPouchDataWorks()
+	local b = BookPouch.new({})
+	b:SetInPouch(1, true)
+	b:SetInPouch(5, true)
+
+	local b2 = BookPouch.new(b.data)
+	t.truthy(b2:Contains(1))
+	t.truthy(b2:Contains(5))
+end
+
 
 end

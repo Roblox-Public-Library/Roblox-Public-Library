@@ -19,7 +19,7 @@ High-level steps:
 			☐ show favourite/like/other options
 			☐ Render front pages
 			☐ On page change, render those pages
-	
+
 	Question:
 		✔ does everything show up on the same page regardless of resolution [aside from letting the user make the entire book scale larger/smaller] > YES
 			- If we have it always show up the same...
@@ -34,10 +34,9 @@ High-level steps:
 					☐ PreRender at standard resolution to assign elements to pages (and break them up appropriately). Output will still be in parsed format, but with page & nav structure.
 			If we didn't, how would people communicate typos/sections?:
 				- Paragraph #s (visibility could be toggled)
-	
+
 	For bookmarks:
 		1. Bookmark the top-left visible paragraph
-
 
 View Options:
 	☐ 1. 2-page
@@ -57,20 +56,21 @@ Cool idea:
 	☐ Pages can therefore turn in 3D! (They should probably tween in size as they do to mimic how you normally curve a page, not have it stand straight out as you turn it)
 	☐ You can also read over someone's shoulder and see the title page on the cover
 	☐ A book could have a new "Summary" field for the back cover
-
-
-Idea for "1 page infinite scroll" for page divisions that are in the middle of a line (due to adjusted user text size):
-
-------------------------------------------------- 7
-lots............................................
-of..............................................
-text ...........................................
-          ---------------------------------------  8
-a little | the rest of some line
-----------
-
-[there would not be extra space between the rows "text" and "a little"]
-
+	
+Infinite Scroll:
+	☐ Ignore newlines, .Position, and .Size indicated by PreRender (for text elements)
+		It may be able to use Position/Size for images, even if it has to adjust the .Y
+	☐ Rerender currently visible pages when the resolution changes
+	Idea for "1 page infinite scroll" for page divisions that are in the middle of a line (due to adjusted user text size):
+		------------------------------------------------- 7
+		lots............................................
+		of..............................................
+		text ...........................................
+				---------------------------------------  8
+		a little | the rest of some line
+		----------
+		
+		[there would not be extra space between the rows "text" and "a little"]
 
 
 Terminology:
@@ -78,46 +78,130 @@ Terminology:
 	PreRender (distribute elements onto pages)
 	Render (create gui instances based on the given elements)
 	Processing:
-		☐	Parse book content
-			☐	CONSIDER: Revise tests to *not* have multiple ways of doing things - if people use the variants, people have to *remember* all the variants or else they'll be confused if they see it in someone else's book!
-				☐	1st ask question on what's easier to read/understand - since comma separating isn't that complicated to remember...
-					<red, line;-, arial, /sub>
-					<red><line;-><arial></sub>
-		☐	PreRender at standard resolution to assign elements to pages (and break them up appropriately). Output will still be in parsed format, but with page & nav structure.
-			☐	Be sure to not use entire page height - leave room for 2 lines of text (it's okay if it's extremely cramped if those 2 lines are filled)
-				OR don't leave 2 lines, but make text smaller as needed so that it fits on the page (should only need to reduce everything by 1)
+		✔	Parse book content
+		✔	PreRender at standard resolution and process/break up/deal with elements, assigning them onto pages. Output will include page & nav structure.
 	Display:
-		☐	(Using current resolution) Create/reuse instances and render the format from the PreRender stage (and of course display it)
-		☐	Center the page content vertically so that any lines of empty space won't be so noticeable
-	OnResolutionChange:
-		☐ For infinite scroll, rerender currently visible pages
+		✔	(Using current resolution) Create/reuse instances and render the format from the PreRender stage (and of course display it)
+		✘	Center the page content vertically so that any lines of empty space won't be so noticeable
 
-Parsing User Format:
-	✔ Started
+Modifications to Parsing:
+	✔ Handle '<line>' and '<dline>' and ignore newlines depending on property name [something to do with text wrapping, configured by book data script]
+
+Elements Implemented:
+	Prerender:
+		✔ Page @done(22-03-05 12:44)
+		✔ Turn @done(22-03-05 12:44)
+		✔ Text
+			✔ add Subscript/Superscript to Format.lua
+		✔ Alignment
+		✔ Chapter
+		✔ Header
+		✔ Bar @done(22-03-05 12:44)
+		✔ Image
+		☐ Box
+		☐ Quote
+		✔ PageNumberStyle [can specify new numbering and style -- if number not specified, simply continues from before? Or restarts at 1]
+
+	Render:
+		✔ Text @done(22-03-20 13:48)
+		✔ Alignment
+		✔ Chapter
+		✔ Header
+		✔ Bar @done(22-03-20 13:48)
+		✔ Image
+		☐ Box
+		☐ Quote
+		✔ Page number
+			✔	pass in the Page object (rather than a list of elements) to get access to :IsLeftPage()
+
+Idea:
+	BookScript will still have author/librarian/etc as special variables
+	It sends this data to a central Book Processing script
+	It creates the intro pages/title page inside the book that contains the full size image, book title, author, author's note, etc.
+	It then sends this to the Writer module
+	✔ First chapter is *implied* to be the Introduction (ideally name is customizable with some sort of writer config)
+	☐ First chapter tag marks the 1st chapter (named "Chapter 1" by default)
+	☐ First page is therefore the cover page
+		☐ Render can be responsible for displaying an offset
+	☐ Processor can also handle PageNumber style -- invisible 1st page
+
+
 
 Prerendering:
-	List<Element> -> List<Page with elements on it>, NavigationInformation
+	List<Element> -> BookContent (contains things like List<Page with elements on it>, NavigationInformation)
 	For each element:
-		☐ Some commands turn the page
-		☐ Figure out the size/if it fits on the current page (or can be split up -- text can)
-			☐ If not, advance to next page and put it there
-		☐ For certain types of elements, add to navigation information
+		✔ Some commands turn the page
+		✔ Figure out the size/if it fits on the current page (or can be split up -- text can)
+			✔ If not, advance to next page and put it there
+		✔ For certain types of elements, add to navigation information
 
-	Output is a Book with:
+	Output is BookContent with:
+		.PageNumbering:List<PageNumberingEntry> with:
+			.StartingPageIndex
+			.Style ("RomanNumerals"/"Normal"/"Invisible")
+			.StartingNumber (usually 1)
 		.Chapters:List<Chapter> with:
 			.Name:string? and :GetName() [converts no name to "Chapter 1"]
 			.Number
+			.StartingPageIndex
 		.Pages:List<Page> with:
-			.Number
-			.IsLeftSidePage -- or this could be a function taken from Number % 2
+			.Index -- :IsLeftSidePage() comes from this % 2
 			.Elements, a list of ProcessedElement, each of which is much like what Prerendering receives but also contains position & size information
-		.Title/.Author/etc (or point to BookData that has this information - the core data sent for all books by the server when you join))
+	A full Book has:
+		Option 1:
+			.Content
+			.Title
+			.Author
+		+ Option 2:
+			.Content
+			.BookData (points to .Title .Author etc since this info needed by client ahead of time)
+	Element -> ProcessedElement:
+		✔ Some elements are removed (such as Page/Turn)
+		✔ Add .Position and .Size to elements (some, like Alignment, don't have this)
+		✔ Text elements are grouped into TextBlock container elements (Rendering can convert each one into a TextLabel)
+			✔ Keep track of its size/width and width used on current line (PageSpaceTracker knows size left on current line and so can help with this)
+				> Probably easiest to pretend that everything is left aligned when inputting into PageSpaceTracker
+			To handle alignment:
+				Premise is that the TextBlock is oversized and that the Roblox TextLabel can handle alignment within that size
+				✔ Position it based on the top-left of where the text could be if it were left-aligned
+				✔ Size it based on maximum available size
+				✔ If maximum available width changes from one line to another, you need to start a new TextBlock
+
+ProcessedElements:
+	✔	TextBlock
+		This can be represented by a single label.
+		.Position
+		.Size
+		.RichText
+		.SubOrSuperScript
+			✔	if sub/superscript, modify position/size accordingly
+		.Elements : list of text elements with .Text and .Format (RichText is the compiled version of these)
+		.Alignment : Enum.TextXAlignment
+
+
+Page Rendering:
+	(List<ProcessedElement>, Page:Frame, UserSettings) -> mutate Page/add actual Instances to it
+	✔ if we just had a "render" function that only handled text/textblocks:
+		✔ for each `element` in `processedElements`:
+			✔ make a new `textLabel`
+			✔ set its position, size, richtext, etc., based on the properties of `element`
+			✔ set the text
+			✔ add the `textLabel` to the `Page`
 
 Bookmarks:
 	☐ Save chapter # and page # offset from beginning of chapter
 
-Page Rendering:
-	(List<ProcessedElement>, Page:Frame, UserSettings) -> mutate Page/add actual Instances to it
+Book Processing:
+	☐	First page is the cover (a full-size image) or blank, with invisible page numbering
+	☐	Second page is title page, with
+		"{Title}" (centered header with stroke); make the text NearBlack with the stroke Black
+		"By: {author(s)}" (normal, bold, centered, same color/stroke as title)
+		"ROBLOX Library Community" (large)
+		(remaining is normal, left-aligned)
+		"Librarian: {}"
+		"Published On: {}"
+		"{author's note}"
+		{turn page and start normal page numbering}
 
 Gui:
 	Navigation handling:
@@ -127,62 +211,3 @@ Gui:
 		on click of a navigation option:
 			☐ jump to the page and have it rendered (along with the page on the opposite side, if in 2-page view)
 			☐ (if in infinite scroll view, put it at the top of the screen. If user scrolls up, render that page above the one you started with - depending on algorithm chosen this *might* look different than if the user had started with that previous page due to the potential for line merging)
-
-
-Compare:
-	+ Elements.Text.new(text, format)
-		+ defaults
-			x when would parser ever use that
-		+ value verification
-		+ guaranteed consistent fields (no typos)
-		> Each class would have its own :Handle and/or :Render
-
-
-	or parser could just do
-	{
-		Type = "Text",
-		Text = text,
-		Format = format,
-	}
-		+ no need for formal classes
-	
-	Element -> ProcessedElement:
-		Just add Position and Size to the element
-		element.Position = position
-
-
--- PreRender file
-local typeToHandle = {
-	Text = function(self, element)
-		-- ...
-		element.Position = pos
-		-- or maybe add a new element
-	end,
-
-}
-
-
--- Render file
-local typeToRender = {
-	Text = function(self, element)
-		local x = Instance.new("TextLabel")
-		x.Text = element.Text
-		x.Position = element.Position
-		--etc
-	end,
-}
-
-Change to existing code:
-	☐ `Elements.Text(text, format) -> element data` instead of using classes
-
-	
-Library Projects:
-	☐ book formatting
-	☐ book gui
-		designing
-		forming it in Studio (ideally with Scale & Offset as appropriate, "UI" instance objects, etc)
-		scripting it client-side
-		support for it server-side
-	☐ checkers
-	☐ upgrade data store (use ProfileService probably - )
-	☐ likes/favs

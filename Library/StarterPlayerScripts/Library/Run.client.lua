@@ -9,12 +9,18 @@ local function setIsRunning(value)
 		humanoid.WalkSpeed = isRunning and 32 or 16
 	end
 end
-local runGui = localPlayer:WaitForChild("PlayerGui"):WaitForChild("RunGui")
+local playerGui = localPlayer:WaitForChild("PlayerGui")
+local runGui = playerGui:WaitForChild("RunGui")
 local button -- button in runGui (nil if touch controls are not enabled)
 if UserInputService.TouchEnabled then
 	runGui.Enabled = true
 	local base = setIsRunning
 	button = runGui:WaitForChild("Button")
+	task.spawn(function() -- the touch gui sometimes doesn't initialize until the player touches the screen
+		local jumpButton = playerGui:WaitForChild("TouchGui"):WaitForChild("TouchControlFrame"):WaitForChild("JumpButton")
+		local spaceBelow = runGui.AbsoluteSize.Y - jumpButton.AbsolutePosition.Y - jumpButton.AbsoluteSize.Y
+		button.Position = UDim2.new(button.Position.X, UDim.new(0, jumpButton.AbsolutePosition.Y - math.clamp(spaceBelow / 2, 10, 25)))
+	end)
 	setIsRunning = function(value)
 		base(value)
 		button.Font = value and Enum.Font.SourceSansItalic or Enum.Font.SourceSans

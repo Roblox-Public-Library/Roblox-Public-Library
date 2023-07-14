@@ -2,30 +2,76 @@ local Assert = require(script.Parent.Assert)
 local Table = require(script.Parent.Table)
 local List = {}
 
-function List.Add(list, value) -- Maybe useful for common "collection" interface?
-	list[#list + 1] = value
-end
+List.Add = table.insert -- function(list, value)
 List.Clone = Table.Clone
 List.DeepClone = Table.DeepClone
-function List.Contains(list, value)
-	for i = 1, #list do
-		if list[i] == value then return true end
-	end
-	return false
-end
+List.Contains = table.find -- function(list, value) -- returns truthy value if list contains 'value'
 function List.Count(list)
 	return #list
 end
-function List.IndexOf(list, value) -- returns index or nil
-	for i = 1, #list do
-		if list[i] == value then return i end
+function List.SetContains(list, value, contains)
+	--	Sets whether the list contains 'value' or not
+	--	If 'contains' is true, 'value' will be added, otherwise it will be removed
+	--	Returns true if nothing changed
+	local index = table.find(list, value)
+	if (not contains) == (not index) then return true end -- nothing to change
+	if contains then
+		table.insert(list, value)
+	else
+		table.remove(list, index)
 	end
 end
+function List.Extend(list, otherList)
+	table.move(otherList, 1, #otherList, #list + 1, list)
+end
+List.IndexOf = table.find -- function(list, value) -- returns index or nil
 function List.Remove(list, item) -- returns item removed or nil
-	for i = 1, #list do
-		if list[i] == item then return List.remove(list, i) end
+	local i = table.find(list, item)
+	return if i then table.remove(list, i) else nil
+end
+function List.RemoveSet(list, set) -- removes all items from 'list' that are contained in 'set'. Returns true if nothing removed.
+	local found = false
+	for i = #list, 1, -1 do
+		if set[list[i]] then
+			table.remove(list, i)
+			found = true
+		end
 	end
-	return nil
+	return found
+end
+function List.LargeRemoveSet(list, set) -- removes all items from 'list' that are contained in 'set'. Returns true if nothing removed.
+	--	More efficient than List.RemoveSet for scenarios like:
+	--		#list >= 50 and removing ~10% of the items or less
+	--		#list >= 110 and removing even 50% of the items
+	local nList = #list
+	local destI = 1 -- index to move new elements into
+	local prev = 0 -- previously skipped index
+	for i, v in ipairs(list) do
+		if set[v] then
+			-- Skip moving value 'i'
+			local n = i - 1 - prev
+			if n > 0 then
+				if prev > 0 then
+					table.move(list, prev + 1, i - 1, destI)
+				end -- if prev == 0 then items are already where they're supposed to be
+				destI += n
+			end
+			prev = i
+		end
+	end
+	if prev > 0 then
+		-- move remaining elements (if any)
+		local n = nList - prev
+		if n > 0 then
+			table.move(list, prev + 1, nList, destI)
+		end
+		destI += n
+		-- Fill in the rest with nil elements
+		local numNilNeeded = nList - destI + 1
+		table.move(list, nList + 1, nList + numNilNeeded, destI)
+	else -- nothing removed
+		return true
+	end
 end
 function List.Shuffle(list, rnd)
 	local index
@@ -42,6 +88,13 @@ function List.ToSet(list)
 		set[v] = true
 	end
 	return set
+end
+function List.FromSet(set)
+	local list = {}
+	for k in set do
+		table.insert(list, k)
+	end
+	return list
 end
 function List.ToEnglish(list)
     --  {"a", "b", "c"} -> "a, b, and c"

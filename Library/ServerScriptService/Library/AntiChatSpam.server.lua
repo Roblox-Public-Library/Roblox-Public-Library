@@ -11,7 +11,7 @@ local timeWindow = 30 -- in seconds
 local muteLength = {30, 90, math.huge} -- in seconds
 
 local ServerScriptService = game:GetService("ServerScriptService")
-local Analytics = require(ServerScriptService.Library.Analytics)
+--local Analytics = require(ServerScriptService.Library.Analytics)
 local AntiSpamFunctions = require(ServerScriptService.Library.AntiSpamFunctions)
 
 local AntiSpamEvent = Instance.new("RemoteEvent")
@@ -80,7 +80,7 @@ function MuteData:CheckRepeatedMessage(message)
 	msgTracker:MsgSent()
 	if msgTracker:NumMsgsSent() > (#msg >= longMessageLength and maxLongMsgs or maxShortMsgs) then
 		self:Mute()
-		Analytics:FireCustomEvent(self.player, "MuteFromRepeatedMessage", {Time = os.time(), Message = message})
+		--Analytics:FireCustomEvent(self.player, "MuteFromRepeatedMessage", {Time = os.time(), Message = message})
 	end
 end
 local playerData = {} --[player] = MuteData
@@ -118,7 +118,7 @@ function methods:SayMessage(message, channelName, extraData)
 			return
 		end
 		if AntiSpamFunctions.MsgIsSuspicious(message) then
-			Analytics:FireCustomEvent(player, "SuspiciousMessage", {Time = os.time(), Message = message})
+			--Analytics:FireCustomEvent(player, "SuspiciousMessage", {Time = os.time(), Message = message})
 			return
 		end
 	end

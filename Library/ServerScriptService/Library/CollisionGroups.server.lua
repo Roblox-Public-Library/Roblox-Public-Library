@@ -5,7 +5,7 @@ local function playerAdded(player)
 	local function charAdded(char)
 		for _, c in ipairs(char:GetDescendants()) do
 			if c:IsA("BasePart") then
-				PhysicsService:SetPartCollisionGroup(c, "Players")
+				c.CollisionGroup = "Players"
 			end
 		end
 	end
