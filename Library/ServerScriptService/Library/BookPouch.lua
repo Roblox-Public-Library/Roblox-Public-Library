@@ -10,10 +10,13 @@ ChangedTracker.ApplyToClassWithEvent(BookPouch)
 local base = BookPouch.new
 function BookPouch.new(data)
 	local self = base(data)
-	self:ForEachBookId(function(id)
-		if not Books.GetBook(id) then
-			self:SetInPouch(id, false)
-		end
+	Books:OnReady(function()
+		self:ForEachBookId(function(id)
+			if not Books:GetBook(id) then
+				print("Removing book", id)
+				self:SetInPouch(id, false)
+			end
+		end)
 	end)
 	return self
 end

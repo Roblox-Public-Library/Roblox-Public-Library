@@ -499,5 +499,12 @@ function Books:WaitForReady()
 		booksReadyEvent:Wait()
 	end
 end
+function Books:OnReady(fn)
+	if Books:AreReady() then
+		fn()
+	else
+		booksReadyEvent:Connect(fn)
+	end
+end
 
 return Books

@@ -212,8 +212,11 @@ end)
 BookGui.BookOpened:Connect(function()
 	updateToggleVisual(bookmarkToggle, bookmarkLayout:HasBookmark(curPage))
 end)
-local function cannotSaveBook(purpose)
-	if not bookIdIsNumber then
+local function cannotSaveBook()
+	return not bookIdIsNumber
+end
+local function cannotSaveBook_ThenNotify(purpose)
+	if cannotSaveBook() then
 		StarterGui:SetCore("SendNotification", {
 			Title = "Cannot " .. purpose,
 			Text = "This book requires maintenance. Please contact a librarian.",
@@ -224,7 +227,7 @@ local function cannotSaveBook(purpose)
 end
 
 bookmarkToggle.Activated:Connect(function()
-	if cannotSaveBook("add bookmark") then return end
+	if cannotSaveBook_ThenNotify("add bookmark") then return end
 	local value
 	if bookmarkLayout:HasBookmark(curPage) then
 		bookmarkLayout:Remove(curPage)
@@ -245,7 +248,7 @@ bookmarkToggle.Activated:Connect(function()
 end)
 local likeToggle = mainFrame.TopPanel.Like
 likeToggle.Activated:Connect(function()
-	if cannotSaveBook("like book") then return end
+	if cannotSaveBook_ThenNotify("like book") then return end
 	local value = not booksProfile:GetLike(bookId)
 	booksProfile:SetLike(bookId, value)
 	updateToggleVisual(likeToggle, value)
@@ -256,7 +259,7 @@ local function updateMarkReadVisual(read)
 	markReadToggle.BackgroundTransparency = if read then 0.25 else 0.5
 end
 markReadToggle.Activated:Connect(function()
-	if cannotSaveBook("mark read") then return end
+	if cannotSaveBook_ThenNotify("mark read") then return end
 	local value = not booksProfile:GetRead(bookId)
 	booksProfile:SetRead(bookId, value)
 	updateMarkReadVisual(value)
@@ -291,22 +294,24 @@ local animateBookPouch do
 	animateBookPouch = function()
 		if animating then return end
 		animating = true
-		local p = backpackToggle.AbsolutePosition
-		icon.Position = UDim2.fromOffset(p.X, p.Y)
-		icon.Parent = gui
-		local t = 0.01
-		local xDif = 10 - p.X
-		local yDif = gui.AbsoluteSize.Y / 2 - p.Y - s.Y / 2
-		while true do
-			local alpha = t / duration
-			local x = TweenService:GetValue(alpha, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut) * xDif + p.X
-			local y = TweenService:GetValue(alpha, Enum.EasingStyle.Sine, Enum.EasingDirection.In) * yDif + p.Y
-			icon.Position = UDim2.fromOffset(x, y)
-			t += task.wait()
-			if alpha >= 1 then break end
-		end
-		icon.Parent = nil
-		animating = false
+		task.spawn(function()
+			local p = backpackToggle.AbsolutePosition
+			icon.Position = UDim2.fromOffset(p.X, p.Y)
+			icon.Parent = gui
+			local t = 0.01
+			local xDif = 10 - p.X
+			local yDif = gui.AbsoluteSize.Y / 2 - p.Y - s.Y / 2
+			while true do
+				local alpha = t / duration
+				local x = TweenService:GetValue(alpha, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut) * xDif + p.X
+				local y = TweenService:GetValue(alpha, Enum.EasingStyle.Sine, Enum.EasingDirection.In) * yDif + p.Y
+				icon.Position = UDim2.fromOffset(x, y)
+				t += task.wait()
+				if alpha >= 1 then break end
+			end
+			icon.Parent = nil
+			animating = false
+		end)
 	end
 end
 backpackToggle.Activated:Connect(function()
@@ -323,6 +328,13 @@ backpackToggle.Activated:Connect(function()
 	updateToggleVisual(backpackToggle, value)
 	if value then
 		animateBookPouch()
+	end
+	if value and cannotSaveBook() then
+		StarterGui:SetCore("SendNotification", {
+			Title = "Warning - Can't Save Book",
+			Text = "This book requires maintenance; it will not stay in your book pouch when you leave. Please contact a librarian.",
+			Duration = 10,
+		})
 	end
 end)
 local addToListPopup = gui.AddToListPopup
@@ -347,7 +359,7 @@ local updateAddToListIcon do -- addToList popup opening/closing
 	addToList:GetPropertyChangedSignal("AbsoluteSize"):Connect(updatePopupPos)
 	addToList:GetPropertyChangedSignal("AbsolutePosition"):Connect(updatePopupPos)
 	addToList.Activated:Connect(function()
-		if cannotSaveBook("add to list") then return end
+		if cannotSaveBook_ThenNotify("add to list") then return end
 		addToListPopup.Visible = true
 		closePopup.Visible = true
 	end)
