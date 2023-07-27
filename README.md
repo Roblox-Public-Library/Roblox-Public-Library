@@ -1,6 +1,6 @@
 # Roblox-Public-Library
 
-All the major code and plugins in <https://www.roblox.com/games/331780620/ROBLOX-Library-2020>.
+All the major code and plugins in <https://www.roblox.com/games/331780620/ROBLOX-Library>.
 
 ## Recommended Tools for Contributing
 
