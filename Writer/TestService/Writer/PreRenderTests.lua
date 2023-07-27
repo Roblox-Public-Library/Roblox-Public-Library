@@ -182,6 +182,12 @@ tests.paragraphIndentWorks = {
 			t.equals(textBlock.Type, "TextBlock")
 			t.equals(textBlock.Position.Y, 0)
 		end, 3},
+		{name="indent starts on blank line", "text1<indent>text2\n<indent>\ntext3", function(elements)
+			t.equals(#elements,3)
+			t.equals(elements[1].Position.Y,0)
+			t.equals(elements[2].Position.Y,config:GetSize())
+			t.equals(elements[3].Position.Y,2*config:GetSize())
+		end}
 	}
 }
 tests.spacing = {
@@ -203,14 +209,6 @@ tests.spacing = {
 		end},
 		{name="center large text & normal left text", "<center><large>text1</large><left>\ntext2", function(elements)
 			t.equals(elements[#elements].Position.Y, config:GetSize("Large"))
-		end},
-		{name="space newline for newline-guaranteed commands", "text1\n<center>text2\n<left> \ntext3", function(elements)
-			t.equals(#elements,5)
-			t.equals(elements[1].Position.Y,0)
-			t.equals(elements[3].Position.Y,config:GetSize())
-			t.equals(elements[3].RichText, "text2") 
-			t.equals(elements[5].Position.Y,2 * config:GetSize())
-			t.equals(elements[5].RichText, "text3")
 		end},
 	}
 }

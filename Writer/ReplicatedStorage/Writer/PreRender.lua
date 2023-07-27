@@ -220,7 +220,7 @@ local blockPadding = 5
 --	Each function is responsible for positioning, sizing, and adding to the current/next page(s) the element specified
 local typeToHandle; typeToHandle = {
 	Alignment = function(self, element)
-		local availSpace = self.availSpace
+		-- local availSpace = self.availSpace
 		self:EnsureFullNewLine()
 		self:addToPage(element)
 		self.alignment = element.Alignment
@@ -421,6 +421,7 @@ local typeToHandle; typeToHandle = {
 		})
 	end,
 	ParagraphIndent = function(self, element)
+		self:EnsureFullNewLine()
 		self:SetParagraphIndent(element.Indent)
 	end,
 	Turn = function(self, element)
