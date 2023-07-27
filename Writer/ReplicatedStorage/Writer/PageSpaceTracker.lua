@@ -220,9 +220,10 @@ function PageSpaceTracker:AdvanceToRightOfNextObject(width, height)
 	end
 	return consider(self.left) or consider(self.right)
 end
+
+--	Ensures that the tracker is on a full new line (no 'left'/'right' elements on the sides), advancing it if necessary
+--	Returns true if successful, false if out of room
 function PageSpaceTracker:EnsureFullNewLine()
-	--	Ensures that the tracker is on a full new line (no 'left'/'right' elements on the sides), advancing it if necessary
-	--	Returns true if successful, false if out of room
 	if self:OutOfSpace() then
 		return false
 	end

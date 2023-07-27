@@ -204,6 +204,14 @@ tests.spacing = {
 		{name="center large text & normal left text", "<center><large>text1</large><left>\ntext2", function(elements)
 			t.equals(elements[#elements].Position.Y, config:GetSize("Large"))
 		end},
+		{name="space newline for newline-guaranteed commands", "text1\n<center>text2\n<left> \ntext3", function(elements)
+			t.equals(#elements,5)
+			t.equals(elements[1].Position.Y,0)
+			t.equals(elements[3].Position.Y,config:GetSize())
+			t.equals(elements[3].RichText, "text2") 
+			t.equals(elements[5].Position.Y,2 * config:GetSize())
+			t.equals(elements[5].RichText, "text3")
+		end},
 	}
 }
 
@@ -464,7 +472,6 @@ tests.chapter = {
 			t.equals(chapterElement.TextSize, config:GetSize("Chapter"))
 			t.equals(chapterElement.Size.Y, chapterElement.TextSize)
 		end},
-		-- Following tests made by Pink
 		{name="section surrounded by text", "Text. <section,Section Name> More Text.", function(book)
 			t.equals(#book.Chapters, 1)
 			local chapterElement = book.Pages[1].Elements[2]

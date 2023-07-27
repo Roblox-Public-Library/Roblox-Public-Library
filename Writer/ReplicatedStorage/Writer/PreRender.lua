@@ -92,6 +92,8 @@ function PreRender:NewPage()
 		self.explicitNewPage = true
 	end
 end
+
+-- Handle end of current page and create new page
 function PreRender:newPage()
 	self.textBlockFactory:EndOfPage()
 	local n = #self.pages + 1
@@ -100,9 +102,11 @@ function PreRender:newPage()
 	self.availSpace:Reset()
 	self.textBlockFactory:NewPage()
 end
+
+-- If current line not empty, creates empty line (on new page if needed)
 function PreRender:EnsureFullNewLine()
 	if not self.availSpace:EnsureFullNewLine(true) then
-		self:NewPage()
+		self:newPage()
 	end
 end
 function PreRender:finishPage()
@@ -136,7 +140,9 @@ end
 function PreRender:removeFromPage(element)
 	table.remove(self.curPage, table.find(self.curPage, element) or error(print(self.curPage, element) or "element not in page"))
 end
-function PreRender:addFn(element, size, fn) -- Positions element on the next page that it fits. 'fn' must return the position to place the element at (nil for new page)
+
+-- Positions element on the next page that it fits. 'fn' must return the position to place the element at (nil for new page)
+function PreRender:addFn(element, size, fn)
 	local pos = fn()
 	if not pos then
 		self:NewPage()
@@ -150,15 +156,17 @@ function PreRender:addFn(element, size, fn) -- Positions element on the next pag
 	element.Size = size
 	self:addToPage(element)
 end
+
+--	fnName is the function name with which to index 'availSpace' (only valid if the function takes in 'width, height' as arguments; otherwise use 'addFn')
 function PreRender:add(element, size, fnName)
-	--	fnName is the function name with which to index 'availSpace' (only valid if the function takes in 'width, height' as arguments; otherwise use 'addFn')
 	local availSpace = self.availSpace
 	self:addFn(element, size, function()
 		return availSpace[fnName](availSpace, size.X, size.Y)
 	end)
 end
+
+--	Add a full-page-width element (that cannot be broken up) to the next page it fits on
 function PreRender:addFullWidthElement(element, height)
-	--	Add a full-page-width element (that cannot be broken up) to the next page it fits on
 	self:addFn(element, Vector2.new(self.innerPageSize.X, height), function()
 		return self.availSpace:PlaceFullWidth(height)
 	end)
@@ -175,13 +183,16 @@ function PreRender:newPageIfNil(fn)
 		return fn() or error("NewPage did not change the result of the function", 2)
 	end
 end
+
+-- Creates blank page if not currently on one
 function PreRender:ensureOnBlankPage()
 	if #self.curPage > 0 then
 		self:newPage()
 	end
 end
+
+--	Adds/assembles a chapter (but doesn't add to textBlockFactory)
 function PreRender:addChapter(chapter, insertIndex)
-	--	Adds/assembles a chapter (but doesn't add to textBlockFactory)
 	local config = self.config
 	chapter.Name = self.RichText.FromTextElements(chapter.NameElements, config)
 	if chapter.NameElements == chapter.TextElements then
@@ -205,9 +216,9 @@ end
 local blockMargin = 5
 local blockPadding = 5
 
+-- Type = function(self, element)
+--	Each function is responsible for positioning, sizing, and adding to the current/next page(s) the element specified
 local typeToHandle; typeToHandle = {
-	-- Type = function(self, element)
-	--	Each function is responsible for positioning, sizing, and adding to the current/next page(s) the element specified
 	Alignment = function(self, element)
 		local availSpace = self.availSpace
 		self:EnsureFullNewLine()

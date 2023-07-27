@@ -74,7 +74,7 @@ Published On: whenever
 <color,(50 255 0)>hi there</color>
 
 Author's note here]]},
-		--{column1, "<section,H*i* th**ere**_!_>(after)"},
+		{column1, "text1\n<center>text2\n<left> \ntext3"},
 		{column1, "<image,132203618,20x20,right><image,132203618,20x20,center>"}
 	},
 }
