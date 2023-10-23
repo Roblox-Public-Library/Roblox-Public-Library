@@ -46,7 +46,7 @@ bookPouch:ForEachBookId(addBook)
 bookPouch.ListChanged:Connect(function(id, added)
 	if added then
 		addBook(id)
-	else
+	elseif idToRow[id] then
 		idToRow[id]:Destroy()
 		idToRow[id] = nil
 	end

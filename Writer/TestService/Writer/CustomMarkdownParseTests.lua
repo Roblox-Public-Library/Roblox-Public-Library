@@ -132,6 +132,16 @@ tests["condense spaces between images"] = function()
 	end
 end
 
+tests["condense whitespace at end of line"] = function()
+	local result = parse("line1  \t\nline2")
+	t.equals(#result, 1)
+	t.equals(result[1].Type, "Text")
+	t.equals(result[1].Text, "line1\nline2")
+end
+tests["condense whitespace at end of line after tag"] = function()
+	local result = parse("<image,442788848,10h>  \t\n<image,442788848,10h>")
+	t.equals(#result, 2) -- note: sometimes a 3rd element is put between the images, which would be fine
+end
 tests["condense unlimited whitespace before/after page breaks"] = function()
 	local result = parse("a\n\n\n<page>\n \t\nb")
 	t.equals(result[1].Text, "a")

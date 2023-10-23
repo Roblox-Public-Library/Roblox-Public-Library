@@ -184,6 +184,22 @@ function Parser:AppendTextPrevElement(text, indexIncrease)
 	end
 	self.index += indexIncrease
 end
+function Parser:RemoveTrailingWhitespacePrevElement()
+	local textSoFar = self.textSoFar
+	if textSoFar then
+		local n = #textSoFar
+		local line = textSoFar[n]:match("^(.*[^ \t])")
+		if line == "" then
+			if n == 1 then
+				self.textSoFar = nil
+			else
+				textSoFar[n] = nil
+			end
+		else
+			textSoFar[n] = line
+		end
+	end
+end
 function Parser:Apply(formattingAction, indexIncrease)
 	self:FinishTextElement()
 	formattingAction(self.formatting)
@@ -714,12 +730,12 @@ tags.chapternaming = {
 		parser:Add(Elements.ChapterNamingStyle(arg))
 	end,
 }
-local function genChapter(elementName)
+local function genChapter(elementName, condenseNewlines)
 	local Elements_Chapter = Elements[elementName]
 	local lowerName = elementName:lower()
 	local lowerName2 = lowerName .. "2"
 	return {
-		CondenseNewlines = 1,
+		CondenseNewlines = condenseNewlines,
 		open = function(parser, args)
 			local name = if args[1] then String.Trim(table.concat(args, argSeparator)) else nil
 			if name then
@@ -729,7 +745,7 @@ local function genChapter(elementName)
 			parser:Add(Elements_Chapter(name, nil, parser.formatting:Clone()))
 		end
 	}, {
-		CondenseNewlines = 1,
+		CondenseNewlines = condenseNewlines,
 		open = function(parser, args)
 			if #args ~= 2 then
 				parser:err("chapter2/section2 must have exactly 2 arguments. Commas in the chapter/section name must be escaped.")
@@ -743,8 +759,8 @@ local function genChapter(elementName)
 		end
 	}
 end
-tags.chapter, tags.chapter2 = genChapter("Chapter")
-tags.section, tags.section2 = genChapter("Section")
+tags.chapter, tags.chapter2 = genChapter("Chapter", 1)
+tags.section, tags.section2 = genChapter("Section", nil)
 tags.header = {
 	open = function(parser, args)
 		if not args[1] then
@@ -1012,14 +1028,20 @@ local actions = {
 			parser.lineNum += count + 1
 			parser.lineStart = parser.index
 		else
+			parser:RemoveTrailingWhitespacePrevElement()
 			parser:AppendTextPrevElement("\n", 1)
 			parser.lineNum += 1
 			parser.lineStart = parser.index
 		end
 	end,
-	["\\"] = function(parser) -- escape next character no matter what it is
+	["\\"] = function(parser) -- escape next character unless it's a newline
 		local nextIndex = parser.index + 1
-		parser:AppendTextPrevElement(parser.text:sub(nextIndex, nextIndex), 2)
+		local char = parser.text:sub(nextIndex, nextIndex)
+		if char == "\n" then
+			parser.index = nextIndex -- this allows the newline to be parsed
+		else
+			parser:AppendTextPrevElement(char, 2)
+		end
 	end,
 	["*"] = function(parser)
 		local text, index = parser.text, parser.index
@@ -1154,10 +1176,16 @@ local actions = {
 			if tagContentsEndChar == ">" then
 				index = tagContentsEnd + 1
 
+				-- Ignore whitespace after the '>' if it leads to a newline character
+				local start, stop = text:find("^[ \t]*\n", index)
+				if start then
+					index = stop
+				end
+
 				local nextChar = text:sub(index, index)
-				local prevCharNav = parser:getCharNav()
-				local prevChar = prevCharNav:ToPrev()
 				if (not tag or not tag.KeepSpaces) then -- allowed to condense space
+					local prevCharNav = parser:getCharNav()
+					local prevChar = prevCharNav:ToPrev()
 					if tag and tag.CondenseNewlines then -- we can completely eliminate any/all whitespace (up to 'CondenseNewlines' count on either side)
 						local condenseNum = tag.CondenseNewlines -- note: may be negative to indicate "inside only" (between open & closing tags)
 						local internalOnly = condenseNum < 0

@@ -414,7 +414,7 @@ local updateAddToList do
 		local desc = obj.Button.Desc
 		local function performRenameAsync()
 			editName:CaptureFocus()
-			editName.LostFocus:Wait()
+			editName.FocusLost:Wait()
 			local newName = String.Trim(editName.Text)
 			if newName == name or newName == filtered then return end
 			local newFiltered, errMsg = booksProfile:TryRenameList(name, newName)

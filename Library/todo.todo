@@ -1,5 +1,34 @@
  (If you install the Todo+ extension you can toggle a task being done with Alt+d and create a new task with Ctrl+Enter)
 --------------------------
+Bug:
+	☐	"The book “The Boeing 727, Boeing’s Trijet”, there is a weird text/page split." - on PC but not on mobile
+	☐	Text colliding in workshops for many books
+Bugs from Roblox's automatic reports:
+	☐	BookSearch:438
+	☐	Connect4 is broken
+		☐	Connect4Gui:160
+		☐	Connect4_Main:112
+		☐	Connect4_Main:240 index nil with PlayerGui
+		☐	Connect4_Main:249
+		☐	Connect4_Main:240 Connect4Gui is locked
+		☐	Connect4_Main:396
+	☐	WeldBackup:7
+	✔	BookPouch:50
+	☐	Checkers.Board:272
+		✔	ToKey missing
+		☐	ToKey was only being accessed because the move was unsuccessful, which is bad (implies server accepted it)
+	☐	master50032 might just be an exploiter? Tele.Script:4, "Visitor is not a valid member of Players"
+	☐	SelectScript:69 (from 106, from 119, "SelectableBookCD", implying Books:FromObj(cd.BookRef.Value) is nil)
+	✔	BookGui:417 LostFocus not valid
+	☐	ChessScript:811
+	☐	Menus:602
+	☐	MusicClient:149 (does this happen if you click "copy" 2x fast?)
+	☐	Chess.MasterScript:654
+	☐	BookPathfinder:161
+Also:
+	☐	Remove & confirm that removal of CondenseNewlines = 1 from chapter & section tags looks fine
+	✔	"<image><image>" and "<image>\n<image>" error, though "<image> <image>" and "<image> \n<image>" do not
+
 Finished:
 	✔ "Mirror, rorriM" doesn't have audio but is configured to
 		> it works inconsistently

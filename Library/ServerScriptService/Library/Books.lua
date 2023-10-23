@@ -2,6 +2,7 @@ local Books = {}
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Event = require(ReplicatedStorage.Utilities.Event)
 local List = require(ReplicatedStorage.Utilities.List)
+local String = require(ReplicatedStorage.Utilities.String)
 local ServerScriptService = game:GetService("ServerScriptService")
 local BookChildren = require(ServerScriptService.Library.BookChildren)
 local BookVersionUpgrader = require(ServerScriptService.Library.BookVersionUpgrader)
@@ -401,7 +402,7 @@ local function register(model, data, upgradeIfNew)
 		RichText.HandleEscapes(publishDate),
 		authorsNote,
 		defaultIndent)
-	local content = titlePageContent .. content
+	local content = titlePageContent .. String.RTrim(content)
 
 	updateBookModel(model, cover, title, id)
 

@@ -320,6 +320,28 @@ tests.text = {
 			t.equals(elements[1].RichText, "!a")
 			t.equals(elements[3].RichText, "b")
 		end},
+		{name = "indent works immediately", [[<indent>
+none1
+<indent,tab>
+tab1
+tab2
+<indent> none2
+<indent,tab> tab3
+<indent,! > exclamation1
+exclamation2
+<indent,none> none3]], function(book)
+			local elements = book.Pages[1].Elements
+			for i, e in ipairs(elements) do
+				if e.Type == "TextBlock" then
+					if e.RichText:find("tab") then
+						t.greaterThan(e.Position.X, 0, e.RichText, "should be tabbed")
+					else
+						t.equals(e.Position.X, 0, e.RichText, "should not be tabbed")
+					end
+					t.truthyEquals(e.RichText:match("^! "), e.RichText:find("exclamation"), e.RichText, "should/shouldn't have !")
+				end
+			end
+		end},
 	},
 }
 
@@ -355,7 +377,6 @@ tests.textWrappingWorks = {
 			local pages = book.Pages
 			t.equals(#pages, 1, "only 1 page required")
 			t.equals(#pages[1].Elements, 3, "Should have 3 TextBlocks")
-			local tb = pages[1].Elements[1]
 			for i = 1, 2 do
 				t.equals(pages[1].Elements[i].RichText, "aa", "#" .. i)
 			end

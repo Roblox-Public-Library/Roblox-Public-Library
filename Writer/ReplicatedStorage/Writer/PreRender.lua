@@ -83,6 +83,7 @@ end
 function PreRender:GetParagraphIndent() return self.paragraphIndent end
 function PreRender:SetParagraphIndent(indent)
 	self.paragraphIndent = indent or ""
+	self.textBlockFactory:EnsureParagraphEnded()
 end
 function PreRender:NewPage()
 	if self.explicitNewPage then
@@ -188,6 +189,8 @@ end
 function PreRender:ensureOnBlankPage()
 	if #self.curPage > 0 then
 		self:newPage()
+	else -- Sometimes we aren't at the top of the page, so reset availSpace. (This can happen if we don't have an official text element on the current page but have moved down 1+ lines due to newlines.)
+		self.availSpace:Reset()
 	end
 end
 
