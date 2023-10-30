@@ -1,18 +1,9 @@
 {
-	"name": "root-project",
+	"name": "BookMaintenancePlugin",
 	"tree": {
 		"$className": "DataModel",
 		"ReplicatedStorage": {
 			"$className": "ReplicatedStorage",
-			"Checkers": {
-				"$path": "../Checkers/ReplicatedStorage/Checkers"
-			},
-			"CommunityBoards": {
-				"$path": "ReplicatedStorage/CommunityBoards"
-			},
-			"Gui": {
-				"$path": "ReplicatedStorage/Gui"
-			},
 			"Library": {
 				"$path": "ReplicatedStorage/Library"
 			},
@@ -25,11 +16,11 @@
 			"Books": {
 				"$path": "ServerScriptService/BooksRedirect.lua"
 			},
-			"Checkers": {
-				"$path": "../Checkers/ServerScriptService/Checkers"
-			},
 			"Library": {
 				"$path": "ServerScriptService/Library"
+			},
+			"Utilities": {
+				"$path": "ServerScriptService/Utilities"
 			}
 		},
 		"ServerStorage": {
@@ -38,26 +29,8 @@
 				"$path": "../Book Maintenance Plugin"
 			}
 		},
-		"StarterPlayer": {
-			"$className": "StarterPlayer",
-			"StarterPlayerScripts": {
-				"$className": "StarterPlayerScripts",
-				"Checkers": {
-					"$path": "../Checkers/StarterPlayerScripts/Checkers"
-				},
-				"Gui": {
-					"$path": "StarterPlayerScripts/Gui"
-				},
-				"Library": {
-					"$path": "StarterPlayerScripts/Library"
-				}
-			}
-		},
 		"TestService": {
 			"$className": "TestService",
-			"Checkers": {
-				"$path": "../Checkers/TestService/Checkers"
-			},
 			"Utilities": {
 				"$path": "TestService/Utilities"
 			},

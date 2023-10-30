@@ -1,8 +1,22 @@
  (If you install the Todo+ extension you can toggle a task being done with Alt+d and create a new task with Ctrl+Enter)
 --------------------------
+Book Maintenance Plugin:
+	☐ Support for workshops
+		Responsibilities to include:
+		☐ update cover label gui
+		☐ remove unnecessary children
+		☐ warn if genres are invalid
+		☐ delete welds
+		☐ update book names
+		Responsibilities to NOT include:
+		☐ id assignment
+		☐ author name updates
+		☐ shelf shenanigans
+		☐ output script
 Bug:
 	☐	"The book “The Boeing 727, Boeing’s Trijet”, there is a weird text/page split." - on PC but not on mobile
 	☐	Text colliding in workshops for many books
+	✔ Book maintenance plugin error
 Bugs from Roblox's automatic reports:
 	☐	BookSearch:438
 	☐	Connect4 is broken

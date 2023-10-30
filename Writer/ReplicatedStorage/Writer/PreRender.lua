@@ -264,7 +264,7 @@ local typeToHandle; typeToHandle = {
 			availSpace = blockSpaceTracker,
 			paragraphIndent = "", -- by default
 			newPage = function(blockPR)
-				blockSpaceTracker.height = availSpace.height -blockExtraSize
+				blockSpaceTracker.height = availSpace.height - blockExtraSize
 				PreRender.newPage(blockPR)
 			end,
 		}, {__index = self, __newindex = self})

@@ -108,12 +108,8 @@
 						"$path": "BookScript.server.lua"
 					}
 				},
-				"Demo": {
-					"$className": "Part",
-					"$ignoreUnknownInstances": true,
-					"BookScript": {
-						"$path": "Workshop/DemoBookScript.server.lua"
-					}
+				"Demo BookScript": {
+					"$path": "Workshop/DemoBookScript.server.lua"
 				}
 			}
 		}

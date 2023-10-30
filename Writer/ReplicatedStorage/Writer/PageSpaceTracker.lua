@@ -33,13 +33,12 @@ function PageSpaceTracker.new(width, height)
 		startOfLine = true, -- true if Place has not been called since the last change in 'y'
 	}, PageSpaceTracker)
 end
-function PageSpaceTracker:Reset()
+function PageSpaceTracker:Reset() -- Note: does not reset implicitNewLine; call :ResetImplicitNewLine for that.
 	self.x = 0
 	self.y = 0
 	self.curLineHeight = 0
 	self.left = {i = 1}
 	self.right = {i = 1}
-	self.implicitNewLine = false
 	self.startOfLine = true
 end
 function PageSpaceTracker:ResetImplicitNewLine()

@@ -132,9 +132,7 @@ function Parser:err(msg, indexOverride)
 	local text = self.text
 	local lineStart = self.lineStart
 	local line = text:sub(self.lineStart):match("[^\n]*")
-	local n = #line
 	local numToProblem = index - lineStart
-	local extraSpacesOver = numToProblem - #msg - 2
 	msg = string.format("On line %d:\n%s\n%s^\n  %s%s",
 		self.lineNum,
 		line,

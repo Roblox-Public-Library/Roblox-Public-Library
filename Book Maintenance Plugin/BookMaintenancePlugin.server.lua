@@ -1024,7 +1024,7 @@ end
 
 local noAuthorName = Report.NewListCollector(
 	"1 book has an authorId but no corresponding author name:",
-	"%d book%s have an authorId but no corresponding author name:")
+	"%d books have an authorId but no corresponding author name:")
 local function updateAuthorInformation(report, books)
 	--[[
 		Read database
@@ -1759,7 +1759,7 @@ local onShelfLackingGenre = {
 		return table.concat(s, "\n")
 	end,
 }
-local multiShelfBooks = Report.NewListCollector("%d books have copies on shelves of different genres:")
+local multiShelfBooks = Report.NewListCollector("%d book%s have copies on shelves of different genres:")
 local base = multiShelfBooks.Collect
 function multiShelfBooks.Collect(data, shelfModel, book, shelfToModel)
 	local list = {book.Models[1].Name}
@@ -1927,7 +1927,6 @@ local function run()
 		updateCoverGuis(report, books); pauseIfNeeded()
 		removeUnnecessaryWelds(report); pauseIfNeeded()
 		generateReportToScript(report, books)
-		local success = false
 		if ready then
 			ready.Event:Wait()
 		end

@@ -63,7 +63,9 @@ function Report.new()
 	})
 end
 function Report.HandleMsg(n, msg1, msgN)
-	return (n == 1 or not msgN) and msg1:format(n, n == 1 and "" or "s") or msgN:format(n)
+	return if n == 1 or not msgN
+		then msg1:format(n, n == 1 and "" or "s")
+		else msgN:format(n)
 end
 function Report.NewListCollector(msg1, msgN, bulletPoint)
 	--	msg1: message for if there is only 1 entry (supports %d [number] and %s ["s" if not 1])
