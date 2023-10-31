@@ -82,6 +82,12 @@ local RunService = game:GetService("RunService")
 local heartbeat = RunService.Heartbeat
 local isEditMode = RunService:IsEdit()
 
+local function printReportOnePerLine(report)
+	for line in report:Compile():gmatch("[^\n]+") do
+		print(line)
+	end
+end
+
 local function considerExplainingPermissions(msg)
 	local alreadyDenied = not (msg:find("prompted") or not msg:find("grant"))
 	print("BookMaintenancePlugin requires Script Injection Permissions in order to compile reports and fix mistakes in books.")
@@ -102,7 +108,7 @@ local function trySetSource(obj, newSource, shouldCancel)
 		end)
 		if success then return true end
 		considerExplainingPermissions(msg)
-		wait(1)
+		task.wait(1)
 		if shouldCancel and shouldCancel() then return false end
 	end
 end
@@ -129,12 +135,26 @@ local lengthRestrictions = {
 	{"Genre", 18},
 	-- Botm expected to fit in 15
 }
-local function getBookTitleByAuthorLine(book)
+local function getBookTitleByAuthorLine(book, authorDirectory) -- authorDirectory is optional
 	local fields = {
 		Title = ("%s"):format(book.Title or "?"),
-		Author = #book.AuthorNames > 0 and List.ToEnglish(book.AuthorNames) or "Anonymous",
 		Genre = #book.Genres > 0 and book.Genres[1]
 	}
+	local authorNameList = book.AuthorNames
+	if #authorNameList > 0 then
+		if authorDirectory then -- create a new list using up-to-date display names
+			authorNameList = table.clone(authorNameList)
+			for i, id in ipairs(book.AuthorIds) do
+				local displayName = authorDirectory[id] and authorDirectory[id].Names[1]
+				if displayName then
+					authorNameList[i] = displayName
+				end
+			end
+		end
+		fields.Author = List.ToEnglish(authorNameList)
+	else
+		fields.Author = "Anonymous"
+	end
 	local bonusSpace = 0
 	local spaceBalance = 0 -- used to determine whether we need to shorten at all
 	for _, r in ipairs(lengthRestrictions) do
@@ -355,7 +375,7 @@ local function listToTableContents(list, suppressSpace)
 	--	ex the list {false, "hi"} -> the string 'false, "hi"' (suitable for storing in a script)
 	local new = {}
 	for i, item in ipairs(list) do
-		new[i] = type(item) == "string" and ('"%s"'):format(item) or tostring(item)
+		new[i] = if type(item) == "string" then ('"%s"'):format(item) else tostring(item)
 	end
 	return table.concat(new, suppressSpace and "," or ", ")
 end
@@ -524,7 +544,7 @@ local GenLock do
 						success = false
 					end
 				end)
-				wait(waitTimeToGuarantee or 0)
+				task.wait(waitTimeToGuarantee or 0)
 				con:Disconnect()
 				fullyLocked = success
 				if onYield then pcall(onYield) end
@@ -535,7 +555,7 @@ local GenLock do
 				coroutine.resume(coroutine.create(function()
 					-- Automatically remove the lock if something goes wrong
 					while lock.Parent do
-						wait()
+						task.wait()
 						if coroutine.status(co) == "dead" then
 							lock.Parent = nil
 							break
@@ -543,7 +563,7 @@ local GenLock do
 					end
 					-- local timeLeft = 60 -- In case the function call to 'tryLock' was in a pcall and keeps running indefinitely
 					-- while lock.Parent do
-					-- 	timeLeft -= wait()
+					-- 	timeLeft -= task.wait()
 					-- 	if coroutine.status(co) == "dead" or timeLeft <= 0 then
 					-- 		lock.Parent = nil
 					-- 		break
@@ -669,7 +689,7 @@ local readAuthorDirectory, writeAuthorDirectory do
 	function readAuthorDirectory()
 		--[[Only call if plugin installed. Returns idToEntry: {
 			[id] = {
-				Names = {[name1] = true, [name2] = true},
+				Names = {[name1] = true, [name2] = true, name1, name2}, -- where name1 is the most recent
 				Banned = true/nil,
 				LastUpdated=os.time()/nil},
 		}]]
@@ -685,6 +705,7 @@ local readAuthorDirectory, writeAuthorDirectory do
 					local v = list[i]
 					if type(v) == "string" then
 						names[v] = true
+						table.insert(names, v)
 					elseif v == true then
 						entry.Banned = true
 					else
@@ -695,13 +716,6 @@ local readAuthorDirectory, writeAuthorDirectory do
 		end
 		return idToEntry
 	end
-	local function setToList(set)
-		local list = {}
-		for k, _ in set do
-			list[#list + 1] = k
-		end
-		return list
-	end
 	local writeMPSAuthorDirectory
 	local function getWriteMPSAuthorDirectory()
 		if not writeMPSAuthorDirectory then
@@ -711,6 +725,7 @@ local readAuthorDirectory, writeAuthorDirectory do
 	end
 	function writeAuthorDirectory(idToEntry, considerYield)
 		local clientDir = getOrCreate(ReplicatedStorage, "AuthorDirectory", "ModuleScript")
+		local displayNameScript = getOrCreate(ReplicatedStorage, "IdToDisplayName", "ModuleScript")
 		considerYield = considerYield or function() end
 		--[[
 		Client data: {[id] = {name1, name2}}
@@ -720,7 +735,7 @@ local readAuthorDirectory, writeAuthorDirectory do
 		local idToExtra = {}
 		local i = 0 -- using 'i' to only occasionally call considerYield() is 5x faster (not measuring the rest of the loop)
 		for id, entry in idToEntry do
-			idToList[id] = listToTableContents(setToList(entry.Names))
+			idToList[id] = listToTableContents(entry.Names)
 			idToExtra[id] = entry.Banned or entry.LastUpdated
 			i += 1
 			if i == 100 then
@@ -741,16 +756,16 @@ local readAuthorDirectory, writeAuthorDirectory do
 		setSource(clientDir, ([[
 local idToNames = {}
 for i = 1, %d do
-	for k, v in require(script["Pg" .. i]) do
-		local new = #v > 0 and {} or v
-		for j, name in ipairs(v) do
+	for id, nameList in require(script["Pg" .. i]) do
+		local new = if #nameList > 0 then table.create(#nameList) else nameList -- create a new table unless it's an empty table (which we can simply reuse)
+		for j, name in ipairs(nameList) do
 			new[j] = name:lower()
 		end
-		idToNames[k] = new
+		idToNames[id] = new
 	end
 end
 
--- Add in those from BookClient
+-- Add in those from BookClient if there aren't any names in the database
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Books = require(ReplicatedStorage.Library.BooksClient)
 local books = Books:GetBooks()
@@ -760,11 +775,10 @@ for _, book in ipairs(books) do
 			local author = book.Authors[i]
 			if author then
 				local list = idToNames[authorId]
-				if not list then
-					list = {}
-					idToNames[authorId] = list
+				if not list or #list == 0 then
+					-- note: if #list == 0 we don't want to reuse the table because we reused empty tables above (and those shouldn't be modified)
+					idToNames[authorId] = {author:lower()}
 				end
-				list[#list + 1] = author:lower()
 			end
 		end
 	end
@@ -809,6 +823,15 @@ function AuthorDirectory.PartialMatches(value)
 	return ids
 end
 return AuthorDirectory]]):format(numPages))
+		setSource(displayNameScript, ([[
+local idToDisplayName = {}
+local authorDirectory = script.Parent.AuthorDirectory
+for i = 1, %d do
+	for id, nameList in require(authorDirectory["Pg" .. i]) do
+		idToDisplayName[id] = nameList[1]
+	end
+end
+return idToDisplayName]]):format(numPages))
 		getWriteMPSAuthorDirectory()(function(write)
 			for id, list in idToList do
 				write(("\t{%d%s%s,%s},\n"):format(id, list == "" and "" or ",", list, tostring(idToExtra[id] or 0)))
@@ -856,7 +879,7 @@ local authorLock, onMaintenanceFinished do
 			end
 			local function yield(dur)
 				yielding = true
-				wait(dur)
+				task.wait(dur)
 				yielding = false
 				lastYieldTime = os.clock()
 			end
@@ -997,6 +1020,11 @@ local authorLock, onMaintenanceFinished do
 								numUpdated += 1
 							end
 							curEntry.Names[username] = true
+							table.insert(curEntry.Names, 1, username)
+						elseif curEntry.Names[1] ~= username then
+							numUpdated += 1
+							table.remove(curEntry.Names, table.find(curEntry.Names, username))
+							table.insert(curEntry.Names, 1, username)
 						else
 							numConfirmed += 1
 						end
@@ -1022,9 +1050,87 @@ local authorLock, onMaintenanceFinished do
 	end
 end
 
+local function inListCaseInsensitive(list, item)
+	item = item:lower()
+	for i, v in ipairs(list) do
+		if v:lower() == item then
+			return true
+		end
+	end
+	return false
+end
+
 local noAuthorName = Report.NewListCollector(
 	"1 book has an authorId but no corresponding author name:",
 	"%d books have an authorId but no corresponding author name:")
+local wrongAuthorName = Report.NewListCollector(
+	"1 book has an incorrect author name. Update name, set id to false, or use custom author line:",
+	"%d books have incorrect author names. Update name, set id to false, or use custom author line:")
+local authorLookupIssues = Report.NewListCollector("%d unknown issue%s while looking up old author names:")
+local checkUnexpectedUsername do
+	--local idToResult = {} -- [authorId] = list of coroutines waiting for result (list is created by first thread to seek the result)
+	-- Roblox caches Players:GetUserIdFromNameAsync but if we call it 10x from 10 separate threads then it
+	--local listOfThingsToCheckOverTime
+	local numUpdates = 0
+	local asyncReport
+	local function getReport()
+		asyncReport = asyncReport or Report.new()
+		return asyncReport
+	end
+	local function makeReport()
+		if asyncReport then
+			print(string.format("Delayed report concluded. %d authors updated. Issues:", numUpdates))
+			printReportOnePerLine(asyncReport)
+			asyncReport = nil
+		else
+			print(string.format("Delayed report concluded: no fixes needed. %d authors updated.", numUpdates))
+		end
+	end
+	local checkingThreads = 0
+	local callNum = 0
+	function checkUnexpectedUsername(idToEntry, book, authorId, authorName)
+		callNum += 1
+		task.spawn(function()
+			checkingThreads += 1
+			local success, foundId
+			for i = 1, 3 do
+				success, foundId = pcall(function() return Players:GetUserIdFromNameAsync(authorName) end)
+				if success then break end
+				if foundId:find("Unknown user") then
+					success = true
+					foundId = nil
+					break
+				end
+				task.wait(1)
+			end
+			if not success then
+				getReport()(authorLookupIssues, ("%s (id %d) (username in script: %s) encountered error: %s"):format(bookPath(book), authorId, authorName, foundId))
+			elseif foundId ~= authorId then
+				getReport()(wrongAuthorName, ("%s (id %d) (username in script: %s)"):format(bookPath(book), authorId, authorName))
+			else
+				local names = idToEntry[authorId].Names
+				if not names[authorName] then
+					table.insert(names, authorName)
+					names[authorName] = true
+					numUpdates += 1
+				end
+			end
+			checkingThreads -= 1
+			if checkingThreads == 0 then
+				local curNum = callNum
+				task.wait()
+				if curNum == callNum then
+					if numUpdates > 0 then
+						writeAuthorDirectory(idToEntry)
+					end
+					makeReport()
+					numUpdates = 0
+				end
+			end
+		end)
+	end
+end
+
 local function updateAuthorInformation(report, books)
 	--[[
 		Read database
@@ -1035,6 +1141,7 @@ local function updateAuthorInformation(report, books)
 	local idToEntry = readAuthorDirectory()
 	local idsFound = {}
 	local numNew, numRemoved = 0, 0
+	local notifiedAboutDelay = false
 	for _, book in ipairs(books) do
 		for i, authorId in book.AuthorIds do -- using pairs in case there are holes in the list
 			if type(authorId) ~= "number" then continue end -- ex if it's false
@@ -1049,6 +1156,15 @@ local function updateAuthorInformation(report, books)
 				entry = {Names = {}}
 				idToEntry[authorId] = entry
 				numNew += 1
+			end
+			if authorName ~= "" -- "" can mean "figure it out for me"
+					and entry.Names[1] -- make sure that at least 1 name is known
+					and not inListCaseInsensitive(entry.Names, authorName) then -- check to see current or past names match the one in the script
+				checkUnexpectedUsername(idToEntry, book, authorId, authorName)
+				if not notifiedAboutDelay then
+					notifiedAboutDelay = true
+					report(FINAL_SUMMARY + 5, "There will be a delayed report regarding author names. Please watch for future output...")
+				end
 			end
 		end
 	end
@@ -1117,13 +1233,11 @@ local generateReportToScript do
 	end
 	local commentOpen = "--[===[\n"
 	local commentClose = "\n]===]"
-	local startLength
 	local commentAndHeaderOpen
 	do
 		local s = {commentOpen}
 		addHeaderLine(s)
 		commentAndHeaderOpen = table.concat(s)
-		startLength = #commentAndHeaderOpen + #commentClose
 	end
 	local writeReport = WriteMultiPageScript(ServerStorage, commentAndHeaderOpen, commentClose, "Book List Report Pg", "Script", true)
 	local function includeBookInReport(book)
@@ -1354,8 +1468,8 @@ end
 
 local numNamesUpdated = Report.NewCountCollector("%d book model name%s updated")
 numNamesUpdated.Order = FINAL_SUMMARY
-local function updateModelName(report, book)
-	local name = getBookTitleByAuthorLine(book)
+local function updateModelName(report, book, authorDirectory)
+	local name = getBookTitleByAuthorLine(book, authorDirectory)
 	for _, model in ipairs(book.Models) do
 		local botmTag = model.Name:match(" %- BOTM.*") -- preserve BOTM tag
 		local newName = botmTag and name .. botmTag or name
@@ -1587,6 +1701,7 @@ local function assignIds(report, books, pauseIfNeeded)
 	end
 	local new = {} -- List<book>
 	local invalidIfNew = {} --[book] = true; used to ignore new books if they don't share the source but do share the fields
+	local authorDirectory = readAuthorDirectory()
 	for _, book in ipairs(books) do
 		local models = book.Models
 		-- Check to see if there are any inconsistencies
@@ -1618,7 +1733,7 @@ local function assignIds(report, books, pauseIfNeeded)
 				end
 			end
 		elseif existingId then -- either they're all old or there are new copies but no inconsistencies; do quick maintenance only
-			updateModelName(report, book) -- just in case it's been changed (we assume that any editing will not introduce a need to trim/get rid of special characters/will not invalidate the book)
+			updateModelName(report, book, authorDirectory) -- just in case it's been changed (we assume that any editing will not introduce a need to trim/get rid of special characters/will not invalidate the book)
 		else -- allNew. if it doesn't share fields with another book, add to 'new' list (done further down) so it can get a new id if its source doesn't end up on the invalid list
 			-- Note: we only get rid of special characters (etc) for new books because it takes at least several seconds to perform this for a few thousand books.
 			local anyModelInWorkspace = false
@@ -1632,7 +1747,7 @@ local function assignIds(report, books, pauseIfNeeded)
 			if anyModelInWorkspace then -- book could be under construction so don't remove comments
 				getRidOfSpecialCharactersAndCommentsAndWaitForChildFor(book)
 			end
-			updateModelName(report, book)
+			updateModelName(report, book, authorDirectory)
 			pauseIfNeeded()
 		end
 		local other = storeReturnSame(book)
@@ -1703,7 +1818,7 @@ local getGenreInputFromShelf do
 	local down = Vector3.new(0, -2, 0) -- theoretically -1 should suffice
 	local dirs = {up, down}
 	local raycastParams = RaycastParams.new()
-	raycastParams.FilterType = Enum.RaycastFilterType.Whitelist
+	raycastParams.FilterType = Enum.RaycastFilterType.Include
 	raycastParams.FilterDescendantsInstances = neonList
 	local function getShelfFromBook(bookModel)
 		for _, dir in ipairs(dirs) do
@@ -1935,7 +2050,7 @@ local function run()
 		end) then
 			warn("Failed to acquire lock to update author database")
 		end
-		print(report:Compile())
+		printReportOnePerLine(report)
 		onMaintenanceFinished()
 	end)
 	if not gotLock then

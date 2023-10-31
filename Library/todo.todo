@@ -13,6 +13,14 @@ Book Maintenance Plugin:
 		☐ author name updates
 		☐ shelf shenanigans
 		☐ output script
+	✔ add warning if authorname (with id) doesn't align with current/prev names
+	✔ use correct author name when updating book parts
+	add username to author database if it's in a script if Roblox's GetUserIdFromNameAsync confirms it:
+	✔ look at all books
+		✔ look at author name & id
+		✔ if author name not in database and if GetIdAsync(author name) matches id, add author name to past author names
+			✔ make sure to cache the result for the duration of the check
+		✔ make a delayed report since it can't know right away
 Bug:
 	☐	"The book “The Boeing 727, Boeing’s Trijet”, there is a weird text/page split." - on PC but not on mobile
 	☐	Text colliding in workshops for many books

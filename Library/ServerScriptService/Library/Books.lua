@@ -3,18 +3,21 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Event = require(ReplicatedStorage.Utilities.Event)
 local List = require(ReplicatedStorage.Utilities.List)
 local String = require(ReplicatedStorage.Utilities.String)
+local Writer = require(ReplicatedStorage.Writer)
+local	CustomMarkdown = Writer.CustomMarkdown
+local	PageCounter = Writer.PageCounter
+local	RichText = Writer.RichText
+
 local ServerScriptService = game:GetService("ServerScriptService")
 local BookChildren = require(ServerScriptService.Library.BookChildren)
 local BookVersionUpgrader = require(ServerScriptService.Library.BookVersionUpgrader)
 local Genres = require(ServerScriptService.Library.Genres)
 local ParallelTasks = require(ServerScriptService.ParallelTasks)
-local Writer = require(ReplicatedStorage.Writer)
-local	CustomMarkdown = Writer.CustomMarkdown
-local	PreRenderPageCounter = Writer.PreRender
-local	PageCounter = Writer.PageCounter
-local	RichText = Writer.RichText
 
 local Players = game:GetService("Players")
+
+local IdToDisplayName = ReplicatedStorage:FindFirstChild("IdToDisplayName")
+if IdToDisplayName then IdToDisplayName = require(IdToDisplayName) end
 
 task.spawn(function()
 	ParallelTasks.SetDesiredFPS(2)
@@ -383,6 +386,14 @@ local function register(model, data, upgradeIfNew)
 	end
 	if authorNames then
 		authorNames = convertEmptyToAnonymous(authorNames)
+		if authorIds and IdToDisplayName then
+			for i, id in ipairs(authorIds) do
+				local displayName = IdToDisplayName[id]
+				if displayName then
+					authorNames[i] = displayName
+				end
+			end
+		end
 	end
 	local authorLine = customAuthorLine or (if authorNames then List.ToEnglish(authorNames) else "?")
 	if authorLine == "" then authorLine = "Anonymous" end
