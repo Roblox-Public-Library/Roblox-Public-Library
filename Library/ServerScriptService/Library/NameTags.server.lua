@@ -5,7 +5,7 @@ local GUEST_ROLE = "Visitor" -- put this as whatever you want non-group-members 
 local heartbeat = game:GetService("RunService").Heartbeat
 
 local function shouldNotClone(child)
-	return child.Name == "Neck" or child:IsA("Attachment")
+	return child.Name == "Neck" or child:IsA("Attachment") or child:IsA("Decal")
 end
 local propsToUpdate = {"Color", "Material", "Reflectance"} -- for the head
 local function onPlayerAdded(player)
@@ -26,7 +26,6 @@ local function onPlayerAdded(player)
 				c:Destroy()
 			end
 		end
-		head.Transparency = 1
 		local weld = Instance.new("Weld")
 		weld.Part0 = head
 		weld.Part1 = newHead
@@ -34,6 +33,7 @@ local function onPlayerAdded(player)
 		newHead.Parent = model
 		model.Parent = character
 		weld.Enabled = true
+		if newHead:FindFirstChildWhichIsA("SpecialMesh") then newHead:FindFirstChildWhichIsA("SpecialMesh").Scale = Vector3.new(0,0,0) end -- Really bad ugliness, but roblox Humanoid behaviors forced my hand
 		for _, prop in ipairs(propsToUpdate) do
 			head:GetPropertyChangedSignal(prop):Connect(function()
 				newHead[prop] = head[prop]
