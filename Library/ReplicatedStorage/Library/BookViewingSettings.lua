@@ -14,7 +14,7 @@ BookViewingSettings.DefaultData = {
 	LightMode = true,
 }
 BookViewingSettings.MinViewDistance = 1
-BookViewingSettings.MaxViewDistance = 5
+BookViewingSettings.MaxViewDistance = 10 -- in preperation for vr, I want to make the max distance larger, since the VR view is so zoomed
 
 local keyToClass = {
 	ThreeD = ValuePointer.Override({get = function(v) return if v == nil then default3D else v end}),
